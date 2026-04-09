@@ -1,0 +1,204 @@
+const SPINE_PROFILES = {
+  thoracolumbar: {
+    label: 'Thoracolumbar Spine Range of Motion (General Rating Formula)',
+    domains: [
+      { id: 'forward_flexion', label: 'Forward Bending (Flexion)',
+        description: 'How far can you bend forward? Normal is 90 degrees.',
+        levels: [
+          {value:0,  label:'Normal (90°)',           description:'Full forward bending (flexion), no limitation.'},
+          {value:10, label:'Greater than 60° but ≤85°', description:'Forward bending (flexion) greater than 60° but not greater than 85°; or combined range of motion >120° but ≤235°.'},
+          {value:20, label:'Greater than 30° but ≤60°', description:'Forward bending (flexion) greater than 30° but not greater than 60°; or combined range of motion ≤120°; or muscle spasm/guarding causing abnormal gait or contour.'},
+          {value:40, label:'30° or less',             description:'Forward bending (flexion) of the thoracolumbar spine 30° or less; or the spine is frozen/locked in a favorable position (favorable ankylosis).'},
+          {value:50, label:'Spine frozen in unfavorable position',   description:'The entire thoracolumbar spine is frozen/locked in an unfavorable position (unfavorable ankylosis).'},
+          {value:100,label:'Entire spine frozen',  description:'The entire spine is frozen/locked in an unfavorable position (unfavorable ankylosis of the entire spine).'},
+        ]
+      },
+      { id: 'pain', label: 'Painful Motion / Spasm',
+        description: 'Presence of painful motion, muscle spasm, or guarding.',
+        levels: [
+          {value:0,  label:'None',                  description:'No painful motion, spasm, or guarding.'},
+          {value:10, label:'Painful motion / tenderness', description:'Painful motion; or muscle spasm, guarding, or localized tenderness not resulting in abnormal gait.'},
+          {value:20, label:'Spasm causing abnormal gait', description:'Muscle spasm or guarding severe enough to result in abnormal gait or abnormal spinal contour.'},
+        ]
+      },
+      { id: 'radiculopathy', label: 'Nerve Pain / Numbness Traveling Down the Leg (Radiculopathy / Sciatica — DC 8520)',
+        description: 'Nerve root involvement — numbness, tingling, pain, or weakness radiating into the legs',
+        levels: [
+          {value:0,  label:'None',              description:'No nerve pain/numbness traveling down the leg (radiculopathy) or nerve involvement.'},
+          {value:10, label:'Mild',              description:'Mild incomplete paralysis — intermittent numbness or tingling in the leg/foot.'},
+          {value:20, label:'Moderate',          description:'Moderate incomplete paralysis — frequent numbness, pain radiating below the knee, mild foot weakness.'},
+          {value:40, label:'Moderately Severe', description:'Moderately severe incomplete paralysis — significant pain, noticeable muscle weakness, difficulty with toe/heel walking.'},
+          {value:60, label:'Severe',            description:'Severe incomplete paralysis — marked muscle shrinkage/wasting (atrophy), foot drop, or significant loss of function.'},
+          {value:80, label:'Complete',          description:'Complete paralysis — foot dangles and drops, no active movement possible below the knee, ability to bend (flex) the knee weakened or lost.'},
+        ]
+      }
+    ]
+  },
+  cervical: {
+    label: 'Cervical Spine Range of Motion (General Rating Formula)',
+    domains: [
+      { id: 'forward_flexion', label: 'Forward Bending (Flexion)',
+        description: 'How far can you bend your neck forward? Normal is 45 degrees.',
+        levels: [
+          {value:0,  label:'Normal (45°)',             description:'Full cervical forward bending (flexion), no limitation.'},
+          {value:10, label:'Greater than 30° but ≤40°', description:'Forward bending (flexion) greater than 30° but not greater than 40°; or combined range of motion >170° but ≤335°.'},
+          {value:20, label:'Greater than 15° but ≤30°', description:'Forward bending (flexion) greater than 15° but not greater than 30°; or combined range of motion ≤170°; or muscle spasm/guarding causing abnormal gait.'},
+          {value:30, label:'15° or less',              description:'Forward bending (flexion) of the cervical spine 15° or less; or the entire cervical spine is frozen/locked in a favorable position (favorable ankylosis).'},
+          {value:40, label:'Neck frozen in unfavorable position',    description:'The entire cervical spine is frozen/locked in an unfavorable position (unfavorable ankylosis).'},
+          {value:100,label:'Entire spine frozen',   description:'The entire spine is frozen/locked in an unfavorable position (unfavorable ankylosis of the entire spine).'},
+        ]
+      },
+      { id: 'pain', label: 'Painful Motion / Spasm',
+        description: 'Presence of painful motion, muscle spasm, or guarding.',
+        levels: [
+          {value:0,  label:'None',                  description:'No painful motion, spasm, or guarding.'},
+          {value:10, label:'Painful motion / tenderness', description:'Painful motion; or muscle spasm, guarding, or localized tenderness.'},
+          {value:20, label:'Spasm causing abnormal gait', description:'Muscle spasm or guarding severe enough to result in abnormal gait or abnormal spinal contour.'},
+        ]
+      }
+    ]
+  },
+  ivds: {
+    label: 'Intervertebral Disc Syndrome (DC 5243)',
+    note: 'Rate based on flare-ups bad enough to keep you in bed, as prescribed by a physician.',
+    domains: [
+      { id: 'episodes', label: 'Flare-Ups Bad Enough to Keep You in Bed (past 12 months)',
+        description: 'Total duration of flare-ups bad enough to keep you in bed (incapacitating episodes) requiring bed rest prescribed by a physician during past 12 months.',
+        levels: [
+          {value:0,  label:'None',              description:'No flare-ups requiring bed rest in past 12 months.'},
+          {value:10, label:'1-2 weeks total',   description:'At least 1 week but less than 2 weeks total duration.'},
+          {value:20, label:'2-4 weeks total',   description:'At least 2 weeks but less than 4 weeks total duration.'},
+          {value:40, label:'4-6 weeks total',   description:'At least 4 weeks but less than 6 weeks total duration.'},
+          {value:60, label:'6+ weeks total',    description:'At least 6 weeks total duration. Highest schedular evaluation for IVDS.'},
+        ]
+      }
+    ]
+  },
+  generic: {
+    label: 'General Spine Assessment',
+    domains: [
+      { id: 'severity', label: 'Overall Spine Condition Severity',
+        description: 'General functional impact of this spine/back condition.',
+        levels: [
+          {value:0,  label:'Asymptomatic',       description:'Condition present but no functional limitation.'},
+          {value:10, label:'Mild',                description:'Mild symptoms with slight functional limitation.'},
+          {value:20, label:'Moderate',            description:'Moderate symptoms with noticeable limitation.'},
+          {value:30, label:'Moderately severe',   description:'Significant symptoms affecting daily activities.'},
+          {value:50, label:'Severe',              description:'Severe symptoms substantially limiting function.'},
+        ]
+      }
+    ]
+  }
+};
+
+const SPINE_CONDITION_PROFILE = {
+  'Lumbar strain / sprain': 'thoracolumbar',
+  'Lumbar disc herniation': 'thoracolumbar',
+  'Lumbar radiculopathy / sciatica': 'thoracolumbar',
+  'Degenerative disc disease (lumbar)': 'thoracolumbar',
+  'Spinal stenosis (lumbar)': 'thoracolumbar',
+  'Thoracic strain': 'thoracolumbar',
+  'Compression fracture': 'thoracolumbar',
+  'Sacroiliac joint dysfunction': 'thoracolumbar',
+  'Ankylosing spondylitis': 'thoracolumbar',
+  'Intervertebral disc syndrome (IVDS)': 'ivds',
+  'Scoliosis': 'thoracolumbar',
+};
+
+function getSpineProfile(conditionName){ return SPINE_PROFILES[SPINE_CONDITION_PROFILE[conditionName] || 'generic']; }
+function getSpineProfileKey(conditionName){ return SPINE_CONDITION_PROFILE[conditionName] || 'generic'; }
+function calculateSpineRating(domainValues){
+  let maxVal = 0;
+  Object.values(domainValues).forEach(v => { if(typeof v==='number' && v>maxVal) maxVal=v; });
+  return maxVal;
+}
+
+// ── SHOULDER EVALUATION PROFILES (VA 8787) ──────────────────────────────────
+const SHOULDER_PROFILES = {
+  rom: {
+    label: 'Limitation of Motion (DC 5201)',
+    domains: [
+      { id: 'motion', label: 'Arm Motion at Shoulder',
+        description: 'How far can you raise your arm? Rated by limitation of motion.',
+        levels: [
+          {value:0,  label:'Normal (full overhead)',  description:'Full range of motion, no limitation.'},
+          {value:20, label:'At shoulder level',        description:'Motion limited to shoulder level (90°).'},
+          {value:30, label:'Midway (side to shoulder)', description:'Motion limited to midway between side and shoulder level (~45°).'},
+          {value:40, label:'To 25° from side',         description:'Motion limited to 25° from side. Significant functional loss.'},
+        ]
+      }
+    ]
+  },
+  instability: {
+    label: 'Instability / Dislocation (DC 5202)',
+    domains: [
+      { id: 'instability', label: 'Recurrent Dislocation or Impairment',
+        description: 'Humerus impairment: recurrent dislocation, malunion, or nonunion.',
+        levels: [
+          {value:0,  label:'None',                  description:'No instability, dislocation, or impairment.'},
+          {value:20, label:'Infrequent dislocation', description:'Recurrent dislocation with infrequent episodes; guarding only at shoulder level.'},
+          {value:20, label:'Malunion (moderate)',     description:'Malunion of humerus with moderate deformity.'},
+          {value:30, label:'Frequent dislocation',    description:'Recurrent dislocation with frequent episodes and guarding of all arm movements.'},
+          {value:30, label:'Malunion (marked)',        description:'Malunion of humerus with marked deformity.'},
+          {value:50, label:'Fibrous union',           description:'Fibrous union of the humerus.'},
+          {value:60, label:'Nonunion (false flail)',   description:'Nonunion of the humerus (false flail joint).'},
+          {value:80, label:'Loss of head (flail)',     description:'Loss of head of the humerus (flail shoulder).'},
+        ]
+      }
+    ]
+  },
+  clavicle: {
+    label: 'Clavicle / Scapula (DC 5203)',
+    domains: [
+      { id: 'clavicle', label: 'Clavicle or Scapula Impairment',
+        description: 'Impairment of the clavicle or scapula.',
+        levels: [
+          {value:0,  label:'None / Malunion only',   description:'No impairment or malunion of clavicle/scapula.'},
+          {value:10, label:'Nonunion without loose movement', description:'Nonunion of clavicle or scapula without loose movement.'},
+          {value:20, label:'Nonunion with loose movement / Dislocation', description:'Nonunion with loose movement; or dislocation of clavicle or scapula.'},
+        ]
+      }
+    ]
+  },
+  generic: {
+    label: 'General Shoulder Assessment',
+    domains: [
+      { id: 'severity', label: 'Overall Shoulder Condition Severity',
+        description: 'General functional impact of this shoulder condition.',
+        levels: [
+          {value:0,  label:'Asymptomatic',       description:'No functional limitation.'},
+          {value:10, label:'Mild',                description:'Mild symptoms with slight limitation.'},
+          {value:20, label:'Moderate',            description:'Moderate symptoms with noticeable limitation.'},
+          {value:30, label:'Moderately severe',   description:'Significant symptoms affecting daily activities.'},
+          {value:50, label:'Severe',              description:'Severe symptoms substantially limiting function.'},
+        ]
+      }
+    ]
+  }
+};
+
+const SHOULDER_CONDITION_PROFILE = {
+  'Rotator cuff tear / tendinopathy': 'rom',
+  'Shoulder impingement': 'rom',
+  'Shoulder instability / dislocation': 'instability',
+  'Labral tear (SLAP)': 'rom',
+  'Frozen shoulder (adhesive capsulitis)': 'rom',
+  'AC joint separation': 'clavicle',
+  'Shoulder arthritis': 'rom',
+  'Shoulder bursitis': 'generic',
+  'Shoulder fracture': 'instability',
+};
+
+function getShoulderProfile(conditionName){ return SHOULDER_PROFILES[SHOULDER_CONDITION_PROFILE[conditionName] || 'generic']; }
+function getShoulderProfileKey(conditionName){ return SHOULDER_CONDITION_PROFILE[conditionName] || 'generic'; }
+function calculateShoulderRating(domainValues){
+  let maxVal = 0;
+  Object.values(domainValues).forEach(v => { if(typeof v==='number' && v>maxVal) maxVal=v; });
+  return maxVal;
+}
+
+// ── NECK PROFILES (DC 5237 / General Rating Formula for Cervical Spine) ──────
+
+const NECK_PROFILES = {
+  cervical: {
+    key: 'cervical', label: 'Cervical Spine (DC 5237-5243)',

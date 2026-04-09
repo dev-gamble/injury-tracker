@@ -3,25 +3,33 @@
 import { useRef, useCallback } from 'react'
 import type { Injury } from '../../../lib/va/types'
 import { useTracker } from '../../../hooks/useTrackerStore'
+import { getRegionAtPoint } from '../../../lib/va/region-zones'
 import { BodyImage } from './BodyImage'
 
 interface BodyPanelProps {
   onClickPin: (injury: Injury) => void
   onBodyClick: (x: number, y: number) => void
+  onRegionClick?: (regionId: string) => void
 }
 
-export function BodyPanel({ onClickPin, onBodyClick }: BodyPanelProps) {
+export function BodyPanel({ onClickPin, onBodyClick, onRegionClick }: BodyPanelProps) {
   const { state, dispatch } = useTracker()
   const { curSide, curBody, injuries, pendingPin } = state
   const containerRef = useRef<HTMLDivElement>(null)
 
   const handleBodyClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!pendingPin) return
     const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect()
     const x = ((e.clientX - rect.left) / rect.width) * 100
     const y = ((e.clientY - rect.top) / rect.height) * 100
-    onBodyClick(x, y)
-  }, [pendingPin, onBodyClick])
+
+    if (pendingPin) {
+      onBodyClick(x, y)
+      return
+    }
+
+    const region = getRegionAtPoint(x, y, curSide)
+    if (region && onRegionClick) onRegionClick(region)
+  }, [pendingPin, onBodyClick, onRegionClick, curSide])
 
   return (
     <div className="body-panel">

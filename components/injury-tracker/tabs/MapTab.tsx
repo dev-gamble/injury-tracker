@@ -42,6 +42,10 @@ export function MapTab() {
     }
   }, [bpPanelOpen, dispatch])
 
+  const handleRegionClick = useCallback((regionId: string) => {
+    dispatch({ type: 'SET_BP_PANEL_OPEN', regionId })
+  }, [dispatch])
+
   const handleClosePanel = useCallback(() => {
     dispatch({ type: 'SET_BP_PANEL_OPEN', regionId: null })
   }, [dispatch])
@@ -72,6 +76,7 @@ export function MapTab() {
             <BodyPanel
               onClickPin={handleClickPin}
               onBodyClick={handleBodyClick}
+              onRegionClick={handleRegionClick}
             />
           </div>
 

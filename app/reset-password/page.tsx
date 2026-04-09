@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { AuthBrand } from "@/components/auth/AuthBrand"
 
 export default function ResetPasswordPage() {
   const router = useRouter()
@@ -18,7 +19,6 @@ export default function ResetPasswordPage() {
     let mounted = true
 
     async function checkRecoverySession() {
-      // Hash-based recovery links must be exchanged into session state.
       const hash = window.location.hash.startsWith("#")
         ? window.location.hash.slice(1)
         : window.location.hash
@@ -33,7 +33,6 @@ export default function ResetPasswordPage() {
           refresh_token: refreshToken,
         })
         if (!mounted) return
-
         if (error) {
           setError(error.message)
         } else {
@@ -45,7 +44,6 @@ export default function ResetPasswordPage() {
 
       const { data } = await supabase.auth.getSession()
       if (!mounted) return
-
       setReady(Boolean(data.session))
       setCheckingLink(false)
     }
@@ -62,7 +60,7 @@ export default function ResetPasswordPage() {
     }
   }, [])
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: { preventDefault(): void }) {
     e.preventDefault()
     if (password !== confirm) {
       setError("Passwords do not match")
@@ -81,60 +79,79 @@ export default function ResetPasswordPage() {
 
   if (checkingLink) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center p-8">
-        <p className="text-sm text-gray-500">Verifying reset link...</p>
+      <main className="auth-page">
+        <div className="auth-card">
+          <AuthBrand />
+          <div className="auth-body" style={{ textAlign: "center", padding: "40px 28px" }}>
+            <p style={{ fontFamily: "var(--fd)", fontSize: 12, color: "var(--muted)" }}>Verifying reset link...</p>
+          </div>
+        </div>
       </main>
     )
   }
 
   if (!ready) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center p-8">
-        <div className="w-full max-w-sm space-y-4">
-          <h1 className="text-2xl font-bold">Reset link invalid</h1>
-          <p className="text-sm text-gray-500">
-            This link is invalid or expired. Request a new reset email and try again.
-          </p>
-          <Link href="/forgot-password" className="block text-center text-sm underline">
-            Request new reset link
-          </Link>
+      <main className="auth-page">
+        <div className="auth-card">
+          <AuthBrand />
+          <div className="auth-body">
+            <h1 className="auth-title">Link Invalid</h1>
+            <p className="auth-info">
+              This link is invalid or expired. Request a new reset email and try again.
+            </p>
+            <Link href="/forgot-password" className="auth-btn-dashboard">
+              Request New Link
+            </Link>
+            <div className="auth-divider" />
+            <div className="auth-footer">
+              <p><Link href="/login">Back to sign in</Link></p>
+            </div>
+          </div>
         </div>
       </main>
     )
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <div className="w-full max-w-sm space-y-6">
-        <h1 className="text-2xl font-bold">Set new password</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="password"
-            placeholder="New password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-            className="w-full rounded border px-3 py-2 text-sm"
-          />
-          <input
-            type="password"
-            placeholder="Confirm new password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            required
-            minLength={6}
-            className="w-full rounded border px-3 py-2 text-sm"
-          />
-          {error && <p className="text-sm text-red-500">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-          >
-            {loading ? "Updating..." : "Update password"}
-          </button>
-        </form>
+    <main className="auth-page">
+      <div className="auth-card">
+        <AuthBrand />
+        <div className="auth-body">
+          <h1 className="auth-title">Set New Password</h1>
+          <form onSubmit={handleSubmit}>
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="password">New Password</label>
+              <input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+                className="auth-input"
+              />
+            </div>
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="confirm">Confirm Password</label>
+              <input
+                id="confirm"
+                type="password"
+                placeholder="••••••••"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                required
+                minLength={6}
+                className="auth-input"
+              />
+            </div>
+            {error && <div className="auth-error">{error}</div>}
+            <button type="submit" disabled={loading} className="auth-btn">
+              {loading ? "Updating..." : "Update Password"}
+            </button>
+          </form>
+        </div>
       </div>
     </main>
   )

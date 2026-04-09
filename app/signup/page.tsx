@@ -4,6 +4,7 @@ import { useState } from "react"
 import { supabase } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { AuthBrand } from "@/components/auth/AuthBrand"
 
 export default function SignupPage() {
   const router = useRouter()
@@ -13,7 +14,7 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: { preventDefault(): void }) {
     e.preventDefault()
     setLoading(true)
     setError(null)
@@ -30,56 +31,66 @@ export default function SignupPage() {
 
   if (sent) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center p-8">
-        <div className="w-full max-w-sm space-y-4">
-          <h1 className="text-2xl font-bold">Check your email</h1>
-          <p className="text-sm text-gray-500">
-            We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account.
-          </p>
-          <Link href="/login" className="block text-center text-sm underline">
-            Back to sign in
-          </Link>
+      <main className="auth-page">
+        <div className="auth-card">
+          <AuthBrand />
+          <div className="auth-body">
+            <span className="auth-success-icon">✉️</span>
+            <h1 className="auth-title">Check Your Email</h1>
+            <p className="auth-info">
+              We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account.
+            </p>
+            <div className="auth-divider" />
+            <div className="auth-footer">
+              <p><Link href="/login">Back to sign in</Link></p>
+            </div>
+          </div>
         </div>
       </main>
     )
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <div className="w-full max-w-sm space-y-6">
-        <h1 className="text-2xl font-bold">Create account</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="w-full rounded border px-3 py-2 text-sm"
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="w-full rounded border px-3 py-2 text-sm"
-          />
-          {error && <p className="text-sm text-red-500">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-          >
-            {loading ? "Loading..." : "Sign up"}
-          </button>
-        </form>
-        <p className="text-center text-sm text-gray-500">
-          Already have an account? <Link href="/login" className="underline">Sign in</Link>
-        </p>
-        <p className="text-center text-sm text-gray-400">
-          <Link href="/" className="underline">Back to home</Link>
-        </p>
+    <main className="auth-page">
+      <div className="auth-card">
+        <AuthBrand />
+        <div className="auth-body">
+          <h1 className="auth-title">Create Account</h1>
+          <form onSubmit={handleSubmit}>
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="email">Email</label>
+              <input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="auth-input"
+              />
+            </div>
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="password">Password</label>
+              <input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="auth-input"
+              />
+            </div>
+            {error && <div className="auth-error">{error}</div>}
+            <button type="submit" disabled={loading} className="auth-btn">
+              {loading ? "Creating account..." : "Create Account"}
+            </button>
+          </form>
+          <div className="auth-divider" />
+          <div className="auth-footer">
+            <p>Already have an account?{" "}<Link href="/login">Sign in</Link></p>
+          </div>
+        </div>
       </div>
     </main>
   )

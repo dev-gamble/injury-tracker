@@ -1,9 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import type { User } from "@supabase/supabase-js"
+import { AuthBrand } from "@/components/auth/AuthBrand"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -11,8 +13,17 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [user, setUser] = useState<User | null>(null)
+  const [checking, setChecking] = useState(true)
 
-  async function handleSubmit(e: React.FormEvent) {
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+      setChecking(false)
+    })
+  }, [])
+
+  async function handleSubmit(e: { preventDefault(): void }) {
     e.preventDefault()
     setLoading(true)
     setError(null)
@@ -25,47 +36,88 @@ export default function LoginPage() {
     setLoading(false)
   }
 
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <div className="w-full max-w-sm space-y-6">
-        <h1 className="text-2xl font-bold">Sign in</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="w-full rounded border px-3 py-2 text-sm"
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="w-full rounded border px-3 py-2 text-sm"
-          />
-          {error && <p className="text-sm text-red-500">{error}</p>}
-          <div className="flex justify-end">
-            <Link href="/forgot-password" className="text-sm text-gray-500 underline">
-              Forgot password?
-            </Link>
+  if (checking) {
+    return (
+      <main className="auth-page">
+        <div className="auth-card">
+          <AuthBrand />
+          <div className="auth-body" style={{ textAlign: "center", padding: "40px 28px" }}>
+            <p style={{ fontFamily: "var(--fd)", fontSize: 12, color: "var(--muted)" }}>Verifying session...</p>
           </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-          >
-            {loading ? "Loading..." : "Sign in"}
-          </button>
-        </form>
-        <p className="text-center text-sm text-gray-500">
-          No account? <Link href="/signup" className="underline">Sign up</Link>
-        </p>
-        <p className="text-center text-sm text-gray-400">
-          <Link href="/" className="underline">Back to home</Link>
-        </p>
+        </div>
+      </main>
+    )
+  }
+
+  if (user) {
+    return (
+      <main className="auth-page">
+        <div className="auth-card">
+          <AuthBrand />
+          <div className="auth-body">
+            <h1 className="auth-title">Welcome Back</h1>
+            <div className="auth-user-email">{user.email}</div>
+            <Link href="/dashboard" className="auth-btn-dashboard">
+              Go to Dashboard →
+            </Link>
+            <div className="auth-divider" />
+            <div style={{ textAlign: "center" }}>
+              <form action="/signout" method="post" style={{ display: "inline" }}>
+                <button type="submit" className="auth-signout-link">
+                  Sign out
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </main>
+    )
+  }
+
+  return (
+    <main className="auth-page">
+      <div className="auth-card">
+        <AuthBrand />
+        <div className="auth-body">
+          <h1 className="auth-title">Sign In</h1>
+          <form onSubmit={handleSubmit}>
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="email">Email</label>
+              <input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="auth-input"
+              />
+            </div>
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="password">Password</label>
+              <input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="auth-input"
+              />
+            </div>
+            {error && <div className="auth-error">{error}</div>}
+            <div className="auth-forgot">
+              <Link href="/forgot-password">Forgot password?</Link>
+            </div>
+            <button type="submit" disabled={loading} className="auth-btn">
+              {loading ? "Signing in..." : "Sign In"}
+            </button>
+          </form>
+          <div className="auth-divider" />
+          <div className="auth-footer">
+            <p>No account?{" "}<Link href="/signup">Create one</Link></p>
+          </div>
+        </div>
       </div>
     </main>
   )

@@ -1,32 +1,49 @@
 import { createClient } from "@/lib/supabase/server"
 import Link from "next/link"
+import { AuthBrand } from "@/components/auth/AuthBrand"
 
 export default async function Home() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <h1 className="text-4xl font-bold">Welcome</h1>
-      <p className="mt-4 text-gray-500">Your app starts here.</p>
-      <div className="mt-8">
-        {user ? (
-          <form action="/signout" method="post">
-            <button
-              type="submit"
-              className="rounded border px-4 py-2 text-sm hover:bg-gray-50"
-            >
-              Sign out
-            </button>
-          </form>
-        ) : (
-          <Link
-            href="/login"
-            className="rounded bg-black px-4 py-2 text-sm font-medium text-white"
-          >
-            Sign in
-          </Link>
-        )}
+    <main className="auth-page">
+      <div className="auth-card">
+        <AuthBrand />
+        <div className="auth-body">
+          {user ? (
+            <>
+              <h1 className="auth-title">Welcome Back</h1>
+              <div className="auth-user-email">{user.email}</div>
+              <Link href="/dashboard" className="auth-btn-dashboard">
+                Go to Dashboard →
+              </Link>
+              <div className="auth-divider" />
+              <div style={{ textAlign: "center" }}>
+                <form action="/signout" method="post" style={{ display: "inline" }}>
+                  <button type="submit" className="auth-signout-link">
+                    Sign out
+                  </button>
+                </form>
+              </div>
+            </>
+          ) : (
+            <>
+              <h1 className="auth-title">Sign In</h1>
+              <p className="auth-info">
+                Track and document your service-connected disabilities to support your VA benefits claim.
+              </p>
+              <div className="auth-home-actions">
+                <Link href="/login" className="auth-btn-dashboard">
+                  Sign In
+                </Link>
+                <Link href="/signup" className="auth-btn-outline">
+                  Create Account
+                </Link>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </main>
   )

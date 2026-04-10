@@ -22,11 +22,17 @@ const css = `
     flex-shrink: 0;
   }
 
+  .auth-logo-group {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-shrink: 0;
+  }
+
   .auth-header-divider {
-    width: 1px;
-    height: 36px;
-    background: rgba(255,255,255,.2);
-    margin: 0 14px;
+    width: 2px;
+    height: 28px;
+    background: rgba(255,255,255,.25);
     flex-shrink: 0;
   }
 
@@ -34,7 +40,7 @@ const css = `
     font-family: 'Oswald', sans-serif;
     font-size: 20px;
     font-weight: 700;
-    letter-spacing: 1.5px;
+    letter-spacing: .5px;
     text-transform: uppercase;
     color: #fff;
     line-height: 1;
@@ -42,23 +48,18 @@ const css = `
   }
 
   .auth-header-sub {
-    font-size: 12px;
+    font-size: 11px;
     color: rgba(255,255,255,.65);
+    font-family: 'Open Sans', sans-serif;
     letter-spacing: .3px;
     margin-top: 2px;
   }
 
   .auth-header-stars {
     color: #f0a500;
-    letter-spacing: 3px;
-    font-size: 10px;
-    margin-top: 3px;
-    animation: starFadeIn .8s ease .3s both;
-  }
-
-  @keyframes starFadeIn {
-    from { opacity: 0; transform: translateY(3px); }
-    to   { opacity: 1; transform: translateY(0); }
+    letter-spacing: 2px;
+    font-size: 11px;
+    margin-top: 2px;
   }
 
   .auth-main {
@@ -134,6 +135,14 @@ const css = `
     color: #b0bac9;
   }
 
+  .auth-input:-webkit-autofill,
+  .auth-input:-webkit-autofill:hover,
+  .auth-input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 30px #fff inset !important;
+    -webkit-text-fill-color: #0a1628 !important;
+    caret-color: #0a1628;
+  }
+
   .auth-btn {
     width: 100%;
     background: #c8102e;
@@ -159,6 +168,23 @@ const css = `
   .auth-btn:disabled {
     opacity: .5;
     cursor: not-allowed;
+  }
+
+  @keyframes auth-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .auth-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255,255,255,.35);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: auth-spin .65s linear infinite;
+    vertical-align: middle;
+    margin-right: 7px;
+    flex-shrink: 0;
   }
 
   .auth-error {
@@ -250,19 +276,21 @@ export function AuthShell({ title, children }: AuthShellProps) {
       <style>{css}</style>
 
       <header className="auth-header">
-        <Link href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none", flexShrink: 0 }}>
-          <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
-            <rect width="42" height="42" rx="5" fill="#c8102e" />
-            <text x="21" y="16" textAnchor="middle" fill="white" fontSize="9" fontFamily="Oswald,sans-serif" fontWeight="700" letterSpacing="1">★ ★ ★</text>
-            <text x="21" y="27" textAnchor="middle" fill="white" fontSize="8" fontFamily="Oswald,sans-serif" fontWeight="700" letterSpacing=".5">VETERAN</text>
-            <text x="21" y="36" textAnchor="middle" fill="white" fontSize="7" fontFamily="Oswald,sans-serif" letterSpacing=".5">CLAIM TOOL</text>
-          </svg>
-        </Link>
-        <div className="auth-header-divider" />
-        <div>
-          <h1 className="auth-header-title">Injury Documentation</h1>
-          <div className="auth-header-sub">Veteran VA Claim Support Tool</div>
-          <div className="auth-header-stars">★ ★ ★ ★ ★</div>
+        <div className="auth-logo-group">
+          <Link href="/" style={{ display: "flex", alignItems: "center", textDecoration: "none", flexShrink: 0 }}>
+            <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
+              <rect width="42" height="42" rx="5" fill="#c8102e" />
+              <text x="21" y="16" textAnchor="middle" fill="white" fontSize="9" fontFamily="Oswald,sans-serif" fontWeight="700" letterSpacing="1">★ ★ ★</text>
+              <text x="21" y="27" textAnchor="middle" fill="white" fontSize="8" fontFamily="Oswald,sans-serif" fontWeight="700" letterSpacing=".5">VETERAN</text>
+              <text x="21" y="36" textAnchor="middle" fill="white" fontSize="7" fontFamily="Oswald,sans-serif" letterSpacing=".5">CLAIM TOOL</text>
+            </svg>
+          </Link>
+          <div className="auth-header-divider" />
+          <div>
+            <h1 className="auth-header-title">Injury Documentation</h1>
+            <div className="auth-header-sub">Veteran VA Claim Support Tool</div>
+            <div className="auth-header-stars">★ ★ ★ ★ ★</div>
+          </div>
         </div>
       </header>
 

@@ -20,10 +20,11 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
       setError(error.message)
+      setLoading(false)
     } else {
       router.push("/dashboard")
+      // keep loading=true — component unmounts on navigation
     }
-    setLoading(false)
   }
 
   return (
@@ -57,8 +58,9 @@ export default function LoginPage() {
           />
         </div>
         {error && <p className="auth-error">{error}</p>}
-        <button type="submit" disabled={loading} className="auth-btn">
-          {loading ? "Signing in…" : "Sign In"}
+        <button type="submit" disabled={loading} className="auth-btn" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+          {loading && <span className="auth-spinner" />}
+          {loading ? "Signing In…" : "Sign In"}
         </button>
       </form>
       <div className="auth-footer-links">

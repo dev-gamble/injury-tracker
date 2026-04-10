@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import type {
   AppState,
   Injury,
@@ -93,11 +94,14 @@ interface Actions {
 
   // Personal statement
   setPersonalStatement: (html: string) => void
+
+  // Reset
+  reset: () => void
 }
 
 // ── STORE ───────────────────────────────────────────────────────────────────────
 
-export const useInjuryStore = create<AppState & Actions>((set) => ({
+const INITIAL_STATE: AppState = {
   injuries: [],
   mentalConditions: [],
   headConditions: [],
@@ -106,6 +110,12 @@ export const useInjuryStore = create<AppState & Actions>((set) => ({
   ui: { ...DEFAULT_UI },
   personalStatement: '',
   ratingOverrides: {},
+}
+
+export const useInjuryStore = create<AppState & Actions>()(
+  persist(
+    (set) => ({
+  ...INITIAL_STATE,
 
   // ── Injuries ──
   addInjury: (injury) =>
@@ -238,7 +248,16 @@ export const useInjuryStore = create<AppState & Actions>((set) => ({
 
   // ── Personal Statement ──
   setPersonalStatement: (html) => set({ personalStatement: html }),
-}))
+
+  // ── Reset ──
+  reset: () => set(INITIAL_STATE),
+}),
+    {
+      name: 'injury-session',
+      storage: createJSONStorage(() => sessionStorage),
+    }
+  )
+)
 
 // ── SELECTORS ───────────────────────────────────────────────────────────────────
 

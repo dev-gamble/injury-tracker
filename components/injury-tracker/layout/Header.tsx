@@ -5,9 +5,12 @@ import { useInjuryStore } from '../store/useInjuryStore'
 import { exportCSV, exportTXT, exportSummary } from '../utils/export'
 import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { SignOutModal } from '../modals/SignOutModal'
 
 export function Header({ onImport }: { onImport?: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [signOutOpen, setSignOutOpen] = useState(false)
+  const [signOutLoading, setSignOutLoading] = useState(false)
   const state = useInjuryStore()
   const router = useRouter()
 
@@ -17,11 +20,14 @@ export function Header({ onImport }: { onImport?: () => void }) {
   }, [state])
 
   async function handleSignOut() {
+    setSignOutLoading(true)
+    state.reset()
     await supabase.auth.signOut()
     router.push('/login')
   }
 
   return (
+    <>
     <header>
       <div className="logo">
         <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
@@ -41,7 +47,7 @@ export function Header({ onImport }: { onImport?: () => void }) {
         <button
           className="export-btn"
           style={{ background: "transparent", borderColor: "rgba(255,255,255,.18)", color: "rgba(255,255,255,.6)", boxShadow: "none" }}
-          onClick={handleSignOut}
+          onClick={() => setSignOutOpen(true)}
           title="Sign out"
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -79,5 +85,15 @@ export function Header({ onImport }: { onImport?: () => void }) {
         </div>
       </div>
     </header>
+
+    {signOutOpen && (
+      <SignOutModal
+        onConfirm={handleSignOut}
+        onCancel={() => setSignOutOpen(false)}
+        loading={signOutLoading}
+      />
+    )}
+    </>
   )
 }
+

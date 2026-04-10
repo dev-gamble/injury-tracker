@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { SignOutModal } from '../modals/SignOutModal'
 import { ClearDataModal } from '../modals/ClearDataModal'
-import { RotateCcw } from 'lucide-react'
+import { LogOut, RotateCcw, Upload, Download, ChevronDown } from 'lucide-react'
 
 export function Header({ onImport }: { onImport?: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -58,9 +58,7 @@ export function Header({ onImport }: { onImport?: () => void }) {
           onClick={() => setSignOutOpen(true)}
           title="Sign out"
         >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
-          </svg>
+          <LogOut size={13} strokeWidth={2.5} />
           Sign Out
         </button>
         <button
@@ -77,20 +75,14 @@ export function Header({ onImport }: { onImport?: () => void }) {
           style={{ background: "var(--navy)", borderColor: "var(--navy2)", boxShadow: "0 2px 8px rgba(10,35,87,.4)" }}
           onClick={() => onImport?.()}
         >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M12 3v12m0-12l-4 4m4-4l4 4M2 17l.621 2.485A2 2 0 004.561 21h14.878a2 2 0 001.94-1.515L22 17" />
-          </svg>
+          <Upload size={13} strokeWidth={2.5} />
           Import
         </button>
         <div style={{ position: "relative" }}>
           <button className="export-btn" onClick={() => setMenuOpen(o => !o)}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 004.561 21h14.878a2 2 0 001.94-1.515L22 17" />
-            </svg>
+            <Download size={13} strokeWidth={2.5} />
             Export
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-              <path d="M6 9l6 6 6-6" />
-            </svg>
+            <ChevronDown size={11} strokeWidth={3} />
           </button>
           {menuOpen && (
             <div className="export-menu" style={{ display: 'block' }}>

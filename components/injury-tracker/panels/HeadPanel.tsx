@@ -275,11 +275,11 @@ export function HeadPanel() {
 
             {/* Summary — all ratings */}
             <div className="mh-combined" style={{ background: 'linear-gradient(135deg,#0a2357 0%,#1d4ed8 100%)' }}>
-              <div className="mh-combined-label">Head & Face Ratings</div>
+              <div className="mh-combined-label" style={{ color: '#fff' }}>Head & Face Ratings</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 8 }}>
                 {headConditions.map((c) => (
                   <div key={c.id} style={{ background: 'rgba(255,255,255,.15)', borderRadius: 6, padding: '6px 12px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,.7)', whiteSpace: 'nowrap', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,.9)', whiteSpace: 'nowrap', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {c.condition}
                     </div>
                     <div style={{ fontSize: 20, fontWeight: 800, fontFamily: 'var(--fm)', color: '#fff' }}>
@@ -288,7 +288,7 @@ export function HeadPanel() {
                   </div>
                 ))}
               </div>
-              <div className="mh-combined-note" style={{ marginTop: 8 }}>
+              <div className="mh-combined-note" style={{ marginTop: 8, color: 'rgba(255,255,255,.85)' }}>
                 Each condition contributes separately to your combined VA rating
               </div>
             </div>

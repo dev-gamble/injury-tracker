@@ -6,16 +6,90 @@ import { GROUPS_FRONT, GROUPS_BACK, SIDEBAR_ITEMS } from '../data/pins'
 import { BP_META, getPanelKeys } from '../data/bpMeta'
 import { useBadges } from './useBadges'
 import { DraggablePin } from './DraggablePin'
+import { PanelPin, type PanelPinDescriptor } from './PanelPin'
 import { MentalHealthPanel } from '../panels/MentalHealthPanel'
 import { HeadPanel } from '../panels/HeadPanel'
 import { BodyPartPanel } from '../panels/BodyPartPanel'
-import type { BPRegion, Injury } from '../types'
+import type { BPCondition, BPRegion, HeadCondition, Injury, MHCondition, Pin } from '../types'
 
 const HEAD_KEYS = new Set(['headFace', 'head', 'leftEar', 'rightEar', 'leftEye', 'rightEye', 'nose', 'jaw'])
+const PANEL_KEYS = getPanelKeys()
 
 function injuryNumber(inj: Injury, sorted: Injury[]): number {
   const idx = sorted.findIndex((i) => i.id === inj.id)
   return idx >= 0 ? idx + 1 : 0
+}
+
+function clearPinPlacementUi() {
+  document.body.classList.remove('pin-placing')
+  document.querySelectorAll('.body-wrap').forEach((el) => el.classList.remove('pin-place-mode'))
+}
+
+function ratingToSeverity(rating: number): Injury['severity'] {
+  if (rating >= 70) return 'severe'
+  if (rating >= 30) return 'moderate'
+  if (rating > 0) return 'mild'
+  return 'custom'
+}
+
+function resolveBPRegionForKey(key: string): BPRegion | null {
+  if (BP_META[key as BPRegion]) return key as BPRegion
+
+  for (const [regionId, meta] of Object.entries(BP_META)) {
+    if (key in meta.sideKeys) return regionId as BPRegion
+  }
+
+  return null
+}
+
+function buildPanelPins(
+  mentalConditions: MHCondition[],
+  headConditions: HeadCondition[],
+  bpConditions: Record<BPRegion, BPCondition[]>,
+): PanelPinDescriptor[] {
+  const panelPins: PanelPinDescriptor[] = []
+
+  const mentalAnchor = mentalConditions.find((condition) => condition.pin)
+  if (mentalAnchor?.pin) {
+    const highestRating = Math.max(...mentalConditions.map((condition) => condition.effectiveRating ?? 0))
+    panelPins.push({
+      id: 'panel-mental',
+      panel: 'mental',
+      label: mentalAnchor.pin.label || mentalAnchor.condition || 'Mental Health',
+      severity: ratingToSeverity(highestRating),
+      pin: mentalAnchor.pin,
+    })
+  }
+
+  const headAnchor = headConditions.find((condition) => condition.pin)
+  if (headAnchor?.pin) {
+    const highestRating = Math.max(...headConditions.map((condition) => condition.effectiveRating ?? 0))
+    panelPins.push({
+      id: 'panel-head',
+      panel: 'head',
+      label: headAnchor.pin.label || headAnchor.condition || 'Head & Face',
+      severity: ratingToSeverity(highestRating),
+      pin: headAnchor.pin,
+    })
+  }
+
+  Object.entries(bpConditions).forEach(([regionId, conditions]) => {
+    const anchor = conditions.find((condition) => condition.pin)
+    if (!anchor?.pin) return
+
+    const highestRating = Math.max(...conditions.map((condition) => condition.effectiveRating ?? 0))
+    const meta = BP_META[regionId as BPRegion]
+
+    panelPins.push({
+      id: `panel-${regionId}`,
+      panel: regionId as BPRegion,
+      label: anchor.pin.label || anchor.condition || meta.title.replace(/ Evaluation$/, ''),
+      severity: ratingToSeverity(highestRating),
+      pin: anchor.pin,
+    })
+  })
+
+  return panelPins
 }
 
 function PinPlaceBanner() {
@@ -28,11 +102,15 @@ function PinPlaceBanner() {
   return (
     <div className="pin-place-prompt">
       <span>Click the body map to place: <strong>{pinPlaceMode.label}</strong></span>
-      <button onClick={() => {
-        setPinPlaceMode(null)
-        setPendingPin(null)
-        document.body.classList.remove('pin-placing')
-      }}>Cancel</button>
+      <button
+        onClick={() => {
+          setPinPlaceMode(null)
+          setPendingPin(null)
+          clearPinPlacementUi()
+        }}
+      >
+        Cancel
+      </button>
     </div>
   )
 }
@@ -41,64 +119,95 @@ function BodyView({ id, src, alt }: { id: string; src: string; alt: string }) {
   const curSide = useInjuryStore((s) => s.ui.curSide)
   const curBody = useInjuryStore((s) => s.ui.curBody)
   const injuries = useInjuryStore((s) => s.injuries)
+  const mentalConditions = useInjuryStore((s) => s.mentalConditions)
+  const headConditions = useInjuryStore((s) => s.headConditions)
+  const bpConditions = useInjuryStore((s) => s.bpConditions)
   const pinPlaceMode = useInjuryStore((s) => s.ui.pinPlaceMode)
   const setPinPlaceMode = useInjuryStore((s) => s.setPinPlaceMode)
   const setPendingPin = useInjuryStore((s) => s.setPendingPin)
-  const setEditingId = useInjuryStore((s) => s.setEditingId)
-  const setActivePanel = useInjuryStore((s) => s.setActivePanel)
+  const updateMHCondition = useInjuryStore((s) => s.updateMHCondition)
+  const updateHeadCondition = useInjuryStore((s) => s.updateHeadCondition)
+  const updateBPCondition = useInjuryStore((s) => s.updateBPCondition)
 
   const bodySuffix = (curBody === 'male' ? 'm' : 'f') + (curSide === 'front' ? 'f' : 'b')
   const isActive = id === `view-${bodySuffix}`
 
-  // Sort injuries by date for numbering
-  const panelKeys = getPanelKeys()
   const sortedInjuries = useMemo(
-    () => [...injuries].filter((i) => !panelKeys.has(i.key)).sort((a, b) =>
+    () => [...injuries].filter((injury) => !PANEL_KEYS.has(injury.key)).sort((a, b) =>
       new Date(a.date).getTime() - new Date(b.date).getTime() || a.id - b.id
     ),
-    [injuries]  // eslint-disable-line react-hooks/exhaustive-deps
+    [injuries]
   )
 
-  // Injuries whose pin matches this view
   const viewId = id.replace('view-', '')
   const viewBody = viewId[0] === 'm' ? 'male' : 'female'
   const viewSide = viewId[1] === 'f' ? 'front' : 'back'
   const viewInjuries = sortedInjuries.filter(
-    (i) => i.pin.body === viewBody && i.pin.side === viewSide
+    (injury) => injury.pin.body === viewBody && injury.pin.side === viewSide
   )
+  const panelPins = useMemo(
+    () => buildPanelPins(mentalConditions, headConditions, bpConditions),
+    [mentalConditions, headConditions, bpConditions]
+  )
+  const viewPanelPins = panelPins.filter(
+    (panelPin) => panelPin.pin.body === viewBody && panelPin.pin.side === viewSide
+  )
+
+  const stampPanelPin = useCallback((key: string, pin: Pin) => {
+    if (key === 'mental') {
+      mentalConditions.forEach((condition) => {
+        updateMHCondition(condition.id, { pin: { ...pin } })
+      })
+      return
+    }
+
+    if (key === 'headFace' || key === 'head') {
+      headConditions.forEach((condition) => {
+        updateHeadCondition(condition.id, { pin: { ...pin } })
+      })
+      return
+    }
+
+    const region = resolveBPRegionForKey(key)
+    if (!region) return
+
+    ;(bpConditions[region] ?? []).forEach((condition) => {
+      updateBPCondition(region, condition.id, { pin: { ...pin } })
+    })
+  }, [
+    mentalConditions,
+    headConditions,
+    bpConditions,
+    updateMHCondition,
+    updateHeadCondition,
+    updateBPCondition,
+  ])
 
   const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!isActive) return
+
     const wrap = e.currentTarget
-    const r = wrap.getBoundingClientRect()
-    const x = parseFloat(((e.clientX - r.left) / r.width * 100).toFixed(1))
-    const y = parseFloat(((e.clientY - r.top) / r.height * 100).toFixed(1))
+    const rect = wrap.getBoundingClientRect()
+    const x = parseFloat((((e.clientX - rect.left) / rect.width) * 100).toFixed(1))
+    const y = parseFloat((((e.clientY - rect.top) / rect.height) * 100).toFixed(1))
 
     if (pinPlaceMode) {
       const { key, label, fromPanel } = pinPlaceMode
       setPinPlaceMode(null)
-      document.body.classList.remove('pin-placing')
-      document.querySelectorAll('.body-wrap').forEach((el) => el.classList.remove('pin-place-mode'))
+      clearPinPlacementUi()
 
-      const pin = { x, y, side: curSide, body: curBody, key, label }
+      const pin = { x, y, side: curSide, body: curBody, label }
       if (fromPanel) {
-        // Panel pin — stamp coords onto panel conditions
-        setPendingPin(pin)
-        // auto-create: open edit form pre-filled for panel conditions is handled by the panel
-        // For now just stamp the pin and clear
+        stampPanelPin(key, pin)
         setPendingPin(null)
-        // TODO: stamp pin onto panel conditions via store actions
       } else {
-        setPendingPin(pin)
-        // open form by triggering editingId = null && pendingPin != null (already set)
+        setPendingPin({ ...pin, key })
       }
       return
     }
 
-    // Free-click custom pin
-    const pin = { x, y, side: curSide, body: curBody, key: 'custom', label: '' }
-    setPendingPin(pin)
-  }, [isActive, pinPlaceMode, curSide, curBody, setPinPlaceMode, setPendingPin])
+    setPendingPin({ x, y, side: curSide, body: curBody, key: 'custom', label: '' })
+  }, [isActive, pinPlaceMode, curSide, curBody, setPinPlaceMode, setPendingPin, stampPanelPin])
 
   if (!isActive) return null
 
@@ -110,12 +219,18 @@ function BodyView({ id, src, alt }: { id: string; src: string; alt: string }) {
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img className="body-img" src={src} alt={alt} />
-      <div className={`pins-layer`} id={`pins-${viewId}`}>
-        {viewInjuries.map((inj) => (
+      <div className="pins-layer" id={`pins-${viewId}`}>
+        {viewInjuries.map((injury) => (
           <DraggablePin
-            key={inj.id}
-            inj={inj}
-            num={injuryNumber(inj, sortedInjuries)}
+            key={injury.id}
+            inj={injury}
+            num={injuryNumber(injury, sortedInjuries)}
+          />
+        ))}
+        {viewPanelPins.map((panelPin) => (
+          <PanelPin
+            key={panelPin.id}
+            descriptor={panelPin}
           />
         ))}
       </div>
@@ -125,9 +240,6 @@ function BodyView({ id, src, alt }: { id: string; src: string; alt: string }) {
 
 function Sidebar() {
   const curSide = useInjuryStore((s) => s.ui.curSide)
-  const curBody = useInjuryStore((s) => s.ui.curBody)
-  const setSide = useInjuryStore((s) => s.setSide)
-  const setBody = useInjuryStore((s) => s.setBody)
   const setPinPlaceMode = useInjuryStore((s) => s.setPinPlaceMode)
   const setPendingPin = useInjuryStore((s) => s.setPendingPin)
   const setActivePanel = useInjuryStore((s) => s.setActivePanel)
@@ -136,29 +248,28 @@ function Sidebar() {
   const groups = curSide === 'front' ? GROUPS_FRONT : GROUPS_BACK
 
   const handleQuickSelect = useCallback((key: string) => {
-    // Mental health → open panel
     if (key === 'mental') {
       setActivePanel('mental')
       return
     }
-    // Head & Face → open head panel
+
     if (HEAD_KEYS.has(key)) {
       setActivePanel('head')
       return
     }
-    // BP region → open BP panel
+
     if (BP_META[key as BPRegion]) {
       setActivePanel(key as BPRegion)
       return
     }
-    // Check if pin key belongs to a BP region
+
     for (const [regionId, meta] of Object.entries(BP_META)) {
       if (meta.sideKeys[key]) {
         setActivePanel(regionId as BPRegion)
         return
       }
     }
-    // All other → enter pin place mode
+
     const label = SIDEBAR_ITEMS[key] ?? 'Other / Unlisted'
     setPinPlaceMode({ key, label, fromPanel: false })
     setPendingPin(null)
@@ -223,7 +334,6 @@ export function MapTab() {
       </div>
 
       <div className="map-layout">
-        {/* CENTER: body image */}
         <div className={`body-panel${showBodyAndSidebar ? '' : ' hidden'}`}>
           <div className="toolbar">
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -272,10 +382,8 @@ export function MapTab() {
           <BodyView id="view-fb" src="/images/injury-tracker/body-female-back.png" alt="Female back body diagram" />
         </div>
 
-        {/* RIGHT: quick-select sidebar */}
         {showBodyAndSidebar && <Sidebar />}
 
-        {/* EVALUATION PANELS */}
         {activePanel === 'mental' && <MentalHealthPanel />}
         {activePanel === 'head' && <HeadPanel />}
         {activePanel === 'knee' && <BodyPartPanel regionId="knee" />}

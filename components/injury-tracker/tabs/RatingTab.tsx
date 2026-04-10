@@ -109,6 +109,7 @@ function buildRatingItems(
 ): { ratingItems: RatingItem[]; mhSecondaryDisplay: MHSecondaryDisplay[]; highestMHId: string | null } {
   const ratingItems: RatingItem[] = []
   const mhSecondaryDisplay: MHSecondaryDisplay[] = []
+  const mhSecPool: { rating: number; name: string; id: string; suggested: number | null }[] = []
   const panelKeys = getPanelKeys()
 
   function pushSecondaries(
@@ -121,11 +122,9 @@ function buildRatingItems(
     secs.forEach((sec, si) => {
       if (looksLikeMH(sec)) {
         const suggested = getSuggestedRating(sec)
-        mhSecondaryDisplay.push({
-          name: sec,
-          rating: secRatings[sec] ?? (suggested ?? 0),
-          parentName: ref.condition ?? '',
-        })
+        const rating = secRatings[sec] ?? (suggested ?? 0)
+        mhSecondaryDisplay.push({ name: sec, rating, parentName: ref.condition ?? '' })
+        if (rating > 0) mhSecPool.push({ rating, name: sec, id: `mhsec-${parentId}-${si}`, suggested })
         return
       }
       const suggested = getSuggestedRating(sec)
@@ -164,7 +163,9 @@ function buildRatingItems(
       inj.secondaries.forEach((sec, si) => {
         if (looksLikeMH(sec)) {
           const suggested = getSuggestedRating(sec)
-          mhSecondaryDisplay.push({ name: sec, rating: suggested ?? 0, parentName: inj.label })
+          const secRating = (inj.secondaryRatings?.[sec] ?? suggested) ?? 0
+          mhSecondaryDisplay.push({ name: sec, rating: secRating, parentName: inj.label })
+          if (secRating > 0) mhSecPool.push({ rating: secRating, name: sec, id: `mhsec-p-${inj.id}-${si}`, suggested })
           return
         }
         const secSuggested = getSuggestedRating(sec)
@@ -233,6 +234,8 @@ function buildRatingItems(
       mhPool.push({ rating: cond.rating, name: displayName, id: `mst-mh-${i}`, suggested: null, isMSTPrivate: mstData.privacyShield })
     }
   })
+
+  mhSecPool.forEach((item) => mhPool.push(item))
 
   let highestMHId: string | null = null
   if (mhPool.length) {

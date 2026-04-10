@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { supabase } from "@/lib/supabase/client"
 import Link from "next/link"
+import { AuthShell } from "@/components/auth/AuthShell"
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
@@ -10,7 +11,7 @@ export default function ForgotPasswordPage() {
   const [sent, setSent] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SyntheticEvent) {
     e.preventDefault()
     setLoading(true)
     setError(null)
@@ -27,54 +28,43 @@ export default function ForgotPasswordPage() {
 
   if (sent) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center p-8">
-        <div className="w-full max-w-sm space-y-4">
-          <h1 className="text-2xl font-bold">Check your email</h1>
-          <p className="text-sm text-gray-500">
-            We sent a password reset link to <strong>{email}</strong>.
-          </p>
-          <Link href="/login" className="block text-center text-sm underline">
-            Back to sign in
-          </Link>
+      <AuthShell title="Check Your Email">
+        <p className="auth-success">
+          We sent a password reset link to <strong>{email}</strong>. Check your inbox and follow the link to set a new password.
+        </p>
+        <div className="auth-footer-links">
+          <Link href="/login" className="auth-link">Back to sign in</Link>
         </div>
-      </main>
+      </AuthShell>
     )
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <div className="w-full max-w-sm space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">Reset password</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Enter your email and we&apos;ll send you a reset link.
-          </p>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <AuthShell title="Reset Password">
+      <p style={{ fontSize: "13px", color: "#5a6782", margin: "0 0 20px 0", lineHeight: 1.5 }}>
+        Enter your email address and we&apos;ll send you a link to reset your password.
+      </p>
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div className="auth-field">
+          <label className="auth-label" htmlFor="email">Email Address</label>
           <input
+            id="email"
             type="email"
-            placeholder="Email"
+            className="auth-input"
+            placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full rounded border px-3 py-2 text-sm"
           />
-          {error && <p className="text-sm text-red-500">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-          >
-            {loading ? "Sending..." : "Send reset link"}
-          </button>
-        </form>
-        <p className="text-center text-sm text-gray-500">
-          <Link href="/login" className="underline">Back to sign in</Link>
-        </p>
-        <p className="text-center text-sm text-gray-400">
-          <Link href="/" className="underline">Back to home</Link>
-        </p>
+        </div>
+        {error && <p className="auth-error">{error}</p>}
+        <button type="submit" disabled={loading} className="auth-btn">
+          {loading ? "Sending…" : "Send Reset Link"}
+        </button>
+      </form>
+      <div className="auth-footer-links">
+        <Link href="/login" className="auth-link">Back to sign in</Link>
       </div>
-    </main>
+    </AuthShell>
   )
 }

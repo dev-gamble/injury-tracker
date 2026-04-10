@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { AuthShell } from "@/components/auth/AuthShell"
 
 export default function ResetPasswordPage() {
   const router = useRouter()
@@ -62,7 +63,7 @@ export default function ResetPasswordPage() {
     }
   }, [])
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SyntheticEvent) {
     e.preventDefault()
     if (password !== confirm) {
       setError("Passwords do not match")
@@ -81,61 +82,59 @@ export default function ResetPasswordPage() {
 
   if (checkingLink) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center p-8">
-        <p className="text-sm text-gray-500">Verifying reset link...</p>
-      </main>
+      <AuthShell title="Verifying Link">
+        <p style={{ fontSize: "13px", color: "#5a6782", textAlign: "center" }}>Verifying your reset link…</p>
+      </AuthShell>
     )
   }
 
   if (!ready) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center p-8">
-        <div className="w-full max-w-sm space-y-4">
-          <h1 className="text-2xl font-bold">Reset link invalid</h1>
-          <p className="text-sm text-gray-500">
-            This link is invalid or expired. Request a new reset email and try again.
-          </p>
-          <Link href="/forgot-password" className="block text-center text-sm underline">
-            Request new reset link
-          </Link>
-        </div>
-      </main>
+      <AuthShell title="Link Invalid">
+        <p className="auth-error" style={{ marginBottom: "16px" }}>
+          This reset link is invalid or has expired. Please request a new one.
+        </p>
+        <Link href="/forgot-password" className="auth-btn" style={{ display: "block", textAlign: "center", textDecoration: "none" }}>
+          Request New Link
+        </Link>
+      </AuthShell>
     )
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <div className="w-full max-w-sm space-y-6">
-        <h1 className="text-2xl font-bold">Set new password</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <AuthShell title="Set New Password">
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div className="auth-field">
+          <label className="auth-label" htmlFor="password">New Password</label>
           <input
+            id="password"
             type="password"
-            placeholder="New password"
+            className="auth-input"
+            placeholder="Minimum 6 characters"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={6}
-            className="w-full rounded border px-3 py-2 text-sm"
           />
+        </div>
+        <div className="auth-field">
+          <label className="auth-label" htmlFor="confirm">Confirm Password</label>
           <input
+            id="confirm"
             type="password"
-            placeholder="Confirm new password"
+            className="auth-input"
+            placeholder="Re-enter your password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             required
             minLength={6}
-            className="w-full rounded border px-3 py-2 text-sm"
           />
-          {error && <p className="text-sm text-red-500">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-          >
-            {loading ? "Updating..." : "Update password"}
-          </button>
-        </form>
-      </div>
-    </main>
+        </div>
+        {error && <p className="auth-error">{error}</p>}
+        <button type="submit" disabled={loading} className="auth-btn">
+          {loading ? "Updating…" : "Update Password"}
+        </button>
+      </form>
+    </AuthShell>
   )
 }

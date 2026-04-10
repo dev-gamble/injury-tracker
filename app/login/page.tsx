@@ -4,6 +4,7 @@ import { useState } from "react"
 import { supabase } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { AuthShell } from "@/components/auth/AuthShell"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -12,7 +13,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SyntheticEvent) {
     e.preventDefault()
     setLoading(true)
     setError(null)
@@ -26,47 +27,46 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <div className="w-full max-w-sm space-y-6">
-        <h1 className="text-2xl font-bold">Sign in</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <AuthShell title="Sign In">
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div className="auth-field">
+          <label className="auth-label" htmlFor="email">Email Address</label>
           <input
+            id="email"
             type="email"
-            placeholder="Email"
+            className="auth-input"
+            placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full rounded border px-3 py-2 text-sm"
           />
+        </div>
+        <div className="auth-field">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <label className="auth-label" htmlFor="password">Password</label>
+            <Link href="/forgot-password" className="auth-link" style={{ fontSize: "12px" }}>Forgot password?</Link>
+          </div>
           <input
+            id="password"
             type="password"
-            placeholder="Password"
+            className="auth-input"
+            placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="w-full rounded border px-3 py-2 text-sm"
           />
-          {error && <p className="text-sm text-red-500">{error}</p>}
-          <div className="flex justify-end">
-            <Link href="/forgot-password" className="text-sm text-gray-500 underline">
-              Forgot password?
-            </Link>
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-          >
-            {loading ? "Loading..." : "Sign in"}
-          </button>
-        </form>
-        <p className="text-center text-sm text-gray-500">
-          No account? <Link href="/signup" className="underline">Sign up</Link>
-        </p>
-        <p className="text-center text-sm text-gray-400">
-          <Link href="/" className="underline">Back to home</Link>
-        </p>
+        </div>
+        {error && <p className="auth-error">{error}</p>}
+        <button type="submit" disabled={loading} className="auth-btn">
+          {loading ? "Signing in…" : "Sign In"}
+        </button>
+      </form>
+      <div className="auth-footer-links">
+        <span style={{ fontSize: "13px", color: "#5a6782" }}>
+          No account?{" "}
+          <Link href="/signup" className="auth-link-primary">Create one</Link>
+        </span>
       </div>
-    </main>
+    </AuthShell>
   )
 }

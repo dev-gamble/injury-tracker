@@ -3,15 +3,23 @@
 import { useState, useCallback } from 'react'
 import { useInjuryStore } from '../store/useInjuryStore'
 import { exportCSV, exportTXT, exportSummary } from '../utils/export'
+import { supabase } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 
 export function Header({ onImport }: { onImport?: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const state = useInjuryStore()
+  const router = useRouter()
 
   const handleExport = useCallback((fn: (s: typeof state) => void) => {
     fn(state)
     setMenuOpen(false)
   }, [state])
+
+  async function handleSignOut() {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
 
   return (
     <header>
@@ -30,6 +38,17 @@ export function Header({ onImport }: { onImport?: () => void }) {
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <button
+          className="export-btn"
+          style={{ background: "transparent", borderColor: "rgba(255,255,255,.18)", color: "rgba(255,255,255,.6)", boxShadow: "none" }}
+          onClick={handleSignOut}
+          title="Sign out"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
+          </svg>
+          Sign Out
+        </button>
         <button
           className="export-btn"
           style={{ background: "var(--navy)", borderColor: "var(--navy2)", boxShadow: "0 2px 8px rgba(10,35,87,.4)" }}

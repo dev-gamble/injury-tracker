@@ -188,7 +188,6 @@ export function MentalHealthPanel() {
         calculatedRating: 0,
         manualOverride: null,
         effectiveRating: 0,
-        extremity: 'none',
         date: '', location: '', event: '', description: '',
         medicalCare: '', clinicName: '', witnesses: '', stillBeingSeen: false,
       }

@@ -82,7 +82,7 @@ export function Header({ onImport }: { onImport?: () => void }) {
           <button className="export-btn" onClick={() => setMenuOpen(o => !o)}>
             <Download size={13} strokeWidth={2.5} />
             Export
-            <ChevronDown size={11} strokeWidth={3} />
+            <ChevronDown size={11} strokeWidth={3} style={{ transform: menuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
           </button>
           {menuOpen && (
             <div className="export-menu" style={{ display: 'block' }}>

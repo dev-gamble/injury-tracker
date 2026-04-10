@@ -15,6 +15,58 @@ const MST_MH_NAMES = new Set([
   'other condition related to mst',
 ])
 
+const SMC_LABELS: Record<string, string> = {
+  smc_k: 'SMC-K: Loss of Body Part',
+  smc_l: 'SMC-L: Aid & Attendance',
+  smc_l_half: 'SMC-L½: Aid & Attendance + Body Part Loss',
+  smc_m: 'SMC-M: Higher Level of Care',
+  smc_m_half: 'SMC-M½: Higher Care + Additional Loss',
+  smc_n: 'SMC-N: Multiple Losses + Aid & Attendance',
+  smc_n_half: 'SMC-N½: Severe Multiple Losses',
+  smc_o: 'SMC-O: Maximum Regular SMC',
+  smc_r1: 'SMC-R.1: Higher A&A (TBI / Severe Conditions)',
+  smc_r2: 'SMC-R.2: Hospitalization / Nursing Home Level',
+  smc_s: 'SMC-S: Housebound',
+}
+
+const PRESUMPTIVE_META: Record<string, { label: string; fields: Array<{ id: string; label: string }> }> = {
+  pow: { label: 'Prisoner of War (POW)', fields: [
+    { id: 'dates', label: 'When held' }, { id: 'location', label: 'Where held' },
+    { id: 'duration', label: 'Duration' }, { id: 'conditions', label: 'Related conditions' },
+  ]},
+  agent_orange: { label: 'Agent Orange / Herbicide Exposure', fields: [
+    { id: 'dates', label: 'Service dates' }, { id: 'location', label: 'Location' },
+    { id: 'unit', label: 'Unit' }, { id: 'conditions', label: 'Related conditions' },
+  ]},
+  gulf_war: { label: 'Gulf War / Southwest Asia Illness', fields: [
+    { id: 'dates', label: 'Service dates' }, { id: 'location', label: 'Location' },
+    { id: 'unit', label: 'Unit' }, { id: 'symptoms', label: 'Unexplained symptoms' },
+  ]},
+  burn_pit: { label: 'Burn Pit / PACT Act Exposure', fields: [
+    { id: 'dates', label: 'Service dates' }, { id: 'location', label: 'Location' },
+    { id: 'unit', label: 'Unit' }, { id: 'exposure', label: 'Exposure type' },
+    { id: 'conditions', label: 'Related conditions' },
+  ]},
+}
+
+const PHYSICAL_LOSS_LABELS: Record<string, string> = {
+  loss_extremity: 'Loss of Use of Extremity',
+  loss_paired: 'Loss of Paired Organ',
+}
+
+const MST_EVIDENCE_LABELS: Record<string, string> = {
+  buddy: 'Buddy statement(s)',
+  behavioral: 'Behavioral changes in service records',
+  police: 'Police or military police report',
+  counseling: 'Counseling or therapy records',
+  medical: 'Medical records showing treatment',
+  performance: 'Performance evaluations showing decline',
+  transfer: 'Transfer/duty change requests',
+  pregnancy: 'Pregnancy or STI testing records',
+  journal: 'Personal journal or diary entries',
+  other: 'Other supporting evidence',
+}
+
 // ── HELPERS ────────────────────────────────────────────────────────────────────
 
 function esc(v: unknown): string {
@@ -263,15 +315,45 @@ export function exportCSV(state: AppState): void {
   })
 
   // SMC
-  const { smcSelections } = state.specialClaims
+  const { smcSelections, vocSecondaries, vocNotes, claims, presumptiveData, mstData } = state.specialClaims
   if (smcSelections.length) {
     csvRows.push('')
     csvRows.push(esc('SPECIAL MONTHLY COMPENSATION (SMC)'))
-    smcSelections.forEach(id => csvRows.push(esc(id)))
+    smcSelections.forEach(id => csvRows.push(esc(SMC_LABELS[id] || id)))
+  }
+
+  // Presumptive service connection
+  const hasPresumptive = Object.values(presumptiveData).some(fields => Object.values(fields).some(v => v))
+  if (hasPresumptive) {
+    csvRows.push('')
+    csvRows.push(esc('PRESUMPTIVE SERVICE CONNECTION'))
+    Object.entries(presumptiveData).forEach(([claimId, fields]) => {
+      const meta = PRESUMPTIVE_META[claimId]
+      if (!meta || !Object.values(fields).some(v => v)) return
+      csvRows.push(esc(meta.label))
+      meta.fields.forEach(f => { if (fields[f.id]) csvRows.push([esc(f.label), esc(fields[f.id])].join(',')) })
+    })
+  }
+
+  // Physical loss / paired organs
+  const physicalLosses = Object.entries(claims)
+    .filter(([id, fields]) => (id === 'loss_extremity' || id === 'loss_paired') && fields.selected === 'true')
+    .map(([id]) => PHYSICAL_LOSS_LABELS[id] || id)
+  if (physicalLosses.length) {
+    csvRows.push('')
+    csvRows.push(esc('PHYSICAL LOSS / PAIRED ORGANS'))
+    physicalLosses.forEach(label => csvRows.push(esc(label)))
+  }
+
+  // Vocational impact
+  if (vocSecondaries.length || vocNotes) {
+    csvRows.push('')
+    csvRows.push(esc('VOCATIONAL IMPACT'))
+    vocSecondaries.forEach(v => csvRows.push(esc(v)))
+    if (vocNotes) csvRows.push([esc('Notes'), esc(vocNotes)].join(','))
   }
 
   // MST
-  const { mstData, presumptiveData } = state.specialClaims
   if (mstData.conditions.length) {
     csvRows.push('')
     csvRows.push(esc(`MST-RELATED CONDITIONS${mstData.privacyShield ? ' (PRIVACY SHIELD ACTIVE)' : ''}`))
@@ -283,6 +365,9 @@ export function exportCSV(state: AppState): void {
       ).join('; ')
       csvRows.push([esc(name), `${c.rating}%`, esc(secs)].join(','))
     })
+    const evidenceList = Object.entries(mstData.evidence).filter(([, v]) => v).map(([k]) => MST_EVIDENCE_LABELS[k] || k)
+    if (evidenceList.length) csvRows.push([esc('Evidence'), esc(evidenceList.join('; '))].join(','))
+    if (!mstData.privacyShield && mstData.notes) csvRows.push([esc('Private Notes'), esc(mstData.notes)].join(','))
   }
 
   // Rating summary
@@ -293,6 +378,56 @@ export function exportCSV(state: AppState): void {
   }
 
   downloadText(csvRows.join('\r\n'), `injury-report-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv')
+}
+
+// ── TIMELINE BUILDER (shared by TXT + PDF) ───────────────────────────────────
+
+interface TimelineItem {
+  label: string
+  type: string
+  date: string
+  location: string
+  event: string
+  rating?: number
+}
+
+function buildTimeline(state: AppState): TimelineItem[] {
+  const panelKeys = getPanelKeys()
+  const items: TimelineItem[] = []
+
+  state.injuries
+    .filter(i => !panelKeys.has(i.key) && i.date)
+    .forEach(i => items.push({
+      label: i.label, type: 'Injury', date: i.date,
+      location: i.location || '', event: i.event || '',
+      rating: i.rating ?? undefined,
+    }))
+
+  state.mentalConditions
+    .filter(c => c.date)
+    .forEach(c => items.push({
+      label: c.condition, type: 'Mental Health', date: c.date,
+      location: c.location || '', event: c.event || '',
+      rating: c.effectiveRating || undefined,
+    }))
+
+  state.headConditions
+    .filter(c => c.date)
+    .forEach(c => items.push({
+      label: c.condition, type: 'Head & Face', date: c.date,
+      location: c.location || '', event: c.event || '',
+      rating: c.effectiveRating || undefined,
+    }))
+
+  Object.entries(state.bpConditions).forEach(([region, conds]) =>
+    conds.filter(c => c.date).forEach(c => items.push({
+      label: c.condition, type: region.replace('_', ' / '), date: c.date,
+      location: c.location || '', event: c.event || '',
+      rating: c.effectiveRating || undefined,
+    }))
+  )
+
+  return items.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 }
 
 // ── TXT EXPORT ────────────────────────────────────────────────────────────────
@@ -344,6 +479,25 @@ export function exportTXT(state: AppState): void {
     txt += '\n'
   }
 
+  // Chronological timeline
+  const timelineItems = buildTimeline(state)
+  if (timelineItems.length) {
+    const years = [...new Set(timelineItems.map(i => i.date.slice(0, 4)))]
+    txt += `CHRONOLOGICAL TIMELINE\n${LINE}\n\n`
+    years.forEach(yr => {
+      txt += `── ${yr} ${'─'.repeat(44)}\n`
+      timelineItems.filter(i => i.date.startsWith(yr)).forEach(item => {
+        const d = new Date(item.date)
+        const datePart = isNaN(d.getTime()) ? item.date : d.toLocaleDateString('en-US', { month: 'short', day: '2-digit' })
+        const typePart = `[${item.type}]`
+        const ratingPart = item.rating ? `${item.rating}%` : ''
+        const contextParts = [ratingPart, item.location, item.event].filter(Boolean).join(' · ')
+        txt += `  ${datePart.padEnd(7)}  ${item.label.padEnd(32)}  ${typePart.padEnd(18)}${contextParts ? `  — ${contextParts}` : ''}\n`
+      })
+      txt += '\n'
+    })
+  }
+
   // Injury details
   txt += `INJURY DETAILS\n${LINE}\n\n`
   sorted.forEach((inj, idx) => {
@@ -362,7 +516,13 @@ export function exportTXT(state: AppState): void {
     txt += `  ${pad('Evidence:')} ${g.label}\n`
     if (g.gaps.length) txt += `  ${pad('Missing:')} ${g.gaps.join(', ')}\n`
     if (inj.functionalImpacts?.length) txt += `  ${pad('Daily Impact:')} ${inj.functionalImpacts.join(', ')}\n`
-    if (inj.secondaries?.length) txt += `  ${pad('Secondary:')} ${inj.secondaries.join(', ')}\n`
+    if (inj.secondaries?.length) {
+      const secStr = inj.secondaries.map(s => {
+        const r = inj.secondaryRatings?.[s]
+        return r != null ? `${s} (${r}%)` : s
+      }).join(', ')
+      txt += `  ${pad('Secondary:')} ${secStr}\n`
+    }
     txt += '\n'
   })
 
@@ -380,13 +540,21 @@ export function exportTXT(state: AppState): void {
       if (c.event) txt += `    ${pad('Event:')} ${c.event}\n`
       if (c.description) txt += `    ${pad('Description:')} ${c.description}\n`
       if (c.medicalCare === 'yes') txt += `    ${pad('Medical Care:')} ${c.clinicName || 'Yes'}\n`
+      if (c.stillBeingSeen) txt += `    ${pad('Still Being Seen:')} Yes\n`
       MH_DOMAINS.forEach(d => {
         const dv = c.domains[d.id]
         if (dv && dv.level !== 'none') {
           txt += `    ${d.label}: ${dv.level} (${dv.frequency === '25plus' ? '25%+ of time' : '<25% of time'})\n`
         }
       })
-      txt += `    Rating: ${c.effectiveRating}%${c.manualOverride !== null ? ' (manual override)' : ''}\n\n`
+      if (c.secondaries?.length) {
+        const secStr = c.secondaries.map(s => {
+          const r = c.secondaryRatings?.[s]
+          return r != null ? `${s} (${r}%)` : s
+        }).join(', ')
+        txt += `    ${pad('Secondary:')} ${secStr}\n`
+      }
+      txt += `    Rating: ${c.effectiveRating}%${c.manualOverride !== null ? ` (manual override: ${c.manualOverride}%)` : ''}\n\n`
     })
   }
 
@@ -401,7 +569,22 @@ export function exportTXT(state: AppState): void {
       if (c.event) txt += `    ${pad('Event:')} ${c.event}\n`
       if (c.description) txt += `    ${pad('Description:')} ${c.description}\n`
       if (c.medicalCare === 'yes') txt += `    ${pad('Medical Care:')} ${c.clinicName || 'Yes'}\n`
-      txt += `    Rating: ${c.effectiveRating}%${c.manualOverride !== null ? ' (manual override)' : ''}\n\n`
+      if (c.stillBeingSeen) txt += `    ${pad('Still Being Seen:')} Yes\n`
+      if (c.extremity && c.extremity !== 'none') txt += `    ${pad('Extremity:')} ${c.extremity}\n`
+      profile?.domains.forEach(d => {
+        const v = c.domains[d.id]
+        if (v == null || v === 0) return
+        const lv = d.levels?.find(l => l.value === v)
+        txt += `    ${d.label}: ${lv ? lv.label : `${v}%`}\n`
+      })
+      if (c.secondaries?.length) {
+        const secStr = c.secondaries.map(s => {
+          const r = c.secondaryRatings?.[s]
+          return r != null ? `${s} (${r}%)` : s
+        }).join(', ')
+        txt += `    ${pad('Secondary:')} ${secStr}\n`
+      }
+      txt += `    Rating: ${c.effectiveRating}%${c.manualOverride !== null ? ` (manual override: ${c.manualOverride}%)` : ''}\n\n`
     })
   }
 
@@ -410,33 +593,91 @@ export function exportTXT(state: AppState): void {
     if (!conds.length) return
     txt += `${regionId.toUpperCase().replace('_', ' / ')} EVALUATION\n${LINE}\n\n`
     conds.forEach(c => {
-      txt += `  ${c.condition}${c.sideLabel ? ` (${c.sideLabel})` : ''}\n  ${DASH}\n`
+      const bpProfile = getBPProfile(regionId, c.condition)
+      txt += `  ${c.condition}${c.sideLabel ? ` (${c.sideLabel})` : ''}${bpProfile ? ` [${bpProfile.label}]` : ''}\n  ${DASH}\n`
       txt += `    ${pad('Date:')} ${c.date || '—'}\n`
       if (c.location) txt += `    ${pad('Location:')} ${c.location}\n`
       if (c.event) txt += `    ${pad('Event:')} ${c.event}\n`
       if (c.description) txt += `    ${pad('Description:')} ${c.description}\n`
       if (c.medicalCare === 'yes') txt += `    ${pad('Medical Care:')} ${c.clinicName || 'Yes'}\n`
+      if (c.stillBeingSeen) txt += `    ${pad('Still Being Seen:')} Yes\n`
       if (c.extremity && c.extremity !== 'none') txt += `    ${pad('Extremity:')} ${c.extremity}\n`
-      if (c.secondaries?.length) txt += `    ${pad('Secondary:')} ${c.secondaries.join(', ')}\n`
-      txt += `    Rating: ${c.effectiveRating}%${c.manualOverride !== null ? ' (manual override)' : ''}\n\n`
+      bpProfile?.domains.forEach(d => {
+        const v = c.domains[d.id]
+        if (v == null || v === 0) return
+        const lv = d.levels?.find(l => l.value === v)
+        txt += `    ${d.label}: ${lv ? lv.label : `${v}%`}\n`
+      })
+      if (c.secondaries?.length) {
+        const secStr = c.secondaries.map(s => {
+          const r = c.secondaryRatings?.[s]
+          return r != null ? `${s} (${r}%)` : s
+        }).join(', ')
+        txt += `    ${pad('Secondary:')} ${secStr}\n`
+      }
+      txt += `    Rating: ${c.effectiveRating}%${c.manualOverride !== null ? ` (manual override: ${c.manualOverride}%)` : ''}\n\n`
     })
   })
 
-  // MST
-  const { mstData } = state.specialClaims
-  if (mstData.conditions.length) {
-    txt += `MST-RELATED CONDITIONS${mstData.privacyShield ? ' (PRIVACY SHIELD ACTIVE)' : ''}\n${LINE}\n\n`
-    mstData.conditions.forEach(c => {
-      const name = mstData.privacyShield ? 'Private Condition' : c.name
-      txt += `  ${name}: ${c.rating}%\n`
-      if (c.secondaries?.length) {
-        c.secondaries.forEach(s => {
-          const sname = mstData.privacyShield ? 'Private Secondary' : s.name
-          txt += `    └ ${sname}: ${s.rating}%\n`
-        })
-      }
-    })
-    txt += '\n'
+  // Special Claims
+  const sc2 = state.specialClaims
+  const hasPresumptiveTXT = Object.values(sc2.presumptiveData).some(f => Object.values(f).some(v => v))
+  const physLossesTXT = Object.entries(sc2.claims)
+    .filter(([id, f]) => (id === 'loss_extremity' || id === 'loss_paired') && f.selected === 'true')
+    .map(([id]) => PHYSICAL_LOSS_LABELS[id] || id)
+  const mstEvidence = Object.entries(sc2.mstData.evidence).filter(([, v]) => v).map(([k]) => MST_EVIDENCE_LABELS[k] || k)
+  const hasSpecialTXT = sc2.smcSelections.length || hasPresumptiveTXT || physLossesTXT.length ||
+    sc2.vocSecondaries.length || sc2.vocNotes || sc2.mstData.conditions.length || mstEvidence.length
+
+  if (hasSpecialTXT) {
+    txt += `SPECIAL CLAIMS\n${LINE}\n\n`
+
+    if (sc2.smcSelections.length) {
+      txt += `Special Monthly Compensation (SMC)\n${DASH}\n`
+      sc2.smcSelections.forEach(id => txt += `  - ${SMC_LABELS[id] || id}\n`)
+      txt += '\n'
+    }
+
+    if (hasPresumptiveTXT) {
+      txt += `Presumptive Service Connection\n${DASH}\n`
+      Object.entries(sc2.presumptiveData).forEach(([claimId, fields]) => {
+        const meta = PRESUMPTIVE_META[claimId]
+        if (!meta || !Object.values(fields).some(v => v)) return
+        txt += `  ${meta.label}\n`
+        meta.fields.forEach(f => { if (fields[f.id]) txt += `    ${pad(f.label + ':')} ${fields[f.id]}\n` })
+      })
+      txt += '\n'
+    }
+
+    if (physLossesTXT.length) {
+      txt += `Physical Loss / Paired Organs\n${DASH}\n`
+      physLossesTXT.forEach(label => txt += `  - ${label}\n`)
+      txt += '\n'
+    }
+
+    if (sc2.vocSecondaries.length || sc2.vocNotes) {
+      txt += `Vocational Impact\n${DASH}\n`
+      sc2.vocSecondaries.forEach(v => txt += `  - ${v}\n`)
+      if (sc2.vocNotes) txt += `  ${pad('Notes:')} ${sc2.vocNotes}\n`
+      txt += '\n'
+    }
+
+    if (sc2.mstData.conditions.length || mstEvidence.length) {
+      txt += `MST-Related Conditions${sc2.mstData.privacyShield ? ' (Privacy Shield Active)' : ''}\n${DASH}\n`
+      sc2.mstData.conditions.forEach(c => {
+        const name = sc2.mstData.privacyShield ? 'Private Condition' : c.name
+        txt += `  ${name}: ${c.rating}%\n`
+        if (c.secondaries?.length) {
+          c.secondaries.forEach(s => {
+            const sname = sc2.mstData.privacyShield ? 'Private Secondary' : s.name
+            txt += `    └ ${sname}: ${s.rating}%\n`
+          })
+        }
+      })
+      if (mstEvidence.length) txt += `  ${pad('Evidence:')} ${mstEvidence.join(', ')}\n`
+      if (!sc2.mstData.privacyShield && sc2.mstData.notes) txt += `  ${pad('Private Notes:')} ${sc2.mstData.notes}\n`
+      txt += '\n'
+    }
   }
 
   // Personal statement
@@ -456,6 +697,88 @@ export function exportTXT(state: AppState): void {
   txt += `${LINE}\nGenerated by VA Claim Support Tool — for personal documentation only.\n${LINE}\n`
 
   downloadText(txt, `injury-report-${new Date().toISOString().slice(0, 10)}.txt`)
+}
+
+// ── SPECIAL CLAIMS HTML (shared by PDF export) ────────────────────────────────
+
+function buildSpecialClaimsHTML(state: AppState): string {
+  const sc = state.specialClaims
+  const hasPresumptive = Object.values(sc.presumptiveData).some(f => Object.values(f).some(v => v))
+  const physLosses = Object.entries(sc.claims)
+    .filter(([id, f]) => (id === 'loss_extremity' || id === 'loss_paired') && f.selected === 'true')
+    .map(([id]) => PHYSICAL_LOSS_LABELS[id] || id)
+  const mstEvidence = Object.entries(sc.mstData.evidence).filter(([, v]) => v).map(([k]) => MST_EVIDENCE_LABELS[k] || k)
+  const hasAny = sc.smcSelections.length || hasPresumptive || physLosses.length ||
+    sc.vocSecondaries.length || sc.vocNotes || sc.mstData.conditions.length || mstEvidence.length
+  if (!hasAny) return ''
+
+  const tag = (label: string, value: string) =>
+    `<span style="font-size:11px;padding:2px 8px;border-radius:3px;font-family:monospace;font-weight:600;background:#e0e7ff;color:#3730a3;border:1px solid #c7d2fe;margin:2px;">${label}${value ? ': ' + value : ''}</span>`
+
+  let html = `<div class="section-title">Special Claims</div>`
+
+  if (sc.smcSelections.length) {
+    html += `<div class="detail-card"><div class="dc-header"><span class="dc-label">Special Monthly Compensation (SMC)</span></div><div style="display:flex;flex-wrap:wrap;gap:4px;padding:4px 0;">`
+    sc.smcSelections.forEach(id => { html += tag(SMC_LABELS[id] || id, '') })
+    html += `</div></div>`
+  }
+
+  if (hasPresumptive) {
+    html += `<div class="detail-card"><div class="dc-header"><span class="dc-label">Presumptive Service Connection</span></div>`
+    Object.entries(sc.presumptiveData).forEach(([claimId, fields]) => {
+      const meta = PRESUMPTIVE_META[claimId]
+      if (!meta || !Object.values(fields).some(v => v)) return
+      html += `<div style="margin-bottom:10px;"><div style="font-size:12px;font-weight:700;color:#1a2332;margin-bottom:6px;">${meta.label}</div><div class="dc-grid">`
+      meta.fields.forEach(f => {
+        if (!fields[f.id]) return
+        html += `<div class="dc-field"><span class="dc-key">${f.label}</span><span class="dc-val">${fields[f.id]}</span></div>`
+      })
+      html += `</div></div>`
+    })
+    html += `</div>`
+  }
+
+  if (physLosses.length) {
+    html += `<div class="detail-card"><div class="dc-header"><span class="dc-label">Physical Loss / Paired Organs</span></div><div style="display:flex;flex-wrap:wrap;gap:4px;padding:4px 0;">`
+    physLosses.forEach(label => { html += tag(label, '') })
+    html += `</div></div>`
+  }
+
+  if (sc.vocSecondaries.length || sc.vocNotes) {
+    html += `<div class="detail-card"><div class="dc-header"><span class="dc-label">Vocational Impact</span></div><div style="display:flex;flex-wrap:wrap;gap:4px;padding:4px 0;">`
+    sc.vocSecondaries.forEach(v => { html += tag(v, '') })
+    html += `</div>`
+    if (sc.vocNotes) html += `<div class="dc-desc"><span class="dc-key">Notes</span><div style="margin-top:2px;font-style:italic;color:#4b5563;">"${sc.vocNotes}"</div></div>`
+    html += `</div>`
+  }
+
+  if (sc.mstData.conditions.length || mstEvidence.length) {
+    const shield = sc.mstData.privacyShield
+    html += `<div class="detail-card"><div class="dc-header"><span class="dc-label">MST-Related Conditions</span>${shield ? '<span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;padding:3px 8px;border-radius:3px;font-family:monospace;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;">Privacy Shield Active</span>' : ''}</div>`
+    if (sc.mstData.conditions.length) {
+      html += `<div style="margin-bottom:8px;">`
+      sc.mstData.conditions.forEach(c => {
+        const name = shield ? 'Private Condition' : c.name
+        html += `<div style="font-size:12px;color:#1a2332;padding:2px 0;"><strong>${name}</strong>: ${c.rating}%</div>`
+        c.secondaries?.forEach(s => {
+          const sname = shield ? 'Private Secondary' : s.name
+          html += `<div style="font-size:11px;color:#4b5563;padding:1px 0 1px 16px;">└ ${sname}: ${s.rating}%</div>`
+        })
+      })
+      html += `</div>`
+    }
+    if (mstEvidence.length) {
+      html += `<div class="dc-section"><span class="dc-section-title" style="color:#1d4ed8;border-color:#bfdbfe;">Evidence on File</span><div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">`
+      mstEvidence.forEach(e => { html += `<span style="font-size:10px;padding:2px 8px;border-radius:3px;font-family:monospace;font-weight:600;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;">${e}</span>` })
+      html += `</div></div>`
+    }
+    if (!shield && sc.mstData.notes) {
+      html += `<div class="dc-desc"><span class="dc-key">Private Notes</span><div style="margin-top:2px;font-style:italic;color:#4b5563;">"${sc.mstData.notes}"</div></div>`
+    }
+    html += `</div>`
+  }
+
+  return html
 }
 
 // ── PDF / PRINT SUMMARY ───────────────────────────────────────────────────────
@@ -512,32 +835,87 @@ export function exportSummary(state: AppState): void {
     return card
   }).join('')
 
-  type EvalCond = { condition: string; sideLabel?: string; effectiveRating: number; date: string; location: string; medicalCare: '' | 'yes' | 'no'; clinicName: string; witnesses: string; description: string; secondaries?: string[] }
+  type EvalCond = {
+    condition: string; sideLabel?: string; effectiveRating: number; manualOverride?: number | null
+    date: string; location: string; medicalCare: '' | 'yes' | 'no'; clinicName: string; witnesses: string
+    description: string; secondaries?: string[]; secondaryRatings?: Record<string, number>
+    stillBeingSeen?: boolean; extremity?: string; profileLabel?: string; domainsHtml?: string
+  }
 
   function evalCard(c: EvalCond, typeLabel: string, color: string): string {
+    const overrideNote = c.manualOverride != null
+      ? ` <span style="font-size:9px;font-weight:700;font-family:monospace;color:#92400e;background:#fffbeb;padding:2px 6px;border-radius:3px;border:1px solid #fde68a;">override: ${c.manualOverride}%</span>` : ''
     let card = `<div class="detail-card">
       <div class="dc-header">
         <span class="dc-label">${c.condition}${c.sideLabel ? ` (${c.sideLabel})` : ''}</span>
+        ${c.profileLabel ? `<span class="dc-sev" style="color:#6b7280;">${c.profileLabel}</span>` : ''}
         <span class="dc-sev" style="color:${color};">${typeLabel}</span>
-        <span class="dc-sev" style="color:#1d4ed8;">${c.effectiveRating}%</span>
+        <span class="dc-sev" style="color:#1d4ed8;">${c.effectiveRating}%</span>${overrideNote}
       </div>
       <div class="dc-grid">
         <div class="dc-field"><span class="dc-key">Date</span><span class="dc-val">${c.date || '—'}</span></div>
         <div class="dc-field"><span class="dc-key">Installation</span><span class="dc-val">${c.location || '—'}</span></div>
         <div class="dc-field"><span class="dc-key">Medical Care</span><span class="dc-val">${c.medicalCare === 'yes' ? (c.clinicName || 'Yes') : 'No'}</span></div>
         <div class="dc-field"><span class="dc-key">Witnesses</span><span class="dc-val">${c.witnesses || '—'}</span></div>
+        ${c.stillBeingSeen ? `<div class="dc-field"><span class="dc-key">Still Being Seen</span><span class="dc-val">Yes</span></div>` : ''}
+        ${c.extremity && c.extremity !== 'none' ? `<div class="dc-field"><span class="dc-key">Extremity</span><span class="dc-val">${c.extremity}</span></div>` : ''}
       </div>`
     if (c.description) card += `<div class="dc-desc"><span class="dc-key">Description</span><div style="margin-top:2px;font-style:italic;color:#4b5563;">"${c.description}"</div></div>`
-    if (c.secondaries?.length) card += `<div class="dc-section"><span class="dc-section-title" style="color:#3730a3;border-color:#c7d2fe;">Secondary Conditions</span><div class="dc-tags">${c.secondaries.map(s => `<span class="dc-tag" style="background:#e0e7ff;color:#3730a3;border:1px solid #c7d2fe;">${s}</span>`).join('')}</div></div>`
+    if (c.domainsHtml) card += `<div class="dc-section"><span class="dc-section-title" style="color:#0f766e;border-color:#99f6e4;">Evaluation Domains</span>${c.domainsHtml}</div>`
+    if (c.secondaries?.length) {
+      const tags = c.secondaries.map(s => {
+        const r = c.secondaryRatings?.[s]
+        const label = r != null ? `${s} (${r}%)` : s
+        return `<span class="dc-tag" style="background:#e0e7ff;color:#3730a3;border:1px solid #c7d2fe;">${label}</span>`
+      }).join('')
+      card += `<div class="dc-section"><span class="dc-section-title" style="color:#3730a3;border-color:#c7d2fe;">Secondary Conditions</span><div class="dc-tags">${tags}</div></div>`
+    }
     card += '</div>'
     return card
   }
 
+  const mhDomainsHtml = (c: typeof state.mentalConditions[0]) => {
+    const parts = MH_DOMAINS.flatMap(d => {
+      const dv = c.domains[d.id]
+      if (!dv || dv.level === 'none') return []
+      return [`<div style="font-size:11px;color:#1a2332;padding:1px 0;"><strong>${d.label.split(':').pop()?.trim()}:</strong> ${dv.level} (${dv.frequency === '25plus' ? '25%+ of time' : '<25% of time'})</div>`]
+    }).join('')
+    return parts ? `<div style="margin-top:4px;">${parts}</div>` : ''
+  }
+
+  const headDomainsHtml = (c: typeof state.headConditions[0]) => {
+    const hProfile = HEAD_PROFILES[c.profile] || HEAD_PROFILES.generic
+    const parts = (hProfile?.domains || []).flatMap(d => {
+      const v = c.domains[d.id]
+      if (v == null || v === 0) return []
+      const lv = d.levels?.find(l => l.value === v)
+      return [`<div style="font-size:11px;color:#1a2332;padding:1px 0;"><strong>${d.label}:</strong> ${lv ? lv.label : `${v}%`}</div>`]
+    }).join('')
+    return parts ? `<div style="margin-top:4px;">${parts}</div>` : ''
+  }
+
+  const bpDomainsHtml = (regionId: string, c: BPCondition) => {
+    const bpProf = getBPProfile(regionId, c.condition)
+    const parts = (bpProf?.domains || []).flatMap(d => {
+      const v = c.domains[d.id]
+      if (v == null || v === 0) return []
+      const lv = d.levels?.find(l => l.value === v)
+      return [`<div style="font-size:11px;color:#1a2332;padding:1px 0;"><strong>${d.label}:</strong> ${lv ? lv.label : `${v}%`}</div>`]
+    }).join('')
+    return parts ? `<div style="margin-top:4px;">${parts}</div>` : ''
+  }
+
   const evalDetailCards = [
-    ...state.mentalConditions.map(c => evalCard(c, 'Mental Health', '#7c3aed')),
-    ...state.headConditions.map(c => evalCard(c, 'Head & Face', '#1d4ed8')),
+    ...state.mentalConditions.map(c => evalCard({ ...c, domainsHtml: mhDomainsHtml(c) }, 'Mental Health', '#7c3aed')),
+    ...state.headConditions.map(c => {
+      const hProf = HEAD_PROFILES[c.profile] || HEAD_PROFILES.generic
+      return evalCard({ ...c, domainsHtml: headDomainsHtml(c), profileLabel: hProf?.label }, 'Head & Face', '#1d4ed8')
+    }),
     ...Object.entries(state.bpConditions).flatMap(([region, conds]) =>
-      conds.map(c => evalCard(c, region.replace('_', ' / '), '#0f766e'))
+      conds.map(c => {
+        const bpProf = getBPProfile(region, c.condition)
+        return evalCard({ ...c, domainsHtml: bpDomainsHtml(region, c), profileLabel: bpProf?.label }, region.replace('_', ' / '), '#0f766e')
+      })
     ),
   ].join('')
 
@@ -641,8 +1019,35 @@ ${gapSummary}
 <div class="section-title">Quick Reference</div>
 <table><thead><tr><th>#</th><th>Date</th><th>Body Area</th><th>Severity</th><th>Installation</th><th>Medical</th><th>Secondary</th><th>Evidence</th></tr></thead>
 <tbody>${quickRef}</tbody></table>
+${(() => {
+    const tl = buildTimeline(state)
+    if (!tl.length) return ''
+    const years = [...new Set(tl.map(i => i.date.slice(0, 4)))]
+    const TYPE_COLOR: Record<string, string> = {
+      'Injury': '#1d4ed8', 'Mental Health': '#7c3aed', 'Head & Face': '#1d4ed8',
+    }
+    const rows = years.map(yr => {
+      const yearRow = `<tr><td colspan="5" style="background:#f1f5f9;font-weight:700;font-family:monospace;font-size:11px;color:#475569;padding:6px 10px;border-bottom:2px solid #e2e8f0;">── ${yr}</td></tr>`
+      const itemRows = tl.filter(i => i.date.startsWith(yr)).map(item => {
+        const color = TYPE_COLOR[item.type] || '#0f766e'
+        const context = [item.location, item.event].filter(Boolean).join(' · ')
+        return `<tr>
+          <td>${item.date}</td>
+          <td style="font-weight:600;">${item.label}</td>
+          <td style="color:${color};font-weight:700;font-size:10px;font-family:monospace;text-transform:uppercase;">${item.type}</td>
+          <td style="color:#1d4ed8;font-weight:600;font-size:11px;">${item.rating ? item.rating + '%' : '—'}</td>
+          <td style="color:#6b7280;font-size:11px;">${context || '—'}</td>
+        </tr>`
+      }).join('')
+      return yearRow + itemRows
+    }).join('')
+    return `<div class="section-title">Chronological Timeline</div>
+<table><thead><tr><th>Date</th><th>Condition</th><th>Type</th><th>Rating</th><th>Location / Event</th></tr></thead>
+<tbody>${rows}</tbody></table>`
+  })()}
 <div class="section-title">Detailed Injury Reports</div>
 ${detailCards}${evalDetailCards}
+${buildSpecialClaimsHTML(state)}
 ${(() => {
     const text = (state.personalStatement || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
     return text

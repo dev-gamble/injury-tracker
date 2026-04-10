@@ -1,6 +1,6 @@
 "use client"
 
-import Script from "next/script"
+import { useState } from "react"
 import { Header } from "./layout/Header"
 import { Tabs } from "./layout/Tabs"
 import { MapTab } from "./map/MapTab"
@@ -14,9 +14,11 @@ import { StatementTab } from "./tabs/StatementTab"
 import { Disclaimer } from "./layout/Disclaimer"
 
 export function InjuryTrackerApp() {
+  const [importOpen, setImportOpen] = useState(false)
+
   return (
     <div style={{ background: "#f0f2f5", minHeight: "100vh", color: "#0a1628", fontFamily: "'Open Sans', sans-serif" }}>
-      <Header />
+      <Header onImport={() => setImportOpen(true)} />
       <Tabs />
 
       {/* MAP TAB */}
@@ -24,7 +26,7 @@ export function InjuryTrackerApp() {
 
       {/* MODALS */}
       <InjuryModal />
-      <ImportModal />
+      <ImportModal isOpen={importOpen} onClose={() => setImportOpen(false)} />
 
       {/* OTHER TABS */}
       <TimelineTab />
@@ -34,16 +36,6 @@ export function InjuryTrackerApp() {
       <StatementTab />
 
       <Disclaimer />
-
-      {/* All JS bundled in dependency order */}
-      <Script
-        src="/injury-tracker/js/bundle.js"
-        strategy="afterInteractive"
-        onLoad={() => {
-          window.buildSidebar?.()
-          window.updateView?.()
-        }}
-      />
     </div>
   )
 }

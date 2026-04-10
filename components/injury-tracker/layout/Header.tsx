@@ -1,6 +1,18 @@
 "use client"
 
-export function Header() {
+import { useState, useCallback } from 'react'
+import { useInjuryStore } from '../store/useInjuryStore'
+import { exportCSV, exportTXT, exportSummary } from '../utils/export'
+
+export function Header({ onImport }: { onImport?: () => void }) {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const state = useInjuryStore()
+
+  const handleExport = useCallback((fn: (s: typeof state) => void) => {
+    fn(state)
+    setMenuOpen(false)
+  }, [state])
+
   return (
     <header>
       <div className="logo">
@@ -21,15 +33,15 @@ export function Header() {
         <button
           className="export-btn"
           style={{ background: "var(--navy)", borderColor: "var(--navy2)", boxShadow: "0 2px 8px rgba(10,35,87,.4)" }}
-          onClick={() => window.openImportModal?.()}
+          onClick={() => onImport?.()}
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="M12 3v12m0-12l-4 4m4-4l4 4M2 17l.621 2.485A2 2 0 004.561 21h14.878a2 2 0 001.94-1.515L22 17" />
           </svg>
           Import
         </button>
-        <div style={{ position: "relative" }} id="export-wrap">
-          <button className="export-btn" onClick={() => window.toggleExportMenu?.()}>
+        <div style={{ position: "relative" }}>
+          <button className="export-btn" onClick={() => setMenuOpen(o => !o)}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 004.561 21h14.878a2 2 0 001.94-1.515L22 17" />
             </svg>
@@ -38,17 +50,13 @@ export function Header() {
               <path d="M6 9l6 6 6-6" />
             </svg>
           </button>
-          <div id="export-menu" className="export-menu hidden">
-            <button onClick={() => { window.exportSummary?.(); window.closeExportMenu?.(); }}>
-              PDF / Print Summary
-            </button>
-            <button onClick={() => { window.exportCSV?.(); window.closeExportMenu?.(); }}>
-              CSV Spreadsheet
-            </button>
-            <button onClick={() => { window.exportTXT?.(); window.closeExportMenu?.(); }}>
-              TXT Report
-            </button>
-          </div>
+          {menuOpen && (
+            <div className="export-menu" style={{ display: 'block' }}>
+              <button onClick={() => handleExport(exportSummary)}>PDF / Print Summary</button>
+              <button onClick={() => handleExport(exportCSV)}>CSV Spreadsheet</button>
+              <button onClick={() => handleExport(exportTXT)}>TXT Report</button>
+            </div>
+          )}
         </div>
       </div>
     </header>

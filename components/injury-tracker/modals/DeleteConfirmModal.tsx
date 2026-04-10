@@ -1,9 +1,9 @@
 "use client"
 
-import { LogOut } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 
 const css = `
-  .so-backdrop {
+  .dm-backdrop {
     position: fixed;
     inset: 0;
     z-index: 9999;
@@ -13,15 +13,15 @@ const css = `
     align-items: center;
     justify-content: center;
     padding: 16px;
-    animation: so-fade-in 180ms ease both;
+    animation: dm-fade-in 180ms ease both;
   }
 
-  @keyframes so-fade-in {
+  @keyframes dm-fade-in {
     from { opacity: 0; }
     to   { opacity: 1; }
   }
 
-  .so-card {
+  .dm-card {
     background: #fff;
     border-radius: 8px;
     box-shadow:
@@ -30,24 +30,24 @@ const css = `
     width: 100%;
     max-width: 400px;
     overflow: hidden;
-    animation: so-rise 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: dm-rise 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
-  @keyframes so-rise {
+  @keyframes dm-rise {
     from { opacity: 0; transform: translateY(14px) scale(0.98); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
   }
 
-  .so-band {
+  .dm-band {
     height: 4px;
     background: linear-gradient(90deg, #a50d25 0%, #c8102e 50%, #e8173a 100%);
   }
 
-  .so-body {
+  .dm-body {
     padding: 28px 32px 32px;
   }
 
-  .so-icon-wrap {
+  .dm-icon-wrap {
     width: 52px;
     height: 52px;
     border-radius: 50%;
@@ -60,7 +60,7 @@ const css = `
     flex-shrink: 0;
   }
 
-  .so-title {
+  .dm-title {
     font-family: 'Oswald', sans-serif;
     font-size: 20px;
     font-weight: 700;
@@ -71,7 +71,7 @@ const css = `
     line-height: 1.1;
   }
 
-  .so-subtitle {
+  .dm-subtitle {
     font-family: 'Open Sans', sans-serif;
     font-size: 13.5px;
     color: #4a5568;
@@ -79,7 +79,14 @@ const css = `
     margin: 0 0 20px 0;
   }
 
-  .so-alert {
+  .dm-label {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    color: #0a2357;
+    font-size: 14px;
+  }
+
+  .dm-alert {
     background: rgba(200, 16, 46, 0.045);
     border: 1px solid rgba(200, 16, 46, 0.18);
     border-left: 3px solid #c8102e;
@@ -88,14 +95,14 @@ const css = `
     margin-bottom: 24px;
   }
 
-  .so-alert-text {
+  .dm-alert-text {
     font-family: 'Open Sans', sans-serif;
     font-size: 12.5px;
     color: #7a1020;
     line-height: 1.5;
   }
 
-  .so-alert-text strong {
+  .dm-alert-text strong {
     font-weight: 700;
     color: #c8102e;
     font-family: 'Oswald', sans-serif;
@@ -106,12 +113,12 @@ const css = `
     margin-bottom: 2px;
   }
 
-  .so-actions {
+  .dm-actions {
     display: flex;
     gap: 10px;
   }
 
-  .so-btn-cancel {
+  .dm-btn-cancel {
     flex: 1;
     border: 1.5px solid #d0d8e8;
     background: transparent;
@@ -127,13 +134,13 @@ const css = `
     transition: border-color 160ms, color 160ms, background 160ms;
   }
 
-  .so-btn-cancel:hover {
+  .dm-btn-cancel:hover {
     border-color: #0a2357;
     color: #0a2357;
     background: rgba(10, 35, 87, 0.04);
   }
 
-  .so-btn-signout {
+  .dm-btn-confirm {
     flex: 1.4;
     border: none;
     background: #c8102e;
@@ -153,70 +160,48 @@ const css = `
     transition: background 160ms, box-shadow 160ms;
   }
 
-  .so-btn-signout:hover:not(:disabled) {
+  .dm-btn-confirm:hover {
     background: #a50d25;
     box-shadow: 0 3px 12px rgba(200, 16, 46, 0.35);
   }
-
-  .so-btn-signout:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  @keyframes so-spin {
-    to { transform: rotate(360deg); }
-  }
-
-  .so-spinner {
-    width: 13px;
-    height: 13px;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    border-top-color: #fff;
-    border-radius: 50%;
-    animation: so-spin 0.6s linear infinite;
-    flex-shrink: 0;
-  }
 `
 
-interface SignOutModalProps {
-  onConfirm: () => Promise<void>
+interface DeleteConfirmModalProps {
+  label: string
+  onConfirm: () => void
   onCancel: () => void
-  loading: boolean
 }
 
-export function SignOutModal({ onConfirm, onCancel, loading }: SignOutModalProps) {
+export function DeleteConfirmModal({ label, onConfirm, onCancel }: DeleteConfirmModalProps) {
   return (
-    <div className="so-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onCancel() }}>
+    <div className="dm-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onCancel() }}>
       <style>{css}</style>
-      <div className="so-card" role="dialog" aria-modal="true" aria-labelledby="so-title">
-        <div className="so-band" />
-        <div className="so-body">
+      <div className="dm-card" role="dialog" aria-modal="true" aria-labelledby="dm-title">
+        <div className="dm-band" />
+        <div className="dm-body">
 
-          <div className="so-icon-wrap">
-            <LogOut size={22} stroke="#c8102e" strokeWidth={2} />
+          <div className="dm-icon-wrap">
+            <Trash2 size={22} stroke="#c8102e" strokeWidth={2} />
           </div>
 
-          <h2 className="so-title" id="so-title">Confirm Sign Out</h2>
-          <p className="so-subtitle">
-            You are about to end your session and return to the login screen.
+          <h2 className="dm-title" id="dm-title">Delete Condition</h2>
+          <p className="dm-subtitle">
+            You are about to permanently remove <span className="dm-label">{label}</span> and all associated secondary conditions.
           </p>
 
-          <div className="so-alert">
-            <div className="so-alert-text">
-              <strong>Session data will be erased</strong>
-              All injury entries, conditions, and notes from this session will be permanently cleared from this device. Export your data before signing out if you need a record.
+          <div className="dm-alert">
+            <div className="dm-alert-text">
+              <strong>This action cannot be undone</strong>
+              All ratings, secondaries, and evaluation data for this condition will be erased from your session.
             </div>
           </div>
 
-          <div className="so-actions">
-            <button className="so-btn-cancel" onClick={onCancel} disabled={loading}>
+          <div className="dm-actions">
+            <button className="dm-btn-cancel" onClick={onCancel}>
               Cancel
             </button>
-            <button className="so-btn-signout" onClick={onConfirm} disabled={loading}>
-              {loading
-                ? <><span className="so-spinner" /> Signing Out…</>
-                : 'Sign Out'
-              }
+            <button className="dm-btn-confirm" onClick={onConfirm}>
+              Delete
             </button>
           </div>
 

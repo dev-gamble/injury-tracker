@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback } from 'react'
+import { DeleteConfirmModal } from '../modals/DeleteConfirmModal'
 import { useInjuryStore } from '../store/useInjuryStore'
 import { MH_DOMAINS, MH_IMPAIRMENT_LEVELS, MH_IMPAIRMENT_LABELS, VA_MENTAL, calculateMHRating } from '../data/mhData'
 import { HEAD_PROFILES, VA_HEAD, getHeadProfile, calculateHeadRating } from '../data/headData'
@@ -768,6 +769,7 @@ export function SecondaryTab() {
   const [openSec, setOpenSec] = useState<Set<string>>(new Set())
   const [groupCollapsed, setGroupCollapsed] = useState<Set<string>>(new Set())
   const [secAddState, setSecAddState] = useState<Record<string, SecAddState>>({})
+  const [pendingDelete, setPendingDelete] = useState<Claim | null>(null)
 
   // Build unified claim list
   const panelKeys = getPanelKeys()
@@ -849,13 +851,18 @@ export function SecondaryTab() {
   }, [updateInjury, updateMHCondition, updateHeadCondition, updateBPCondition])
 
   const handleDeleteClaim = useCallback((claim: Claim) => {
-    const confirmed = window.confirm(`Delete "${claim.label}"?`)
-    if (!confirmed) return
+    setPendingDelete(claim)
+  }, [])
+
+  const confirmDelete = useCallback(() => {
+    if (!pendingDelete) return
+    const claim = pendingDelete
+    setPendingDelete(null)
     if (claim.type === 'inj') removeInjury(claim.rawId)
     else if (claim.type === 'mh') removeMHCondition(claim.rawId)
     else if (claim.type === 'hd') removeHeadCondition(claim.rawId)
     else if (claim.type === 'bp' && claim.bpRegion) removeBPCondition(claim.bpRegion, claim.rawId)
-  }, [removeInjury, removeMHCondition, removeHeadCondition, removeBPCondition])
+  }, [pendingDelete, removeInjury, removeMHCondition, removeHeadCondition, removeBPCondition])
 
   const handleAddSecondary = useCallback((claim: Claim, name: string, domains: SecDomains, rating: number) => {
     const secs = getSecondaries(claim)
@@ -896,6 +903,14 @@ export function SecondaryTab() {
   const totalSecCount = claims.reduce((n, c) => n + getSecondaries(c).length, 0)
 
   return (
+    <>
+    {pendingDelete && (
+      <DeleteConfirmModal
+        label={pendingDelete.label}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
+    )}
     <div id="tab-secondary" className={`content${activeTab !== 'secondary' ? ' hidden' : ''}`}>
       <div className="tl-bar">
         <div style={{ fontSize: 20, fontWeight: 700, fontFamily: 'var(--fh)', textTransform: 'uppercase', letterSpacing: '.5px', color: 'var(--navy)' }}>
@@ -1082,5 +1097,6 @@ export function SecondaryTab() {
         </div>
       )}
     </div>
+    </>
   )
 }

@@ -123,8 +123,8 @@ body.pin-placing .body-panel{position:relative;z-index:95;}
 .pin{position:absolute;transform:translate(-50%,-100%);z-index:10;pointer-events:all;cursor:grab;transition:filter .12s;}
 .pin:active{cursor:grabbing;z-index:50;}
 .pin.dragging{z-index:50;transition:none;filter:drop-shadow(0 4px 8px rgba(0,0,0,.4));}
-.pin-head{width:22px;height:22px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.35);}
-.pin-num{font-size:9px;font-weight:800;color:#fff;transform:rotate(45deg);font-family:var(--fm);line-height:1;}
+.pin-head{width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.35);}
+.pin-num{font-size:10px;font-weight:800;color:#fff;transform:rotate(45deg);font-family:var(--fm);line-height:1;}
 .pin-mild    .pin-head{background:var(--mild);}
 .pin-moderate .pin-head{background:var(--moderate);}
 .pin-severe  .pin-head{background:var(--severe);}
@@ -418,7 +418,8 @@ body.pin-placing .body-panel{position:relative;z-index:95;}
 .cr-custom-input:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 2px rgba(200,16,46,.15);}
 .cr-custom-input::placeholder{color:var(--muted);font-style:italic;}
 .cr-custom-btn{padding:6px 12px;border-radius:6px;border:none;background:var(--navy);color:#fff;font-family:var(--fh);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;transition:all .15s;white-space:nowrap;}
-.cr-custom-btn:hover{background:var(--red);}
+.cr-custom-btn:hover:not(:disabled){background:var(--red);}
+.cr-custom-btn:disabled{opacity:.35;cursor:not-allowed;}
 .cr-pending-sec{background:#f0f4ff;border:2px solid #818cf8;border-radius:10px;padding:14px;margin-top:8px;}
 .cr-pending-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #c7d2fe;}
 .cr-pending-name{font-size:14px;font-weight:700;font-family:var(--fh);color:#3730a3;}

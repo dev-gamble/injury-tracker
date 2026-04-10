@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useInjuryStore } from '../store/useInjuryStore'
 import { VA_HEAD, HEAD_PROFILES, getHeadProfileKey, calculateHeadRating } from '../data/headData'
 import { CondInfoFields } from './CondInfoFields'
-import type { HeadCondition, CondInfo } from '../types'
+import { PanelShell, RatingsSummaryBand, PanelActions, CalcRatingRow, ManualOverrideControl, usePinPlacement } from './PanelShared'
+import type { HeadCondition } from '../types'
 
 const OVERRIDE_VALUES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
 
@@ -20,6 +21,7 @@ function HDEvalCard({
   const [collapsed, setCollapsed] = useState(false)
   const profile = HEAD_PROFILES[cond.profile] ?? HEAD_PROFILES.generic
   const overrideActive = cond.manualOverride !== null
+  const profileShortLabel = profile.label.split('(')[0].trim()
 
   const updateDomain = useCallback((domainId: string, value: number) => {
     const newDomains = { ...cond.domains, [domainId]: value }
@@ -49,7 +51,6 @@ function HDEvalCard({
   }, [cond.calculatedRating, onUpdate])
 
   const rateClass = `mh-rate-${cond.effectiveRating}`
-  const profileShortLabel = profile.label.split('(')[0].trim()
 
   return (
     <div className="mh-eval-card">
@@ -82,14 +83,12 @@ function HDEvalCard({
           {profile.domains.map((domain) => {
             const currentValue = cond.domains[domain.id] ?? 0
             const selectedLevel = domain.levels.find((lv) => lv.value === currentValue)
-
             return (
               <div key={domain.id} className="mh-domain">
                 <div className="mh-domain-header">
                   <div className="mh-domain-label">{domain.label}</div>
                   <div className="mh-domain-desc">{domain.description}</div>
                 </div>
-
                 <div className="hd-levels">
                   {domain.levels.map((lv, idx) => (
                     <button
@@ -103,7 +102,6 @@ function HDEvalCard({
                     </button>
                   ))}
                 </div>
-
                 {selectedLevel && selectedLevel.description && currentValue > 0 && (
                   <div className="mh-example">{selectedLevel.description}</div>
                 )}
@@ -111,32 +109,14 @@ function HDEvalCard({
             )
           })}
 
-          {/* Calculated rating */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(10,35,87,.04)', borderRadius: 6 }}>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--navy)', fontFamily: 'var(--fh)', textTransform: 'uppercase', letterSpacing: '.5px' }}>Calculated Rating</div>
-              <div style={{ fontSize: 24, fontWeight: 800, fontFamily: 'var(--fm)', color: 'var(--navy)' }}>{cond.calculatedRating}%</div>
-            </div>
-          </div>
-
-          {/* Manual override */}
-          <div className="mh-override">
-            <label>
-              <input
-                type="checkbox"
-                checked={overrideActive}
-                onChange={(e) => toggleOverride(e.target.checked)}
-              />
-              {' '}Manual Override
-            </label>
-            {overrideActive && (
-              <select value={cond.manualOverride ?? 0} onChange={(e) => setOverride(e.target.value)}>
-                {OVERRIDE_VALUES.map((v) => (
-                  <option key={v} value={v}>{v}%</option>
-                ))}
-              </select>
-            )}
-          </div>
+          <CalcRatingRow value={cond.calculatedRating} />
+          <ManualOverrideControl
+            active={overrideActive}
+            value={cond.manualOverride}
+            overrideValues={OVERRIDE_VALUES}
+            onToggle={toggleOverride}
+            onChange={setOverride}
+          />
         </div>
       )}
     </div>
@@ -149,14 +129,13 @@ export function HeadPanel() {
   const updateHeadCondition = useInjuryStore((s) => s.updateHeadCondition)
   const removeHeadCondition = useInjuryStore((s) => s.removeHeadCondition)
   const setActivePanel = useInjuryStore((s) => s.setActivePanel)
-  const setPinPlaceMode = useInjuryStore((s) => s.setPinPlaceMode)
 
   const [search, setSearch] = useState('')
 
-  const selected = new Set(headConditions.map((c) => c.condition))
-
-  const filtered = VA_HEAD.filter((name) =>
-    !search || name.toLowerCase().includes(search.toLowerCase())
+  const selected = useMemo(() => new Set(headConditions.map((c) => c.condition)), [headConditions])
+  const filtered = useMemo(
+    () => VA_HEAD.filter((name) => !search || name.toLowerCase().includes(search.toLowerCase())),
+    [search]
   )
 
   const toggleCondition = useCallback((name: string) => {
@@ -184,147 +163,99 @@ export function HeadPanel() {
     }
   }, [headConditions, addHeadCondition, removeHeadCondition])
 
-  const placeHeadPin = useCallback(() => {
-    const label = headConditions[0]?.condition ?? 'Head & Face'
-    setActivePanel(null)
-    setPinPlaceMode({ key: 'headFace', label, fromPanel: true })
-    document.body.classList.add('pin-placing')
-    document.querySelectorAll('.body-wrap').forEach((el) => el.classList.add('pin-place-mode'))
-  }, [headConditions, setActivePanel, setPinPlaceMode])
+  const pinLabel = headConditions[0]?.condition ?? 'Head & Face'
+  const placePin = usePinPlacement('headFace', pinLabel)
+  const handleBack = useCallback(() => setActivePanel(null), [setActivePanel])
+
+  const ratingsItems = useMemo(
+    () => headConditions.map((c) => ({ id: c.id, label: c.condition, rating: c.effectiveRating })),
+    [headConditions]
+  )
 
   return (
-    <div className="mental-panel" id="head-panel">
-      <div className="mh-header">
-        <span className="mh-title">Head & Face Evaluation</span>
-        <button className="mh-back" onClick={() => setActivePanel(null)}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M19 12H5m0 0l7 7m-7-7l7-7" />
-          </svg>
-          {' '}Back to Map
-        </button>
+    <PanelShell id="head-panel" title="Head & Face Evaluation" onBack={handleBack}>
+      <div className="mh-info">
+        <strong>Each condition rated separately:</strong> Unlike mental health, physical head/face conditions
+        are each rated independently under their own diagnostic code. Each rating contributes separately
+        to your combined VA disability rating.
       </div>
 
-      <div className="mh-body">
-        <div className="mh-info">
-          <strong>Each condition rated separately:</strong> Unlike mental health, physical head/face conditions
-          are each rated independently under their own diagnostic code. Each rating contributes separately
-          to your combined VA disability rating.
-        </div>
+      <div className="mh-search">
+        <svg className="mh-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
+        </svg>
+        <input
+          type="text"
+          placeholder="Search conditions..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
 
-        {/* Search */}
-        <div className="mh-search">
-          <svg className="mh-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
-          </svg>
-          <input
-            type="text"
-            placeholder="Search conditions..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-
-        {/* Condition checklist */}
-        <div className="mh-cond-list">
-          {filtered.length === 0 ? (
-            <div style={{ padding: 14, color: 'var(--muted)', fontSize: 12, textAlign: 'center' }}>
-              No conditions match your search.
-            </div>
-          ) : (
-            filtered.map((name) => {
-              const checked = selected.has(name)
-              const cond = headConditions.find((c) => c.condition === name)
-              return (
-                <div
-                  key={name}
-                  className={`mh-cond-item${checked ? ' selected' : ''}`}
-                  onClick={() => toggleCondition(name)}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    readOnly
-                    onClick={(e) => { e.stopPropagation(); toggleCondition(name) }}
-                  />
-                  <span className="mh-cond-label">{name}</span>
-                  {cond && (
-                    <span className={`mh-cond-badge mh-rate-${cond.effectiveRating}`}>
-                      {cond.effectiveRating}%
-                    </span>
-                  )}
-                </div>
-              )
-            })
-          )}
-        </div>
-
-        {/* Evaluation cards */}
-        {headConditions.length > 0 && (
-          <>
-            <div className="mh-section-title">
-              Evaluations ({headConditions.length} condition{headConditions.length > 1 ? 's' : ''})
-            </div>
-            {headConditions.map((cond) => (
-              <HDEvalCard
-                key={cond.id}
-                cond={cond}
-                onUpdate={(patch) => updateHeadCondition(cond.id, patch)}
-                onRemove={() => removeHeadCondition(cond.id)}
-              />
-            ))}
-
-            {/* Summary — all ratings */}
-            <div className="mh-combined" style={{ background: 'linear-gradient(135deg,#0a2357 0%,#1d4ed8 100%)' }}>
-              <div className="mh-combined-label" style={{ color: '#fff' }}>Head & Face Ratings</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 8 }}>
-                {headConditions.map((c) => (
-                  <div key={c.id} style={{ background: 'rgba(255,255,255,.15)', borderRadius: 6, padding: '6px 12px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,.9)', whiteSpace: 'nowrap', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {c.condition}
-                    </div>
-                    <div style={{ fontSize: 20, fontWeight: 800, fontFamily: 'var(--fm)', color: '#fff' }}>
-                      {c.effectiveRating}%
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mh-combined-note" style={{ marginTop: 8, color: 'rgba(255,255,255,.85)' }}>
-                Each condition contributes separately to your combined VA rating
-              </div>
-            </div>
-          </>
-        )}
-
-        {headConditions.length === 0 && (
-          <div className="mh-empty">
-            <div style={{ fontSize: 28, marginBottom: 8 }}>&#129504;</div>
-            <strong>Select conditions above to begin evaluation</strong><br />
-            Check one or more conditions, then rate each using VA diagnostic criteria.<br />
-            Head & face conditions include TBI, migraines, hearing, vision, TMJ, and more.
+      <div className="mh-cond-list">
+        {filtered.length === 0 ? (
+          <div style={{ padding: 14, color: 'var(--muted)', fontSize: 12, textAlign: 'center' }}>
+            No conditions match your search.
           </div>
-        )}
-
-        {/* Action buttons */}
-        <div className="mh-done-wrap">
-          {headConditions.length > 0 && (
-            <>
-              <button className="mh-done-btn" onClick={placeHeadPin}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <circle cx="12" cy="10" r="3" />
-                  <path d="M12 2C7.58 2 4 5.58 4 10c0 5.25 8 13 8 13s8-7.75 8-13c0-4.42-3.58-8-8-8z" />
-                </svg>
-                {' '}Place Pin on Map
-              </button>
-              <div style={{ fontSize: 11, color: 'var(--muted)', textAlign: 'center', marginTop: 6 }}>
-                Click to return to the map and place a pin for this condition.
+        ) : (
+          filtered.map((name) => {
+            const checked = selected.has(name)
+            const cond = headConditions.find((c) => c.condition === name)
+            return (
+              <div
+                key={name}
+                className={`mh-cond-item${checked ? ' selected' : ''}`}
+                onClick={() => toggleCondition(name)}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  readOnly
+                  onClick={(e) => { e.stopPropagation(); toggleCondition(name) }}
+                />
+                <span className="mh-cond-label">{name}</span>
+                {cond && (
+                  <span className={`mh-cond-badge mh-rate-${cond.effectiveRating}`}>
+                    {cond.effectiveRating}%
+                  </span>
+                )}
               </div>
-            </>
-          )}
-          <button className="mh-back-btn" onClick={() => setActivePanel(null)} style={{ marginTop: 8 }}>
-            Back to Map (no pin)
-          </button>
-        </div>
+            )
+          })
+        )}
       </div>
-    </div>
+
+      {headConditions.length > 0 && (
+        <>
+          <div className="mh-section-title">
+            Evaluations ({headConditions.length} condition{headConditions.length > 1 ? 's' : ''})
+          </div>
+          {headConditions.map((cond) => (
+            <HDEvalCard
+              key={cond.id}
+              cond={cond}
+              onUpdate={(patch) => updateHeadCondition(cond.id, patch)}
+              onRemove={() => removeHeadCondition(cond.id)}
+            />
+          ))}
+          <RatingsSummaryBand title="Head & Face Ratings" items={ratingsItems} />
+        </>
+      )}
+
+      {headConditions.length === 0 && (
+        <div className="mh-empty">
+          <div style={{ fontSize: 28, marginBottom: 8 }}>&#129504;</div>
+          <strong>Select conditions above to begin evaluation</strong><br />
+          Check one or more conditions, then rate each using VA diagnostic criteria.<br />
+          Head & face conditions include TBI, migraines, hearing, vision, TMJ, and more.
+        </div>
+      )}
+
+      <PanelActions
+        hasConditions={headConditions.length > 0}
+        onPlacePin={placePin}
+        onBack={handleBack}
+      />
+    </PanelShell>
   )
 }

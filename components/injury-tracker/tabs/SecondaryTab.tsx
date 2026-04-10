@@ -733,6 +733,7 @@ function AddSecondarySection({ claimId, claimLabel, group, secondaries, addState
         />
         <button
           className="cr-custom-btn"
+          disabled={!customInput.trim()}
           onClick={() => {
             if (customInput.trim()) {
               handleStartPending(customInput.trim())

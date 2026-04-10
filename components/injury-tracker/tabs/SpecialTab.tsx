@@ -307,7 +307,7 @@ export function SpecialTab() {
           <input type="text" className="cr-custom-input" placeholder="Custom vocational condition..."
             value={vocCustom} onChange={(e) => setVocCustom(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') { addVoc(vocCustom); setVocCustom('') } }} />
-          <button className="cr-custom-btn" onClick={() => { addVoc(vocCustom); setVocCustom('') }}>Add</button>
+          <button className="cr-custom-btn" disabled={!vocCustom.trim()} onClick={() => { addVoc(vocCustom); setVocCustom('') }}>Add</button>
         </div>
 
         <div style={{ marginTop: 12 }}>

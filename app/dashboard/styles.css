@@ -501,14 +501,12 @@ body.pin-placing .body-panel{position:relative;z-index:95;}
 /* ── MENTAL HEALTH PANEL ─────────────────────────────────────────────────── */
 .mental-panel{
   grid-column:1/-1;background:var(--surface);border:1px solid var(--border);border-radius:8px;
-  box-shadow:var(--sh);border-top:3px solid var(--navy);padding:0;overflow-y:auto;
-  max-height:calc(100vh - 160px);
+  box-shadow:var(--sh);border-top:3px solid var(--navy);padding:0;
 }
 @media(max-width:900px){.mental-panel{grid-column:1/-1;}}
 .mh-header{
   display:flex;align-items:center;justify-content:space-between;
   padding:16px 20px;border-bottom:1px solid var(--border);background:rgba(10,35,87,.03);
-  position:sticky;top:0;z-index:5;
 }
 .mh-title{font-family:var(--fh);font-size:18px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;}
 .mh-back{

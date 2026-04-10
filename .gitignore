@@ -51,5 +51,3 @@ supabase/.temp/
 .tunnel.log
 .tunnel.url
 
-/app/injury-tracker
-

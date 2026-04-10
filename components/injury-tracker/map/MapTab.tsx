@@ -376,10 +376,10 @@ export function MapTab() {
             </div>
           </div>
 
-          <BodyView id="view-mf" src="/images/injury-tracker/body-male-front.png" alt="Male front body diagram" />
-          <BodyView id="view-mb" src="/images/injury-tracker/body-male-back.png" alt="Male back body diagram" />
-          <BodyView id="view-ff" src="/images/injury-tracker/body-female-front.png" alt="Female front body diagram" />
-          <BodyView id="view-fb" src="/images/injury-tracker/body-female-back.png" alt="Female back body diagram" />
+          <BodyView id="view-mf" src="/body/body-male-front.png" alt="Male front body diagram" />
+          <BodyView id="view-mb" src="/body/body-male-back.png" alt="Male back body diagram" />
+          <BodyView id="view-ff" src="/body/body-female-front.png" alt="Female front body diagram" />
+          <BodyView id="view-fb" src="/body/body-female-back.png" alt="Female back body diagram" />
         </div>
 
         {showBodyAndSidebar && <Sidebar />}

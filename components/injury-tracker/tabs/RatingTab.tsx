@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo } from 'react'
+import { AlertTriangle, Scale } from 'lucide-react'
 import { useInjuryStore } from '../store/useInjuryStore'
 import { getPanelKeys, BP_META } from '../data/bpMeta'
 import { MH_DOMAINS, MH_IMPAIRMENT_LABELS } from '../data/mhData'
@@ -359,17 +360,12 @@ function calculateVARating(ratingItems: RatingItem[]): CalcResult {
 
 // ── WARNINGS ──────────────────────────────────────────────────────────────────
 
-function detectWarnings(ratingItems: RatingItem[], bpConditions: Record<BPRegion, BPCondition[]>): RatingWarning[] {
+function detectWarnings(ratingItems: RatingItem[]): RatingWarning[] {
   const warnings: RatingWarning[] = []
   const allConds: { name: string; extremity: string }[] = []
 
   ratingItems.filter((r) => r.rating > 0).forEach((item) => {
     allConds.push({ name: item.name, extremity: item.extremity })
-  })
-  BP_REGIONS.forEach((r) => {
-    ;(bpConditions[r] ?? []).forEach((cond) => {
-      if (cond.effectiveRating > 0) allConds.push({ name: cond.condition, extremity: cond.extremity ?? 'none' })
-    })
   })
 
   const seen: Record<string, number> = {}
@@ -436,7 +432,7 @@ export function RatingTab() {
   )
 
   const result = useMemo(() => calculateVARating(ratingItems), [ratingItems])
-  const warnings = useMemo(() => detectWarnings(ratingItems, bpConditions), [ratingItems, bpConditions])
+  const warnings = useMemo(() => detectWarnings(ratingItems), [ratingItems])
 
   // Sorted injury list for numbering (same logic as MapTab)
   const panelKeys = getPanelKeys()
@@ -514,7 +510,7 @@ export function RatingTab() {
               <div className="rc-warnings">
                 {warnings.map((w, i) => (
                   <div key={i} className={`rc-warning ${w.type === 'duplicate' ? 'rc-warn-dup' : 'rc-warn-pyr'}`}>
-                    <div className="rc-warning-header">{w.type === 'duplicate' ? '⚠' : '⚖'} {w.title}</div>
+                    <div className="rc-warning-header">{w.type === 'duplicate' ? <AlertTriangle size={14} strokeWidth={2.5} /> : <Scale size={14} strokeWidth={2.5} />} {w.title}</div>
                     <div className="rc-warning-cond">{w.condition}</div>
                     <div className="rc-warning-msg">{w.message}</div>
                   </div>

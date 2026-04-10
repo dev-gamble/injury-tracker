@@ -14,14 +14,11 @@ import type {
   PendingPin,
   Pin,
 } from '../types'
+import { BP_REGIONS } from '../utils/rating'
 
 // ── DEFAULT STATE ───────────────────────────────────────────────────────────────
 
 const DEFAULT_BP_CONDITIONS = {} as Record<BPRegion, BPCondition[]>
-const BP_REGIONS: BPRegion[] = [
-  'knee', 'back', 'shoulder', 'neck', 'hip', 'elbow',
-  'wrist_hand', 'ankle_foot', 'chest', 'abdomen', 'leg', 'systemic',
-]
 BP_REGIONS.forEach(r => { DEFAULT_BP_CONDITIONS[r] = [] })
 
 const DEFAULT_SPECIAL_CLAIMS: SpecialClaimsState = {

@@ -1,16 +1,10 @@
 import { useInjuryStore } from '../store/useInjuryStore'
+import { ratingToSeverity } from '../utils/rating'
 
 /** Sidebar key → { count, severity } */
 export interface BadgeInfo {
   count: number
   severity: 'mild' | 'moderate' | 'severe' | 'custom'
-}
-
-function ratingToSeverity(r: number): BadgeInfo['severity'] {
-  if (r >= 70) return 'severe'
-  if (r >= 30) return 'moderate'
-  if (r > 0) return 'mild'
-  return 'custom'
 }
 
 // Sidebar key → pin keys that belong to it

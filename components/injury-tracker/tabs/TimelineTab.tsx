@@ -4,6 +4,7 @@ import { useInjuryStore } from '../store/useInjuryStore'
 import { gapStatus } from '../utils/gaps'
 import { getPanelKeys, BP_META } from '../data/bpMeta'
 import { SEVERITY_COLOR, SEVERITY_BG, SEVERITY_BORDER } from '../data/pins'
+import { ratingToSeverity } from '../utils/rating'
 import type { Injury, MHCondition, HeadCondition, BPCondition, BPRegion } from '../types'
 
 interface TimelineEntry {
@@ -22,13 +23,6 @@ interface TimelineEntry {
   secondaries: string[]
   pin: { body?: string; side?: string } | null
   injRef?: Injury
-}
-
-function ratingToSeverity(r: number): string {
-  if (r >= 70) return 'severe'
-  if (r >= 30) return 'moderate'
-  if (r > 0) return 'mild'
-  return 'custom'
 }
 
 function GapBar({ inj }: { inj: Injury }) {

@@ -6,88 +6,8 @@ import { getPanelKeys, BP_META } from '../data/bpMeta'
 import { MH_DOMAINS, MH_IMPAIRMENT_LABELS } from '../data/mhData'
 import { HEAD_PROFILES } from '../data/headData'
 import { getBPProfile } from '../data/bpProfiles'
+import { getSuggestedRating, getExtremity, BP_REGIONS } from '../utils/rating'
 import type { BPRegion, MHDomainState, Injury, SpecialClaimsState, HeadCondition, BPCondition, MHCondition } from '../types'
-
-// ── SUGGESTED RATINGS ─────────────────────────────────────────────────────────
-
-const SUGGESTED_RATINGS: Record<string, number> = {
-  tinnitus: 10, 'tinnitus, recurrent': 10,
-  'limited rom - knee': 10, 'limited rom - ankle': 10,
-  'limited rom - shoulder': 20, 'limited rom - hip': 10,
-  'limited rom - elbow': 10, 'limited rom - wrist': 10,
-  'limited rom - cervical spine': 20, 'limited rom - thoracolumbar spine': 20,
-  'degenerative joint disease - knee': 10, 'degenerative joint disease - hip': 10,
-  'degenerative joint disease - ankle': 10,
-  'degenerative disc disease (cervical)': 20, 'degenerative disc disease (lumbar)': 20,
-  'plantar fasciitis': 10, 'flatfoot (pes planus)': 10,
-  'rotator cuff tendinopathy': 20, 'frozen shoulder (adhesive capsulitis)': 20,
-  'carpal tunnel syndrome': 10, 'meniscal tear': 10,
-  'patellar tendinitis': 10, 'shin splints (mtss)': 10,
-  'costochondritis': 10, 'ankle instability': 10,
-  'hip labral tear': 10, 'shoulder instability': 20,
-  'cubital tunnel syndrome': 10, 'tennis elbow (lateral epicondylitis)': 10,
-  "baker's cyst": 0, 'instability / giving way': 10,
-  'trigger finger': 10, "de quervain's tenosynovitis": 10,
-  'abnormal gait': 0, 'leg length discrepancy': 0,
-  'cervical radiculopathy': 20, 'lumbar radiculopathy': 20,
-  sciatica: 20, 'ivds - cervical': 20, 'ivds - lumbar': 20,
-  'migraine headaches': 30, migraine: 30,
-  'tbi residuals': 40, 'residuals of traumatic brain injury (tbi)': 40,
-  'tmj disorder': 10, 'vertigo / dizziness': 10,
-  'cognitive disorder': 30, 'vision impairment': 10,
-  anxiety: 30, 'generalized anxiety disorder': 30,
-  'depression due to chronic pain': 30, 'major depressive disorder': 50,
-  ptsd: 50, 'ptsd (related to injury)': 50, 'posttraumatic stress disorder': 50,
-  insomnia: 0, 'insomnia / sleep disturbance': 0, 'adjustment disorder': 30,
-  tbi: 40, depression: 30,
-  'chronic adjustment disorder': 30, 'somatic symptom disorder': 30,
-  'bipolar disorder': 50, 'panic disorder and/or agoraphobia': 30,
-  'persistent depressive disorder (dysthymia)': 30, 'obsessive compulsive disorder': 30,
-  'sleep apnea syndromes (obstructive, central, mixed)': 50,
-  'asthma, bronchial': 30, 'chronic obstructive pulmonary disease': 30,
-  'hypertensive vascular disease (hypertension and isolated systolic hypertension)': 10,
-  gerd: 10, 'gastroesophageal reflux disease': 10,
-  ibs: 10, 'irritable bowel syndrome': 10,
-  'erectile dysfunction': 0, 'bladder dysfunction': 20,
-  scarring: 10, 'hearing impairment (hearing loss)': 10,
-  'peripheral neuropathy (lower)': 10, 'peripheral neuropathy (upper)': 10,
-  'upper extremity numbness / tingling': 10, 'lower extremity numbness / tingling': 10,
-  'chronic fatigue': 10, 'grip strength loss': 10,
-  'nerve damage (upper extremity)': 20, 'sciatic nerve involvement': 20,
-  'muscle atrophy': 10,
-}
-
-function getSuggestedRating(name: string): number | null {
-  if (!name) return null
-  const key = name.toLowerCase().trim()
-  if (key in SUGGESTED_RATINGS) return SUGGESTED_RATINGS[key]
-  for (const [k, v] of Object.entries(SUGGESTED_RATINGS)) {
-    if (key.includes(k) || k.includes(key)) return v
-  }
-  return null
-}
-
-// ── BILATERAL EXTREMITY DETECTION ─────────────────────────────────────────────
-
-const KEY_TO_EXTREMITY: Record<string, string> = {
-  leftShoulder: 'LU', rightShoulder: 'RU',
-  leftElbow: 'LU', rightElbow: 'RU',
-  leftForearm: 'LU', rightForearm: 'RU',
-  leftWrist: 'LU', rightWrist: 'RU',
-  leftHand: 'LU', rightHand: 'RU',
-  leftHip: 'LL', rightHip: 'RL',
-  leftThigh: 'LL', rightThigh: 'RL',
-  leftKnee: 'LL', rightKnee: 'RL',
-  leftShin: 'LL', rightShin: 'RL',
-  leftHamstring: 'LL', rightHamstring: 'RL',
-  leftCalf: 'LL', rightCalf: 'RL',
-  leftAnkle: 'LL', rightAnkle: 'RL',
-  leftFoot: 'LL', rightFoot: 'RL',
-}
-
-function getExtremity(pinKey: string): string {
-  return KEY_TO_EXTREMITY[pinKey] ?? 'none'
-}
 
 // ── PYRAMIDING RISKS ──────────────────────────────────────────────────────────
 
@@ -281,7 +201,6 @@ function buildRatingItems(
   })
 
   // Body part conditions
-  const BP_REGIONS: BPRegion[] = ['knee', 'back', 'shoulder', 'neck', 'hip', 'elbow', 'wrist_hand', 'ankle_foot', 'chest', 'abdomen', 'leg', 'systemic']
   BP_REGIONS.forEach((regionId) => {
     ;(bpConditions[regionId] ?? []).forEach((cond) => {
       const itemId = `bp-${cond.id}`
@@ -447,7 +366,6 @@ function detectWarnings(ratingItems: RatingItem[], bpConditions: Record<BPRegion
   ratingItems.filter((r) => r.rating > 0).forEach((item) => {
     allConds.push({ name: item.name, extremity: item.extremity })
   })
-  const BP_REGIONS: BPRegion[] = ['knee', 'back', 'shoulder', 'neck', 'hip', 'elbow', 'wrist_hand', 'ankle_foot', 'chest', 'abdomen', 'leg', 'systemic']
   BP_REGIONS.forEach((r) => {
     ;(bpConditions[r] ?? []).forEach((cond) => {
       if (cond.effectiveRating > 0) allConds.push({ name: cond.condition, extremity: cond.extremity ?? 'none' })
@@ -500,8 +418,6 @@ const SEVERITY_BG: Record<string, string> = {
 }
 
 // ── COMPONENT ─────────────────────────────────────────────────────────────────
-
-const BP_REGIONS: BPRegion[] = ['knee', 'back', 'shoulder', 'neck', 'hip', 'elbow', 'wrist_hand', 'ankle_foot', 'chest', 'abdomen', 'leg', 'systemic']
 
 export function RatingTab() {
   const activeTab = useInjuryStore((s) => s.ui.activeTab)

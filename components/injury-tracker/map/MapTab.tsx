@@ -10,6 +10,12 @@ import { PanelPin, type PanelPinDescriptor } from './PanelPin'
 import { MentalHealthPanel } from '../panels/MentalHealthPanel'
 import { HeadPanel } from '../panels/HeadPanel'
 import { BodyPartPanel } from '../panels/BodyPartPanel'
+import { ratingToSeverity } from '../utils/rating'
+import type { StaticImageData } from 'next/image'
+import bodyMaleFront from '@/public/body/body-male-front.png'
+import bodyMaleBack from '@/public/body/body-male-back.png'
+import bodyFemaleFront from '@/public/body/body-female-front.png'
+import bodyFemaleBack from '@/public/body/body-female-back.png'
 import type { BPCondition, BPRegion, HeadCondition, Injury, MHCondition, Pin } from '../types'
 
 const HEAD_KEYS = new Set(['headFace', 'head', 'leftEar', 'rightEar', 'leftEye', 'rightEye', 'nose', 'jaw'])
@@ -23,13 +29,6 @@ function injuryNumber(inj: Injury, sorted: Injury[]): number {
 function clearPinPlacementUi() {
   document.body.classList.remove('pin-placing')
   document.querySelectorAll('.body-wrap').forEach((el) => el.classList.remove('pin-place-mode'))
-}
-
-function ratingToSeverity(rating: number): Injury['severity'] {
-  if (rating >= 70) return 'severe'
-  if (rating >= 30) return 'moderate'
-  if (rating > 0) return 'mild'
-  return 'custom'
 }
 
 function resolveBPRegionForKey(key: string): BPRegion | null {
@@ -115,7 +114,7 @@ function PinPlaceBanner() {
   )
 }
 
-function BodyView({ id, src, alt }: { id: string; src: string; alt: string }) {
+function BodyView({ id, src, alt }: { id: string; src: StaticImageData; alt: string }) {
   const curSide = useInjuryStore((s) => s.ui.curSide)
   const curBody = useInjuryStore((s) => s.ui.curBody)
   const injuries = useInjuryStore((s) => s.injuries)
@@ -218,7 +217,7 @@ function BodyView({ id, src, alt }: { id: string; src: string; alt: string }) {
       onClick={handleClick}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img className="body-img" src={src} alt={alt} />
+      <img className="body-img" src={src.src} alt={alt} />
       <div className="pins-layer" id={`pins-${viewId}`}>
         {viewInjuries.map((injury) => (
           <DraggablePin
@@ -376,10 +375,10 @@ export function MapTab() {
             </div>
           </div>
 
-          <BodyView id="view-mf" src="/body/body-male-front.png" alt="Male front body diagram" />
-          <BodyView id="view-mb" src="/body/body-male-back.png" alt="Male back body diagram" />
-          <BodyView id="view-ff" src="/body/body-female-front.png" alt="Female front body diagram" />
-          <BodyView id="view-fb" src="/body/body-female-back.png" alt="Female back body diagram" />
+          <BodyView id="view-mf" src={bodyMaleFront} alt="Male front body diagram" />
+          <BodyView id="view-mb" src={bodyMaleBack} alt="Male back body diagram" />
+          <BodyView id="view-ff" src={bodyFemaleFront} alt="Female front body diagram" />
+          <BodyView id="view-fb" src={bodyFemaleBack} alt="Female back body diagram" />
         </div>
 
         {showBodyAndSidebar && <Sidebar />}

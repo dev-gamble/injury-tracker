@@ -1,4 +1,5 @@
 // ── PURE RATING CALCULATION UTILITIES ─────────────────────────────────────────
+import type { BPRegion } from '../types'
 
 // ── SUGGESTED RATINGS ──────────────────────────────────────────────────────────
 const SUGGESTED_RATINGS: Record<string, number> = {
@@ -120,3 +121,17 @@ export function roundVARating(raw: number): number {
   if (rem < 5) return pct - rem
   return pct - rem + 10
 }
+
+// ── SEVERITY ──────────────────────────────────────────────────────────────────
+export function ratingToSeverity(r: number): 'severe' | 'moderate' | 'mild' | 'custom' {
+  if (r >= 70) return 'severe'
+  if (r >= 30) return 'moderate'
+  if (r > 0) return 'mild'
+  return 'custom'
+}
+
+// ── BP REGIONS ────────────────────────────────────────────────────────────────
+export const BP_REGIONS: BPRegion[] = [
+  'knee', 'back', 'shoulder', 'neck', 'hip', 'elbow',
+  'wrist_hand', 'ankle_foot', 'chest', 'abdomen', 'leg', 'systemic',
+]

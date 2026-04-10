@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useInjuryStore } from '../store/useInjuryStore'
 import { getPanelKeys, BP_META } from '../data/bpMeta'
 import { MH_DOMAINS, MH_IMPAIRMENT_LABELS } from '../data/mhData'
@@ -511,12 +511,12 @@ export function RatingTab() {
   const bpConditions = useInjuryStore((s) => s.bpConditions)
   const specialClaims = useInjuryStore((s) => s.specialClaims)
 
-  const [overrides, setOverrides] = useState<Record<string, number>>({})
-  const setOverride = (id: string, val: number) => setOverrides((p) => ({ ...p, [id]: val }))
+  const ratingOverrides = useInjuryStore((s) => s.ratingOverrides)
+  const setRatingOverride = useInjuryStore((s) => s.setRatingOverride)
 
   const { ratingItems, mhSecondaryDisplay, highestMHId } = useMemo(
-    () => buildRatingItems(injuries, headConditions, bpConditions, mentalConditions, specialClaims, overrides),
-    [injuries, headConditions, bpConditions, mentalConditions, specialClaims, overrides],
+    () => buildRatingItems(injuries, headConditions, bpConditions, mentalConditions, specialClaims, ratingOverrides),
+    [injuries, headConditions, bpConditions, mentalConditions, specialClaims, ratingOverrides],
   )
 
   const result = useMemo(() => calculateVARating(ratingItems), [ratingItems])
@@ -559,7 +559,7 @@ export function RatingTab() {
               <span className="rc-pct-box">
                 <input
                   type="number" min={0} max={100} step={10} value={sec.rating}
-                  onChange={(e) => setOverride(sec.id, parseInt(e.target.value) || 0)}
+                  onChange={(e) => setRatingOverride(sec.id, parseInt(e.target.value) || 0)}
                   className="rc-pct-input"
                 />
                 <span className="rc-pct-sign">%</span>
@@ -634,7 +634,7 @@ export function RatingTab() {
                         <span className="rc-pct-box">
                           <input
                             type="number" min={0} max={100} step={10} value={item.rating}
-                            onChange={(e) => setOverride(item.id, parseInt(e.target.value) || 0)}
+                            onChange={(e) => setRatingOverride(item.id, parseInt(e.target.value) || 0)}
                             className="rc-pct-input"
                           />
                           <span className="rc-pct-sign">%</span>
@@ -663,7 +663,7 @@ export function RatingTab() {
                   }).filter(Boolean).join(', ') || 'Not evaluated'
                   const inRating = hdItems.some((r) => r.id === `hd-${cond.id}`)
                   const itemId = `hd-${cond.id}`
-                  const displayRating = overrides[itemId] ?? cond.effectiveRating
+                  const displayRating = ratingOverrides[itemId] ?? cond.effectiveRating
                   return (
                     <div key={cond.id} className="rc-card" style={{ borderLeft: `3px solid ${inRating ? 'var(--navy)' : 'var(--border)'}` }}>
                       <div className="rc-card-header">
@@ -674,7 +674,7 @@ export function RatingTab() {
                         <span className="rc-pct-box">
                           <input
                             type="number" min={0} max={100} step={10} value={displayRating}
-                            onChange={(e) => setOverride(itemId, parseInt(e.target.value) || 0)}
+                            onChange={(e) => setRatingOverride(itemId, parseInt(e.target.value) || 0)}
                             className="rc-pct-input"
                           />
                           <span className="rc-pct-sign">%</span>
@@ -714,7 +714,7 @@ export function RatingTab() {
                     }).filter(Boolean).join(', ') || 'Not evaluated'
                     const inRating = bpItems.some((r) => r.id === `bp-${cond.id}`)
                     const itemId = `bp-${cond.id}`
-                    const displayRating = overrides[itemId] ?? cond.effectiveRating
+                    const displayRating = ratingOverrides[itemId] ?? cond.effectiveRating
                     return (
                       <div key={cond.id} className="rc-card" style={{ borderLeft: `3px solid ${inRating ? 'var(--navy)' : 'var(--border)'}` }}>
                         <div className="rc-card-header">
@@ -726,7 +726,7 @@ export function RatingTab() {
                           <span className="rc-pct-box">
                             <input
                               type="number" min={0} max={100} step={10} value={displayRating}
-                              onChange={(e) => setOverride(itemId, parseInt(e.target.value) || 0)}
+                              onChange={(e) => setRatingOverride(itemId, parseInt(e.target.value) || 0)}
                               className="rc-pct-input"
                             />
                             <span className="rc-pct-sign">%</span>
@@ -761,7 +761,7 @@ export function RatingTab() {
                 {mentalConditions.map((cond) => {
                   const isHighest = highestMHId === `mh-${cond.id}`
                   const itemId = `mh-${cond.id}`
-                  const displayRating = overrides[itemId] ?? cond.effectiveRating
+                  const displayRating = ratingOverrides[itemId] ?? cond.effectiveRating
                   const domainSummary = MH_DOMAINS.map((d) => {
                     const st = cond.domains[d.id] as MHDomainState | undefined
                     if (!st || st.level === 'none') return null
@@ -777,7 +777,7 @@ export function RatingTab() {
                         <span className="rc-pct-box">
                           <input
                             type="number" min={0} max={100} step={10} value={displayRating}
-                            onChange={(e) => setOverride(itemId, parseInt(e.target.value) || 0)}
+                            onChange={(e) => setRatingOverride(itemId, parseInt(e.target.value) || 0)}
                             className="rc-pct-input"
                           />
                           <span className="rc-pct-sign">%</span>

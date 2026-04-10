@@ -3,8 +3,8 @@ import "./globals.css"
 import { Providers } from "@/components/providers"
 
 export const metadata: Metadata = {
-  title: "App",
-  description: "App description",
+  title: "Injury Documentation",
+  description: "Injury documentation app",
 }
 
 export default function RootLayout({

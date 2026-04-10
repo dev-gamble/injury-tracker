@@ -1,12 +1,19 @@
 // ── EXPORT UTILITIES ──────────────────────────────────────────────────────────
 
-import type { AppState, Injury, MHCondition, HeadCondition, BPCondition } from '../types'
+import type { AppState, MHCondition, HeadCondition, BPCondition } from '../types'
 import { gapStatus } from './gaps'
-import { combineVARatings, roundVARating } from './rating'
+import { combineVARatings, roundVARating, getSuggestedRating, getExtremity } from './rating'
 import { getPanelKeys } from '../data/bpMeta'
 import { HEAD_PROFILES } from '../data/headData'
 import { getBPProfile } from '../data/bpProfiles'
 import { MH_DOMAINS } from '../data/mhData'
+
+const MST_MH_NAMES = new Set([
+  'ptsd', 'major depressive disorder', 'generalized anxiety disorder',
+  'panic disorder', 'adjustment disorder', 'insomnia / sleep disturbance',
+  'substance use disorder', 'eating disorder', 'somatic symptom disorder',
+  'other condition related to mst',
+])
 
 // ── HELPERS ────────────────────────────────────────────────────────────────────
 
@@ -29,31 +36,115 @@ function downloadText(content: string, filename: string, type = 'text/plain') {
   URL.revokeObjectURL(url)
 }
 
-/** Compute a simplified combined rating from all effective ratings in the store. */
+// Mirrors RatingTab's looksLikeMH — secondaries matching these are absorbed into MH, not rated separately
+function looksLikeMH(name: string): boolean {
+  const l = name.toLowerCase()
+  return l.includes('ptsd') || l.includes('depression') || l.includes('anxiety') ||
+    l.includes('disorder') || l.includes('insomnia') || l.includes('adjustment') ||
+    l.includes('bipolar') || l.includes('panic') || l.includes('trauma')
+}
+
+/** Compute combined rating mirroring RatingTab logic: bilateral factor + suggested fallback + secondaries + overrides. */
 function getCombinedRating(state: AppState): { combined: number; rounded: number } {
   const panelKeys = getPanelKeys()
-  const ratings: number[] = []
+  const ov = state.ratingOverrides
+  const entries: { rating: number; extremity: string }[] = []
 
-  state.injuries
+  // Non-panel primary injuries
+  const sorted = [...state.injuries]
     .filter(i => !panelKeys.has(i.key))
-    .forEach(i => ratings.push(i.rating ?? 0))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime() || a.id - b.id)
 
-  // MH: highest rating only (VA single MH rule)
-  if (state.mentalConditions.length > 0) {
-    const highest = Math.max(...state.mentalConditions.map(c => c.effectiveRating))
-    if (highest > 0) ratings.push(highest)
-  }
-
-  state.headConditions.forEach(c => { if (c.effectiveRating > 0) ratings.push(c.effectiveRating) })
-
-  Object.values(state.bpConditions).forEach(arr => {
-    arr.forEach(c => { if (c.effectiveRating > 0) ratings.push(c.effectiveRating) })
+  sorted.forEach(i => {
+    const itemId = `p-${i.id}`
+    const suggested = getSuggestedRating(i.label)
+    const r = ov[itemId] ?? ((i.rating != null && i.rating > 0) ? i.rating : (suggested ?? 10))
+    if (r > 0) entries.push({ rating: r, extremity: getExtremity(i.key) })
+    ;(i.secondaries ?? []).forEach((sec, si) => {
+      if (looksLikeMH(sec)) return
+      const secId = `s-${i.id}-${si}`
+      const sr = ov[secId] ?? i.secondaryRatings?.[sec] ?? getSuggestedRating(sec) ?? 10
+      if (sr > 0) entries.push({ rating: sr, extremity: 'none' })
+    })
   })
 
-  const { mstData } = state.specialClaims
-  mstData.conditions.forEach(c => { if (c.rating > 0) ratings.push(c.rating) })
+  // Head conditions + their secondaries
+  state.headConditions.forEach(c => {
+    const itemId = `hd-${c.id}`
+    const r = ov[itemId] ?? c.effectiveRating
+    if (r > 0) entries.push({ rating: r, extremity: c.extremity ?? 'none' })
+    ;(c.secondaries ?? []).forEach((sec, si) => {
+      if (looksLikeMH(sec)) return
+      const secId = `es-${itemId}-${si}`
+      const sr = ov[secId] ?? c.secondaryRatings?.[sec] ?? getSuggestedRating(sec) ?? 10
+      if (sr > 0) entries.push({ rating: sr, extremity: c.secondaryExtremities?.[sec] ?? 'none' })
+    })
+  })
 
-  const combined = combineVARatings(ratings.filter(r => r > 0))
+  // Body part conditions + their secondaries (carry extremity for bilateral detection)
+  Object.values(state.bpConditions).forEach(arr => {
+    arr.forEach(c => {
+      const itemId = `bp-${c.id}`
+      const r = ov[itemId] ?? c.effectiveRating
+      if (r > 0) entries.push({ rating: r, extremity: c.extremity ?? 'none' })
+      ;(c.secondaries ?? []).forEach((sec, si) => {
+        if (looksLikeMH(sec)) return
+        const secId = `es-${itemId}-${si}`
+        const sr = ov[secId] ?? c.secondaryRatings?.[sec] ?? getSuggestedRating(sec) ?? 10
+        if (sr > 0) entries.push({ rating: sr, extremity: c.secondaryExtremities?.[sec] ?? 'none' })
+      })
+    })
+  })
+
+  // Mental health — highest only (VA single MH rule); apply override per condition
+  const { mstData } = state.specialClaims
+  const mhRatings = state.mentalConditions.map(c => ov[`mh-${c.id}`] ?? c.effectiveRating)
+  mstData.conditions.forEach(c => { if (MST_MH_NAMES.has(c.name.toLowerCase()) && c.rating > 0) mhRatings.push(c.rating) })
+  const highestMH = mhRatings.length ? Math.max(...mhRatings) : 0
+  if (highestMH > 0) entries.push({ rating: highestMH, extremity: 'none' })
+
+  // MH condition secondaries
+  state.mentalConditions.forEach(c => {
+    ;(c.secondaries ?? []).forEach((sec, si) => {
+      if (looksLikeMH(sec)) return
+      const secId = `es-mh-${c.id}-${si}`
+      const sr = ov[secId] ?? c.secondaryRatings?.[sec] ?? getSuggestedRating(sec) ?? 10
+      if (sr > 0) entries.push({ rating: sr, extremity: 'none' })
+    })
+  })
+
+  // MST non-MH conditions + their secondaries
+  mstData.conditions.forEach(c => {
+    if (!MST_MH_NAMES.has(c.name.toLowerCase())) {
+      if (c.rating > 0) entries.push({ rating: c.rating, extremity: 'none' })
+      c.secondaries?.forEach(s => { if (s.rating > 0) entries.push({ rating: s.rating, extremity: 'none' }) })
+    }
+  })
+
+  // Apply bilateral factor — 38 CFR 4.26
+  const ul = entries.filter(e => e.extremity === 'LU')
+  const ur = entries.filter(e => e.extremity === 'RU')
+  const ll = entries.filter(e => e.extremity === 'LL')
+  const lr = entries.filter(e => e.extremity === 'RL')
+  const none = entries.filter(e => e.extremity === 'none')
+
+  const finalRatings: number[] = none.map(e => e.rating)
+
+  if (ul.length > 0 && ur.length > 0) {
+    const c = combineVARatings([...ul, ...ur].map(e => e.rating))
+    finalRatings.push(Math.round(c + c * 0.10))
+  } else {
+    ;[...ul, ...ur].forEach(e => finalRatings.push(e.rating))
+  }
+
+  if (ll.length > 0 && lr.length > 0) {
+    const c = combineVARatings([...ll, ...lr].map(e => e.rating))
+    finalRatings.push(Math.round(c + c * 0.10))
+  } else {
+    ;[...ll, ...lr].forEach(e => finalRatings.push(e.rating))
+  }
+
+  const combined = combineVARatings(finalRatings.filter(r => r > 0))
   return { combined, rounded: roundVARating(combined) }
 }
 
@@ -421,15 +512,75 @@ export function exportSummary(state: AppState): void {
     return card
   }).join('')
 
-  const quickRef = sorted.map((inj, idx) => `<tr>
-    <td style="font-weight:800;color:${sc(inj.severity)};font-family:monospace;text-align:center;">${idx + 1}</td>
-    <td>${inj.date || '—'}</td><td>${inj.label}</td>
-    <td style="color:${sc(inj.severity)};font-weight:700;font-size:11px;text-transform:uppercase;">${inj.severity === 'custom' ? 'Other' : inj.severity}</td>
-    <td>${inj.location || '—'}</td>
-    <td>${inj.medicalCare === 'yes' ? 'Yes' : 'No'}</td>
-    <td>${(inj.secondaries || []).length}</td>
-    <td style="color:${gapStatus(inj).status === 'complete' ? '#166534' : '#92400e'};font-weight:600;font-size:10px;">${gapStatus(inj).status === 'complete' ? 'Complete' : 'Incomplete'}</td>
-  </tr>`).join('')
+  type EvalCond = { condition: string; sideLabel?: string; effectiveRating: number; date: string; location: string; medicalCare: '' | 'yes' | 'no'; clinicName: string; witnesses: string; description: string; secondaries?: string[] }
+
+  function evalCard(c: EvalCond, typeLabel: string, color: string): string {
+    let card = `<div class="detail-card">
+      <div class="dc-header">
+        <span class="dc-label">${c.condition}${c.sideLabel ? ` (${c.sideLabel})` : ''}</span>
+        <span class="dc-sev" style="color:${color};">${typeLabel}</span>
+        <span class="dc-sev" style="color:#1d4ed8;">${c.effectiveRating}%</span>
+      </div>
+      <div class="dc-grid">
+        <div class="dc-field"><span class="dc-key">Date</span><span class="dc-val">${c.date || '—'}</span></div>
+        <div class="dc-field"><span class="dc-key">Installation</span><span class="dc-val">${c.location || '—'}</span></div>
+        <div class="dc-field"><span class="dc-key">Medical Care</span><span class="dc-val">${c.medicalCare === 'yes' ? (c.clinicName || 'Yes') : 'No'}</span></div>
+        <div class="dc-field"><span class="dc-key">Witnesses</span><span class="dc-val">${c.witnesses || '—'}</span></div>
+      </div>`
+    if (c.description) card += `<div class="dc-desc"><span class="dc-key">Description</span><div style="margin-top:2px;font-style:italic;color:#4b5563;">"${c.description}"</div></div>`
+    if (c.secondaries?.length) card += `<div class="dc-section"><span class="dc-section-title" style="color:#3730a3;border-color:#c7d2fe;">Secondary Conditions</span><div class="dc-tags">${c.secondaries.map(s => `<span class="dc-tag" style="background:#e0e7ff;color:#3730a3;border:1px solid #c7d2fe;">${s}</span>`).join('')}</div></div>`
+    card += '</div>'
+    return card
+  }
+
+  const evalDetailCards = [
+    ...state.mentalConditions.map(c => evalCard(c, 'Mental Health', '#7c3aed')),
+    ...state.headConditions.map(c => evalCard(c, 'Head & Face', '#1d4ed8')),
+    ...Object.entries(state.bpConditions).flatMap(([region, conds]) =>
+      conds.map(c => evalCard(c, region.replace('_', ' / '), '#0f766e'))
+    ),
+  ].join('')
+
+  const quickRef = [
+    ...sorted.map((inj, idx) => `<tr>
+      <td style="font-weight:800;color:${sc(inj.severity)};font-family:monospace;text-align:center;">${idx + 1}</td>
+      <td>${inj.date || '—'}</td><td>${inj.label}</td>
+      <td style="color:${sc(inj.severity)};font-weight:700;font-size:11px;text-transform:uppercase;">${inj.severity === 'custom' ? 'Other' : inj.severity}</td>
+      <td>${inj.location || '—'}</td>
+      <td>${inj.medicalCare === 'yes' ? 'Yes' : 'No'}</td>
+      <td>${(inj.secondaries || []).length}</td>
+      <td style="color:${gapStatus(inj).status === 'complete' ? '#166534' : '#92400e'};font-weight:600;font-size:10px;">${gapStatus(inj).status === 'complete' ? 'Complete' : 'Incomplete'}</td>
+    </tr>`),
+    ...state.mentalConditions.map(c => `<tr>
+      <td style="color:#7c3aed;font-family:monospace;text-align:center;font-weight:700;">MH</td>
+      <td>${c.date || '—'}</td><td>${c.condition}</td>
+      <td style="color:#7c3aed;font-weight:700;font-size:11px;text-transform:uppercase;">Mental Health</td>
+      <td>${c.location || '—'}</td>
+      <td>${c.medicalCare === 'yes' ? 'Yes' : 'No'}</td>
+      <td>${(c.secondaries || []).length}</td>
+      <td style="color:#1d4ed8;font-weight:600;font-size:10px;">${c.effectiveRating}%</td>
+    </tr>`),
+    ...state.headConditions.map(c => `<tr>
+      <td style="color:#1d4ed8;font-family:monospace;text-align:center;font-weight:700;">H</td>
+      <td>${c.date || '—'}</td><td>${c.condition}</td>
+      <td style="color:#1d4ed8;font-weight:700;font-size:11px;text-transform:uppercase;">Head / Face</td>
+      <td>${c.location || '—'}</td>
+      <td>${c.medicalCare === 'yes' ? 'Yes' : 'No'}</td>
+      <td>${(c.secondaries || []).length}</td>
+      <td style="color:#1d4ed8;font-weight:600;font-size:10px;">${c.effectiveRating}%</td>
+    </tr>`),
+    ...Object.entries(state.bpConditions).flatMap(([region, conds]) =>
+      conds.map(c => `<tr>
+        <td style="color:#0f766e;font-family:monospace;text-align:center;font-weight:700;">BP</td>
+        <td>${c.date || '—'}</td><td>${c.condition}${c.sideLabel ? ` (${c.sideLabel})` : ''}</td>
+        <td style="color:#0f766e;font-weight:700;font-size:11px;text-transform:uppercase;">${region.replace('_', ' / ')}</td>
+        <td>${c.location || '—'}</td>
+        <td>${c.medicalCare === 'yes' ? 'Yes' : 'No'}</td>
+        <td>${(c.secondaries || []).length}</td>
+        <td style="color:#1d4ed8;font-weight:600;font-size:10px;">${c.effectiveRating}%</td>
+      </tr>`)
+    ),
+  ].join('')
 
   const gapSummary = incomplete.length
     ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:12px 16px;margin-bottom:16px;">
@@ -491,7 +642,7 @@ ${gapSummary}
 <table><thead><tr><th>#</th><th>Date</th><th>Body Area</th><th>Severity</th><th>Installation</th><th>Medical</th><th>Secondary</th><th>Evidence</th></tr></thead>
 <tbody>${quickRef}</tbody></table>
 <div class="section-title">Detailed Injury Reports</div>
-${detailCards}
+${detailCards}${evalDetailCards}
 <div class="footer">
   <span>VA Claim Support Tool — personal documentation only</span>
   <span>Generated ${new Date().toLocaleDateString()}</span>

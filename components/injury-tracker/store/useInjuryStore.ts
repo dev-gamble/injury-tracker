@@ -88,6 +88,9 @@ interface Actions {
   // Injury pin position updates (from dragging)
   updateInjuryPin: (id: number, pin: Pin) => void
 
+  // Rating overrides
+  setRatingOverride: (key: string, val: number) => void
+
   // Personal statement
   setPersonalStatement: (html: string) => void
 }
@@ -102,6 +105,7 @@ export const useInjuryStore = create<AppState & Actions>((set) => ({
   specialClaims: { ...DEFAULT_SPECIAL_CLAIMS },
   ui: { ...DEFAULT_UI },
   personalStatement: '',
+  ratingOverrides: {},
 
   // ── Injuries ──
   addInjury: (injury) =>
@@ -228,6 +232,10 @@ export const useInjuryStore = create<AppState & Actions>((set) => ({
       injuries: s.injuries.map((inj) => (inj.id === id ? { ...inj, pin } : inj)),
     })),
 
+  // ── Rating Overrides ──
+  setRatingOverride: (key, val) =>
+    set((s) => ({ ratingOverrides: { ...s.ratingOverrides, [key]: val } })),
+
   // ── Personal Statement ──
   setPersonalStatement: (html) => set({ personalStatement: html }),
 }))
@@ -240,4 +248,5 @@ export const selectHeadConditions = (s: AppState & Actions) => s.headConditions
 export const selectBPConditions = (region: BPRegion) => (s: AppState & Actions) =>
   s.bpConditions[region]
 export const selectSpecialClaims = (s: AppState & Actions) => s.specialClaims
+export const selectRatingOverrides = (s: AppState & Actions) => s.ratingOverrides
 export const selectUI = (s: AppState & Actions) => s.ui

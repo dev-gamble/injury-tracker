@@ -180,4 +180,5 @@ export interface AppState {
   specialClaims: SpecialClaimsState
   ui: UIState
   personalStatement: string
+  ratingOverrides: Record<string, number>
 }

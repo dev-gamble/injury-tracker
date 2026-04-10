@@ -59,7 +59,7 @@ export function Header({ onImport }: { onImport?: () => void }) {
           title="Sign out"
         >
           <LogOut size={13} strokeWidth={2.5} />
-          Sign Out
+          <span className="btn-label">Sign Out</span>
         </button>
         <button
           className="export-btn"
@@ -68,7 +68,7 @@ export function Header({ onImport }: { onImport?: () => void }) {
           title="Clear session data"
         >
           <RotateCcw size={13} strokeWidth={2.5} />
-          Refresh
+          <span className="btn-label">Refresh</span>
         </button>
         <button
           className="export-btn"
@@ -76,12 +76,12 @@ export function Header({ onImport }: { onImport?: () => void }) {
           onClick={() => onImport?.()}
         >
           <Upload size={13} strokeWidth={2.5} />
-          Import
+          <span className="btn-label">Import</span>
         </button>
         <div style={{ position: "relative" }}>
           <button className="export-btn" onClick={() => setMenuOpen(o => !o)}>
             <Download size={13} strokeWidth={2.5} />
-            Export
+            <span className="btn-label">Export</span>
             <ChevronDown size={11} strokeWidth={3} style={{ transform: menuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
           </button>
           {menuOpen && (

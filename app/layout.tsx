@@ -3,7 +3,7 @@ import "./globals.css"
 import { Providers } from "@/components/providers"
 
 export const metadata: Metadata = {
-  title: "Injury Documentation",
+  title: "Veteran Claim Tool",
   description: "Injury documentation app",
 }
 

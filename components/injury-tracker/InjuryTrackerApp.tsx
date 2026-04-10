@@ -20,6 +20,7 @@ export function InjuryTrackerApp() {
     <div style={{ background: "#f0f2f5", minHeight: "100vh", color: "#0a1628", fontFamily: "'Open Sans', sans-serif" }}>
       <Header onImport={() => setImportOpen(true)} />
       <Tabs />
+      <div className="tab-separator" />
 
       {/* MAP TAB */}
       <MapTab />

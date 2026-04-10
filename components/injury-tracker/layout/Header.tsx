@@ -6,11 +6,14 @@ import { exportCSV, exportTXT, exportSummary } from '../utils/export'
 import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { SignOutModal } from '../modals/SignOutModal'
+import { ClearDataModal } from '../modals/ClearDataModal'
+import { RotateCcw } from 'lucide-react'
 
 export function Header({ onImport }: { onImport?: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [signOutOpen, setSignOutOpen] = useState(false)
   const [signOutLoading, setSignOutLoading] = useState(false)
+  const [clearOpen, setClearOpen] = useState(false)
   const state = useInjuryStore()
   const router = useRouter()
 
@@ -18,6 +21,11 @@ export function Header({ onImport }: { onImport?: () => void }) {
     fn(state)
     setMenuOpen(false)
   }, [state])
+
+  function handleClearData() {
+    state.reset()
+    setClearOpen(false)
+  }
 
   async function handleSignOut() {
     setSignOutLoading(true)
@@ -46,7 +54,7 @@ export function Header({ onImport }: { onImport?: () => void }) {
       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
         <button
           className="export-btn"
-          style={{ background: "transparent", borderColor: "rgba(255,255,255,.18)", color: "rgba(255,255,255,.6)", boxShadow: "none" }}
+          style={{ background: "rgba(255,255,255,.07)", borderColor: "rgba(255,255,255,.32)", color: "rgba(255,255,255,.85)", boxShadow: "none" }}
           onClick={() => setSignOutOpen(true)}
           title="Sign out"
         >
@@ -54,6 +62,15 @@ export function Header({ onImport }: { onImport?: () => void }) {
             <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
           </svg>
           Sign Out
+        </button>
+        <button
+          className="export-btn"
+          style={{ background: "rgba(255,255,255,.07)", borderColor: "rgba(255,255,255,.32)", color: "rgba(255,255,255,.85)", boxShadow: "none" }}
+          onClick={() => setClearOpen(true)}
+          title="Clear session data"
+        >
+          <RotateCcw size={13} strokeWidth={2.5} />
+          Refresh
         </button>
         <button
           className="export-btn"
@@ -91,6 +108,12 @@ export function Header({ onImport }: { onImport?: () => void }) {
         onConfirm={handleSignOut}
         onCancel={() => setSignOutOpen(false)}
         loading={signOutLoading}
+      />
+    )}
+    {clearOpen && (
+      <ClearDataModal
+        onConfirm={handleClearData}
+        onCancel={() => setClearOpen(false)}
       />
     )}
     </>

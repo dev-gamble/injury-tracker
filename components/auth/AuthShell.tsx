@@ -301,7 +301,7 @@ export function AuthShell({ title, children }: AuthShellProps) {
         </div>
       </main>
 
-      <footer className="auth-footer">© K. Dimond · Not an official VA tool</footer>
+      <footer className="auth-footer">© K. Dimond | C. Gamble · Not an official VA tool</footer>
     </div>
   )
 }

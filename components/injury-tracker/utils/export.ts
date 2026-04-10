@@ -643,6 +643,13 @@ ${gapSummary}
 <tbody>${quickRef}</tbody></table>
 <div class="section-title">Detailed Injury Reports</div>
 ${detailCards}${evalDetailCards}
+${(() => {
+    const text = (state.personalStatement || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    return text
+      ? `<div class="section-title">Personal Statement</div>
+         <div style="border:1px solid #d1d5db;border-radius:8px;padding:16px 20px;font-size:13px;line-height:1.7;color:#1a2332;white-space:pre-wrap;">${text}</div>`
+      : ''
+  })()}
 <div class="footer">
   <span>VA Claim Support Tool — personal documentation only</span>
   <span>Generated ${new Date().toLocaleDateString()}</span>

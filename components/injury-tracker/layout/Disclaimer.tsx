@@ -32,7 +32,7 @@ export function Disclaimer() {
           letterSpacing: "0.3px",
         }}
       >
-        &copy; K. Dimond. All Rights Reserved.
+        &copy; K. Dimond | C. Gamble · All Rights Reserved.
       </div>
     </>
   )

@@ -29,7 +29,7 @@ export function Header({ onImport }: { onImport?: () => void }) {
   async function handleSignOut() {
     setSignOutLoading(true)
     state.reset()
-    await fetch('/signout', { method: 'POST' })
+    await fetch('/signout', { method: 'POST', redirect: 'manual' })
     router.push('/login')
   }
 

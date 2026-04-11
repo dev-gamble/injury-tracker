@@ -1,5 +1,6 @@
 "use client"
 
+import DOMPurify from 'dompurify'
 import { useRef, useCallback, useEffect } from 'react'
 import { useInjuryStore } from '../store/useInjuryStore'
 import { getPanelKeys, BP_META } from '../data/bpMeta'
@@ -33,19 +34,20 @@ export function StatementTab() {
   const personalStatement = useInjuryStore((s) => s.personalStatement)
   const setPersonalStatement = useInjuryStore((s) => s.setPersonalStatement)
   const activeTab = useInjuryStore((s) => s.ui.activeTab)
+  const initialStatement = useRef(personalStatement)
 
-  // Seed editor content on first render
+  // Seed editor content on first render only (reads from a ref, not reactive state)
   useEffect(() => {
     const editor = editorRef.current
     if (!editor) return
-    if (personalStatement) {
-      editor.innerHTML = personalStatement
+    if (initialStatement.current) {
+      editor.innerHTML = DOMPurify.sanitize(initialStatement.current)
       isPlaceholder.current = false
     } else {
       editor.innerHTML = PLACEHOLDER_HTML
       isPlaceholder.current = true
     }
-  }, []) // intentionally run once — after that, editor is controlled directly
+  }, [])
 
   const clearPlaceholder = useCallback(() => {
     const editor = editorRef.current
@@ -57,21 +59,40 @@ export function StatementTab() {
 
   const handleInput = useCallback(() => {
     const editor = editorRef.current
-    if (editor) setPersonalStatement(editor.innerHTML)
+    if (editor) setPersonalStatement(DOMPurify.sanitize(editor.innerHTML))
   }, [setPersonalStatement])
 
   const psCmd = useCallback((command: string) => {
     clearPlaceholder()
-    // eslint-disable-next-line @typescript-eslint/no-deprecated
+    // execCommand is deprecated but has no W3C replacement for contenteditable formatting.
+    // The IDE shows a deprecation hint here; it doesn't fail lint, typecheck, or build.
     document.execCommand(command, false)
     editorRef.current?.focus()
-  }, [clearPlaceholder])
+    handleInput()
+  }, [clearPlaceholder, handleInput])
 
   const psInsert = useCallback((text: string) => {
     clearPlaceholder()
-    editorRef.current?.focus()
-    // eslint-disable-next-line @typescript-eslint/no-deprecated
-    document.execCommand('insertText', false, text)
+    const editor = editorRef.current
+    if (!editor) return
+    editor.focus()
+    const selection = window.getSelection()
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0)
+      if (editor.contains(range.commonAncestorContainer)) {
+        range.deleteContents()
+        const node = document.createTextNode(text)
+        range.insertNode(node)
+        range.setStartAfter(node)
+        range.collapse(true)
+        selection.removeAllRanges()
+        selection.addRange(range)
+      } else {
+        editor.appendChild(document.createTextNode(text))
+      }
+    } else {
+      editor.appendChild(document.createTextNode(text))
+    }
     handleInput()
   }, [clearPlaceholder, handleInput])
 

@@ -74,6 +74,15 @@ function esc(v: unknown): string {
   return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s}"` : s
 }
 
+function hesc(v: unknown): string {
+  return String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+}
+
 function pad(label: string, width = 18): string {
   return label.padEnd(width)
 }
@@ -713,7 +722,7 @@ function buildSpecialClaimsHTML(state: AppState): string {
   if (!hasAny) return ''
 
   const tag = (label: string, value: string) =>
-    `<span style="font-size:11px;padding:2px 8px;border-radius:3px;font-family:monospace;font-weight:600;background:#e0e7ff;color:#3730a3;border:1px solid #c7d2fe;margin:2px;">${label}${value ? ': ' + value : ''}</span>`
+    `<span style="font-size:11px;padding:2px 8px;border-radius:3px;font-family:monospace;font-weight:600;background:#e0e7ff;color:#3730a3;border:1px solid #c7d2fe;margin:2px;">${hesc(label)}${value ? ': ' + hesc(value) : ''}</span>`
 
   let html = `<div class="section-title">Special Claims</div>`
 
@@ -731,7 +740,7 @@ function buildSpecialClaimsHTML(state: AppState): string {
       html += `<div style="margin-bottom:10px;"><div style="font-size:12px;font-weight:700;color:#1a2332;margin-bottom:6px;">${meta.label}</div><div class="dc-grid">`
       meta.fields.forEach(f => {
         if (!fields[f.id]) return
-        html += `<div class="dc-field"><span class="dc-key">${f.label}</span><span class="dc-val">${fields[f.id]}</span></div>`
+        html += `<div class="dc-field"><span class="dc-key">${f.label}</span><span class="dc-val">${hesc(fields[f.id])}</span></div>`
       })
       html += `</div></div>`
     })
@@ -748,7 +757,7 @@ function buildSpecialClaimsHTML(state: AppState): string {
     html += `<div class="detail-card"><div class="dc-header"><span class="dc-label">Vocational Impact</span></div><div style="display:flex;flex-wrap:wrap;gap:4px;padding:4px 0;">`
     sc.vocSecondaries.forEach(v => { html += tag(v, '') })
     html += `</div>`
-    if (sc.vocNotes) html += `<div class="dc-desc"><span class="dc-key">Notes</span><div style="margin-top:2px;font-style:italic;color:#4b5563;">"${sc.vocNotes}"</div></div>`
+    if (sc.vocNotes) html += `<div class="dc-desc"><span class="dc-key">Notes</span><div style="margin-top:2px;font-style:italic;color:#4b5563;">"${hesc(sc.vocNotes)}"</div></div>`
     html += `</div>`
   }
 
@@ -758,10 +767,10 @@ function buildSpecialClaimsHTML(state: AppState): string {
     if (sc.mstData.conditions.length) {
       html += `<div style="margin-bottom:8px;">`
       sc.mstData.conditions.forEach(c => {
-        const name = shield ? 'Private Condition' : c.name
+        const name = shield ? 'Private Condition' : hesc(c.name)
         html += `<div style="font-size:12px;color:#1a2332;padding:2px 0;"><strong>${name}</strong>: ${c.rating}%</div>`
         c.secondaries?.forEach(s => {
-          const sname = shield ? 'Private Secondary' : s.name
+          const sname = shield ? 'Private Secondary' : hesc(s.name)
           html += `<div style="font-size:11px;color:#4b5563;padding:1px 0 1px 16px;">└ ${sname}: ${s.rating}%</div>`
         })
       })
@@ -773,7 +782,7 @@ function buildSpecialClaimsHTML(state: AppState): string {
       html += `</div></div>`
     }
     if (!shield && sc.mstData.notes) {
-      html += `<div class="dc-desc"><span class="dc-key">Private Notes</span><div style="margin-top:2px;font-style:italic;color:#4b5563;">"${sc.mstData.notes}"</div></div>`
+      html += `<div class="dc-desc"><span class="dc-key">Private Notes</span><div style="margin-top:2px;font-style:italic;color:#4b5563;">"${hesc(sc.mstData.notes)}"</div></div>`
     }
     html += `</div>`
   }
@@ -791,7 +800,7 @@ export function exportSummary(state: AppState): void {
   if (!hasData) { alert('No injuries to export.'); return }
 
   const sorted = [...filteredInj].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-  const { combined, rounded } = getCombinedRating(state)
+  const { rounded } = getCombinedRating(state)
   const allEvalConds: Array<MHCondition | HeadCondition | BPCondition> = [
     ...state.mentalConditions,
     ...state.headConditions,
@@ -813,23 +822,23 @@ export function exportSummary(state: AppState): void {
     let card = `<div class="detail-card">
       <div class="dc-header">
         <span class="dc-num" style="background:${c};">${idx + 1}</span>
-        <span class="dc-label">${inj.label}</span>
+        <span class="dc-label">${hesc(inj.label)}</span>
         <span class="dc-sev" style="color:${c};">${stxt}</span>
         ${inj.rating != null ? `<span class="dc-sev" style="color:#1d4ed8;">${inj.rating}%</span>` : ''}
         <span class="dc-status ${g.status === 'complete' ? 'dc-complete' : 'dc-incomplete'}">${g.label}</span>
       </div>
       <div class="dc-grid">
-        <div class="dc-field"><span class="dc-key">Date</span><span class="dc-val">${inj.date || '—'}</span></div>
-        <div class="dc-field"><span class="dc-key">Body</span><span class="dc-val">${inj.pin.body} / ${inj.pin.side}</span></div>
-        <div class="dc-field"><span class="dc-key">Installation</span><span class="dc-val">${inj.location || '—'}</span></div>
-        <div class="dc-field"><span class="dc-key">Event / Duty</span><span class="dc-val">${inj.event || '—'}</span></div>
-        <div class="dc-field"><span class="dc-key">Medical Care</span><span class="dc-val">${inj.medicalCare === 'yes' ? (inj.clinicName || 'Yes') : 'No'}</span></div>
-        <div class="dc-field"><span class="dc-key">Witnesses</span><span class="dc-val">${inj.witnesses || '—'}</span></div>
+        <div class="dc-field"><span class="dc-key">Date</span><span class="dc-val">${hesc(inj.date) || '—'}</span></div>
+        <div class="dc-field"><span class="dc-key">Body</span><span class="dc-val">${hesc(inj.pin.body)} / ${hesc(inj.pin.side)}</span></div>
+        <div class="dc-field"><span class="dc-key">Installation</span><span class="dc-val">${hesc(inj.location) || '—'}</span></div>
+        <div class="dc-field"><span class="dc-key">Event / Duty</span><span class="dc-val">${hesc(inj.event) || '—'}</span></div>
+        <div class="dc-field"><span class="dc-key">Medical Care</span><span class="dc-val">${inj.medicalCare === 'yes' ? (hesc(inj.clinicName) || 'Yes') : 'No'}</span></div>
+        <div class="dc-field"><span class="dc-key">Witnesses</span><span class="dc-val">${hesc(inj.witnesses) || '—'}</span></div>
         <div class="dc-field"><span class="dc-key">Still Being Seen</span><span class="dc-val">${inj.stillBeingSeen ? 'Yes' : 'No'}</span></div>
       </div>`
-    if (inj.description) card += `<div class="dc-desc"><span class="dc-key">Description</span><div style="margin-top:2px;font-style:italic;color:#4b5563;">"${inj.description}"</div></div>`
-    if (inj.secondaries?.length) card += `<div class="dc-section"><span class="dc-section-title" style="color:#3730a3;border-color:#c7d2fe;">Secondary Conditions</span><div class="dc-tags">${inj.secondaries.map(s => `<span class="dc-tag" style="background:#e0e7ff;color:#3730a3;border:1px solid #c7d2fe;">${s}</span>`).join('')}</div></div>`
-    if (inj.functionalImpacts?.length) card += `<div class="dc-section"><span class="dc-section-title" style="color:#991b1b;border-color:#fecaca;">Daily Life Impact</span><div class="dc-tags">${inj.functionalImpacts.map(f => `<span class="dc-tag" style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;">${f}</span>`).join('')}</div></div>`
+    if (inj.description) card += `<div class="dc-desc"><span class="dc-key">Description</span><div style="margin-top:2px;font-style:italic;color:#4b5563;">"${hesc(inj.description)}"</div></div>`
+    if (inj.secondaries?.length) card += `<div class="dc-section"><span class="dc-section-title" style="color:#3730a3;border-color:#c7d2fe;">Secondary Conditions</span><div class="dc-tags">${inj.secondaries.map(s => `<span class="dc-tag" style="background:#e0e7ff;color:#3730a3;border:1px solid #c7d2fe;">${hesc(s)}</span>`).join('')}</div></div>`
+    if (inj.functionalImpacts?.length) card += `<div class="dc-section"><span class="dc-section-title" style="color:#991b1b;border-color:#fecaca;">Daily Life Impact</span><div class="dc-tags">${inj.functionalImpacts.map(f => `<span class="dc-tag" style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;">${hesc(f)}</span>`).join('')}</div></div>`
     if (g.gaps.length) card += `<div class="dc-section"><span class="dc-section-title" style="color:#92400e;border-color:#fde68a;">Missing Evidence</span><div class="dc-tags">${g.gaps.map(m => `<span class="dc-tag" style="background:#fffbeb;color:#92400e;border:1px solid #fde68a;">${m}</span>`).join('')}</div></div>`
     card += '</div>'
     return card
@@ -847,25 +856,25 @@ export function exportSummary(state: AppState): void {
       ? ` <span style="font-size:9px;font-weight:700;font-family:monospace;color:#92400e;background:#fffbeb;padding:2px 6px;border-radius:3px;border:1px solid #fde68a;">override: ${c.manualOverride}%</span>` : ''
     let card = `<div class="detail-card">
       <div class="dc-header">
-        <span class="dc-label">${c.condition}${c.sideLabel ? ` (${c.sideLabel})` : ''}</span>
-        ${c.profileLabel ? `<span class="dc-sev" style="color:#6b7280;">${c.profileLabel}</span>` : ''}
+        <span class="dc-label">${hesc(c.condition)}${c.sideLabel ? ` (${hesc(c.sideLabel)})` : ''}</span>
+        ${c.profileLabel ? `<span class="dc-sev" style="color:#6b7280;">${hesc(c.profileLabel)}</span>` : ''}
         <span class="dc-sev" style="color:${color};">${typeLabel}</span>
         <span class="dc-sev" style="color:#1d4ed8;">${c.effectiveRating}%</span>${overrideNote}
       </div>
       <div class="dc-grid">
-        <div class="dc-field"><span class="dc-key">Date</span><span class="dc-val">${c.date || '—'}</span></div>
-        <div class="dc-field"><span class="dc-key">Installation</span><span class="dc-val">${c.location || '—'}</span></div>
-        <div class="dc-field"><span class="dc-key">Medical Care</span><span class="dc-val">${c.medicalCare === 'yes' ? (c.clinicName || 'Yes') : 'No'}</span></div>
-        <div class="dc-field"><span class="dc-key">Witnesses</span><span class="dc-val">${c.witnesses || '—'}</span></div>
+        <div class="dc-field"><span class="dc-key">Date</span><span class="dc-val">${hesc(c.date) || '—'}</span></div>
+        <div class="dc-field"><span class="dc-key">Installation</span><span class="dc-val">${hesc(c.location) || '—'}</span></div>
+        <div class="dc-field"><span class="dc-key">Medical Care</span><span class="dc-val">${c.medicalCare === 'yes' ? (hesc(c.clinicName) || 'Yes') : 'No'}</span></div>
+        <div class="dc-field"><span class="dc-key">Witnesses</span><span class="dc-val">${hesc(c.witnesses) || '—'}</span></div>
         ${c.stillBeingSeen ? `<div class="dc-field"><span class="dc-key">Still Being Seen</span><span class="dc-val">Yes</span></div>` : ''}
-        ${c.extremity && c.extremity !== 'none' ? `<div class="dc-field"><span class="dc-key">Extremity</span><span class="dc-val">${c.extremity}</span></div>` : ''}
+        ${c.extremity && c.extremity !== 'none' ? `<div class="dc-field"><span class="dc-key">Extremity</span><span class="dc-val">${hesc(c.extremity)}</span></div>` : ''}
       </div>`
-    if (c.description) card += `<div class="dc-desc"><span class="dc-key">Description</span><div style="margin-top:2px;font-style:italic;color:#4b5563;">"${c.description}"</div></div>`
+    if (c.description) card += `<div class="dc-desc"><span class="dc-key">Description</span><div style="margin-top:2px;font-style:italic;color:#4b5563;">"${hesc(c.description)}"</div></div>`
     if (c.domainsHtml) card += `<div class="dc-section"><span class="dc-section-title" style="color:#0f766e;border-color:#99f6e4;">Evaluation Domains</span>${c.domainsHtml}</div>`
     if (c.secondaries?.length) {
       const tags = c.secondaries.map(s => {
         const r = c.secondaryRatings?.[s]
-        const label = r != null ? `${s} (${r}%)` : s
+        const label = r != null ? `${hesc(s)} (${r}%)` : hesc(s)
         return `<span class="dc-tag" style="background:#e0e7ff;color:#3730a3;border:1px solid #c7d2fe;">${label}</span>`
       }).join('')
       card += `<div class="dc-section"><span class="dc-section-title" style="color:#3730a3;border-color:#c7d2fe;">Secondary Conditions</span><div class="dc-tags">${tags}</div></div>`
@@ -922,27 +931,27 @@ export function exportSummary(state: AppState): void {
   const quickRef = [
     ...sorted.map((inj, idx) => `<tr>
       <td style="font-weight:800;color:${sc(inj.severity)};font-family:monospace;text-align:center;">${idx + 1}</td>
-      <td>${inj.date || '—'}</td><td>${inj.label}</td>
+      <td>${hesc(inj.date) || '—'}</td><td>${hesc(inj.label)}</td>
       <td style="color:${sc(inj.severity)};font-weight:700;font-size:11px;text-transform:uppercase;">${inj.severity === 'custom' ? 'Other' : inj.severity}</td>
-      <td>${inj.location || '—'}</td>
+      <td>${hesc(inj.location) || '—'}</td>
       <td>${inj.medicalCare === 'yes' ? 'Yes' : 'No'}</td>
       <td>${(inj.secondaries || []).length}</td>
       <td style="color:${gapStatus(inj).status === 'complete' ? '#166534' : '#92400e'};font-weight:600;font-size:10px;">${gapStatus(inj).status === 'complete' ? 'Complete' : 'Incomplete'}</td>
     </tr>`),
     ...state.mentalConditions.map(c => `<tr>
       <td style="color:#7c3aed;font-family:monospace;text-align:center;font-weight:700;">MH</td>
-      <td>${c.date || '—'}</td><td>${c.condition}</td>
+      <td>${hesc(c.date) || '—'}</td><td>${hesc(c.condition)}</td>
       <td style="color:#7c3aed;font-weight:700;font-size:11px;text-transform:uppercase;">Mental Health</td>
-      <td>${c.location || '—'}</td>
+      <td>${hesc(c.location) || '—'}</td>
       <td>${c.medicalCare === 'yes' ? 'Yes' : 'No'}</td>
       <td>${(c.secondaries || []).length}</td>
       <td style="color:#1d4ed8;font-weight:600;font-size:10px;">${c.effectiveRating}%</td>
     </tr>`),
     ...state.headConditions.map(c => `<tr>
       <td style="color:#1d4ed8;font-family:monospace;text-align:center;font-weight:700;">H</td>
-      <td>${c.date || '—'}</td><td>${c.condition}</td>
+      <td>${hesc(c.date) || '—'}</td><td>${hesc(c.condition)}</td>
       <td style="color:#1d4ed8;font-weight:700;font-size:11px;text-transform:uppercase;">Head / Face</td>
-      <td>${c.location || '—'}</td>
+      <td>${hesc(c.location) || '—'}</td>
       <td>${c.medicalCare === 'yes' ? 'Yes' : 'No'}</td>
       <td>${(c.secondaries || []).length}</td>
       <td style="color:#1d4ed8;font-weight:600;font-size:10px;">${c.effectiveRating}%</td>
@@ -950,9 +959,9 @@ export function exportSummary(state: AppState): void {
     ...Object.entries(state.bpConditions).flatMap(([region, conds]) =>
       conds.map(c => `<tr>
         <td style="color:#0f766e;font-family:monospace;text-align:center;font-weight:700;">BP</td>
-        <td>${c.date || '—'}</td><td>${c.condition}${c.sideLabel ? ` (${c.sideLabel})` : ''}</td>
+        <td>${hesc(c.date) || '—'}</td><td>${hesc(c.condition)}${c.sideLabel ? ` (${hesc(c.sideLabel)})` : ''}</td>
         <td style="color:#0f766e;font-weight:700;font-size:11px;text-transform:uppercase;">${region.replace('_', ' / ')}</td>
-        <td>${c.location || '—'}</td>
+        <td>${hesc(c.location) || '—'}</td>
         <td>${c.medicalCare === 'yes' ? 'Yes' : 'No'}</td>
         <td>${(c.secondaries || []).length}</td>
         <td style="color:#1d4ed8;font-weight:600;font-size:10px;">${c.effectiveRating}%</td>
@@ -965,7 +974,7 @@ export function exportSummary(state: AppState): void {
         <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:8px;">${incomplete.length} of ${sorted.length} injuries need additional evidence</div>
         ${incomplete.map(inj => {
           const g = gapStatus(inj)
-          return `<div style="font-size:11px;color:#92400e;padding:2px 0;"><strong>#${sorted.indexOf(inj) + 1} ${inj.label}:</strong> Missing — ${g.gaps.join(', ')}</div>`
+          return `<div style="font-size:11px;color:#92400e;padding:2px 0;"><strong>#${sorted.indexOf(inj) + 1} ${hesc(inj.label)}:</strong> Missing — ${g.gaps.join(', ')}</div>`
         }).join('')}
       </div>`
     : `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#166534;font-weight:600;">All injuries have complete evidence records.</div>`
@@ -1030,10 +1039,10 @@ ${(() => {
       const yearRow = `<tr><td colspan="5" style="background:#f1f5f9;font-weight:700;font-family:monospace;font-size:11px;color:#475569;padding:6px 10px;border-bottom:2px solid #e2e8f0;">── ${yr}</td></tr>`
       const itemRows = tl.filter(i => i.date.startsWith(yr)).map(item => {
         const color = TYPE_COLOR[item.type] || '#0f766e'
-        const context = [item.location, item.event].filter(Boolean).join(' · ')
+        const context = [item.location, item.event].filter(Boolean).map(hesc).join(' · ')
         return `<tr>
-          <td>${item.date}</td>
-          <td style="font-weight:600;">${item.label}</td>
+          <td>${hesc(item.date)}</td>
+          <td style="font-weight:600;">${hesc(item.label)}</td>
           <td style="color:${color};font-weight:700;font-size:10px;font-family:monospace;text-transform:uppercase;">${item.type}</td>
           <td style="color:#1d4ed8;font-weight:600;font-size:11px;">${item.rating ? item.rating + '%' : '—'}</td>
           <td style="color:#6b7280;font-size:11px;">${context || '—'}</td>
@@ -1049,7 +1058,7 @@ ${(() => {
 ${detailCards}${evalDetailCards}
 ${buildSpecialClaimsHTML(state)}
 ${(() => {
-    const text = (state.personalStatement || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    const text = hesc((state.personalStatement || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim())
     return text
       ? `<div class="section-title">Personal Statement</div>
          <div style="border:1px solid #d1d5db;border-radius:8px;padding:16px 20px;font-size:13px;line-height:1.7;color:#1a2332;white-space:pre-wrap;">${text}</div>`

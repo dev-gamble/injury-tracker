@@ -47,6 +47,10 @@ function parseCSV(text: string): string[][] {
   return rows
 }
 
+function sanitizeText(v: unknown): string {
+  return String(v ?? '').replace(/[<>"'&]/g, '')
+}
+
 function findCol(headers: string[], names: string[]): number {
   for (const name of names) {
     const idx = headers.indexOf(name.toLowerCase())
@@ -115,13 +119,11 @@ export function ImportModal({ isOpen, onClose }: ImportModalProps) {
 
   const [status, setStatus] = useState<{ text: string; color?: string } | null>(null)
   const [preview, setPreview] = useState<MappedRow[] | null>(null)
-  const [foundCols, setFoundCols] = useState<string[]>([])
 
   const reset = useCallback(() => {
     if (fileRef.current) fileRef.current.value = ''
     setStatus(null)
     setPreview(null)
-    setFoundCols([])
   }, [])
 
   const handleClose = useCallback(() => {
@@ -173,19 +175,19 @@ export function ImportModal({ isOpen, onClose }: ImportModalProps) {
       }
 
       const mapped: MappedRow[] = dataRows.map((r) => ({
-        label:     r[colMap.label] ?? 'Unknown',
+        label:     sanitizeText(r[colMap.label] ?? 'Unknown'),
         date:      r[colMap.date] ?? '',
         severity:  normSeverity(r[colMap.severity]),
-        location:  r[colMap.location] ?? '',
-        event:     r[colMap.event] ?? '',
-        desc:      r[colMap.desc] ?? '',
+        location:  sanitizeText(r[colMap.location] ?? ''),
+        event:     sanitizeText(r[colMap.event] ?? ''),
+        desc:      sanitizeText(r[colMap.desc] ?? ''),
         medical:   normMedical(r[colMap.medical]),
-        clinic:    r[colMap.clinic] ?? '',
-        witnesses: r[colMap.witnesses] ?? '',
+        clinic:    sanitizeText(r[colMap.clinic] ?? ''),
+        witnesses: sanitizeText(r[colMap.witnesses] ?? ''),
         body:      normBody(r[colMap.body]),
         side:      normSide(r[colMap.side]),
-        secondary: (r[colMap.secondary] ?? '').split(';').map((s) => s.trim()).filter(Boolean),
-        impacts:   (r[colMap.impacts] ?? '').split(';').map((s) => s.trim()).filter(Boolean),
+        secondary: (r[colMap.secondary] ?? '').split(';').map((s) => sanitizeText(s.trim())).filter(Boolean),
+        impacts:   (r[colMap.impacts] ?? '').split(';').map((s) => sanitizeText(s.trim())).filter(Boolean),
       }))
 
       const found: string[] = []
@@ -202,7 +204,6 @@ export function ImportModal({ isOpen, onClose }: ImportModalProps) {
       if (colMap.impacts >= 0) found.push('Impacts')
 
       setPreview(mapped)
-      setFoundCols(found)
       setStatus({ text: `Found ${mapped.length} injuries. Matched columns: ${found.join(', ')}`, color: 'var(--mild)' })
     }
     reader.readAsText(file)

@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react'
 import { DeleteConfirmModal } from '../modals/DeleteConfirmModal'
 import { useInjuryStore } from '../store/useInjuryStore'
 import { MH_DOMAINS, MH_IMPAIRMENT_LEVELS, MH_IMPAIRMENT_LABELS, VA_MENTAL, calculateMHRating } from '../data/mhData'
-import { HEAD_PROFILES, VA_HEAD, getHeadProfile, calculateHeadRating } from '../data/headData'
+import { VA_HEAD, getHeadProfile, calculateHeadRating } from '../data/headData'
 import { PHYSICAL_PROFILE, getBPProfile, calculateBPRating } from '../data/bpProfiles'
 import { VA_AREA_CONDITIONS } from '../data/conditions'
 import { getPanelKeys } from '../data/bpMeta'
@@ -566,7 +566,7 @@ function SecondaryEvalPanel({ secName, evalData, onChange }: {
 
 // ── ADD SECONDARY SECTION ─────────────────────────────────────────────────────
 
-function AddSecondarySection({ claimId, claimLabel, group, secondaries, addState, onStateChange, onSubmit, onCancel }: {
+function AddSecondarySection({ claimLabel, group, secondaries, addState, onStateChange, onSubmit, onCancel }: {
   claimId: string
   claimLabel: string
   group: string
@@ -576,7 +576,7 @@ function AddSecondarySection({ claimId, claimLabel, group, secondaries, addState
   onSubmit: (name: string, domains: SecDomains, rating: number) => void
   onCancel: () => void
 }) {
-  const { area, side, pendingSec, pendingDomains } = addState
+  const { area, pendingSec, pendingDomains } = addState
   const [customInput, setCustomInput] = useState('')
 
   const suggestions = getSecSuggestions(claimLabel, group).filter(s => !secondaries.includes(s.name))
@@ -813,35 +813,29 @@ export function SecondaryTab() {
     return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi)
   })
 
-  // Helpers to get ref from claim
-  function getInjury(rawId: number) { return injuries.find(i => i.id === rawId) }
-  function getMH(rawId: number) { return mentalConditions.find(c => c.id === rawId) }
-  function getHD(rawId: number) { return headConditions.find(c => c.id === rawId) }
-  function getBP(region: BPRegion, rawId: number) { return bpConditions[region]?.find(c => c.id === rawId) }
-
-  function getSecondaries(claim: Claim): string[] {
-    if (claim.type === 'inj') return getInjury(claim.rawId)?.secondaries || []
-    if (claim.type === 'mh') return getMH(claim.rawId)?.secondaries || []
-    if (claim.type === 'hd') return getHD(claim.rawId)?.secondaries || []
-    if (claim.type === 'bp' && claim.bpRegion) return getBP(claim.bpRegion, claim.rawId)?.secondaries || []
+  const getSecondaries = useCallback((claim: Claim): string[] => {
+    if (claim.type === 'inj') return injuries.find(i => i.id === claim.rawId)?.secondaries || []
+    if (claim.type === 'mh') return mentalConditions.find(c => c.id === claim.rawId)?.secondaries || []
+    if (claim.type === 'hd') return headConditions.find(c => c.id === claim.rawId)?.secondaries || []
+    if (claim.type === 'bp' && claim.bpRegion) return bpConditions[claim.bpRegion]?.find(c => c.id === claim.rawId)?.secondaries || []
     return []
-  }
+  }, [injuries, mentalConditions, headConditions, bpConditions])
 
-  function getSecRatings(claim: Claim): Record<string, number> {
-    if (claim.type === 'inj') return getInjury(claim.rawId)?.secondaryRatings || {}
-    if (claim.type === 'mh') return getMH(claim.rawId)?.secondaryRatings || {}
-    if (claim.type === 'hd') return getHD(claim.rawId)?.secondaryRatings || {}
-    if (claim.type === 'bp' && claim.bpRegion) return getBP(claim.bpRegion, claim.rawId)?.secondaryRatings || {}
+  const getSecRatings = useCallback((claim: Claim): Record<string, number> => {
+    if (claim.type === 'inj') return injuries.find(i => i.id === claim.rawId)?.secondaryRatings || {}
+    if (claim.type === 'mh') return mentalConditions.find(c => c.id === claim.rawId)?.secondaryRatings || {}
+    if (claim.type === 'hd') return headConditions.find(c => c.id === claim.rawId)?.secondaryRatings || {}
+    if (claim.type === 'bp' && claim.bpRegion) return bpConditions[claim.bpRegion]?.find(c => c.id === claim.rawId)?.secondaryRatings || {}
     return {}
-  }
+  }, [injuries, mentalConditions, headConditions, bpConditions])
 
-  function getSecEvals(claim: Claim): Record<string, { domains: SecDomains; rating: number }> {
-    if (claim.type === 'inj') return getInjury(claim.rawId)?.secondaryEvals || {}
-    if (claim.type === 'mh') return getMH(claim.rawId)?.secondaryEvals || {}
-    if (claim.type === 'hd') return getHD(claim.rawId)?.secondaryEvals || {}
-    if (claim.type === 'bp' && claim.bpRegion) return getBP(claim.bpRegion, claim.rawId)?.secondaryEvals || {}
+  const getSecEvals = useCallback((claim: Claim): Record<string, { domains: SecDomains; rating: number }> => {
+    if (claim.type === 'inj') return injuries.find(i => i.id === claim.rawId)?.secondaryEvals || {}
+    if (claim.type === 'mh') return mentalConditions.find(c => c.id === claim.rawId)?.secondaryEvals || {}
+    if (claim.type === 'hd') return headConditions.find(c => c.id === claim.rawId)?.secondaryEvals || {}
+    if (claim.type === 'bp' && claim.bpRegion) return bpConditions[claim.bpRegion]?.find(c => c.id === claim.rawId)?.secondaryEvals || {}
     return {}
-  }
+  }, [injuries, mentalConditions, headConditions, bpConditions])
 
   const patchClaim = useCallback((claim: Claim, patch: { secondaries?: string[]; secondaryRatings?: Record<string, number>; secondaryEvals?: Record<string, { domains: SecDomains; rating: number }> }) => {
     if (claim.type === 'inj') updateInjury(claim.rawId, patch)
@@ -899,8 +893,6 @@ export function SecondaryTab() {
       return next
     })
   }, [])
-
-  const totalSecCount = claims.reduce((n, c) => n + getSecondaries(c).length, 0)
 
   return (
     <>

@@ -5,7 +5,7 @@ import { gapStatus } from '../utils/gaps'
 import { getPanelKeys, BP_META } from '../data/bpMeta'
 import { SEVERITY_COLOR, SEVERITY_BG, SEVERITY_BORDER } from '../data/pins'
 import { ratingToSeverity } from '../utils/rating'
-import type { Injury, MHCondition, HeadCondition, BPCondition, BPRegion } from '../types'
+import type { Injury, BPRegion } from '../types'
 
 interface TimelineEntry {
   type: 'injury' | 'mental' | 'head' | BPRegion

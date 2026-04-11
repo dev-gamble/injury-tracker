@@ -3,7 +3,6 @@
 import { useState, useCallback } from 'react'
 import { useInjuryStore } from '../store/useInjuryStore'
 import { exportCSV, exportTXT, exportSummary } from '../utils/export'
-import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { SignOutModal } from '../modals/SignOutModal'
 import { ClearDataModal } from '../modals/ClearDataModal'
@@ -30,7 +29,7 @@ export function Header({ onImport }: { onImport?: () => void }) {
   async function handleSignOut() {
     setSignOutLoading(true)
     state.reset()
-    await supabase.auth.signOut()
+    await fetch('/signout', { method: 'POST' })
     router.push('/login')
   }
 

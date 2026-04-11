@@ -152,7 +152,7 @@ export function BodyPartPanel({ regionId }: BodyPartPanelProps) {
 
   const [search, setSearch] = useState('')
 
-  const conditionList = VA_AREA_CONDITIONS[regionId] ?? []
+  const conditionList = useMemo(() => VA_AREA_CONDITIONS[regionId] ?? [], [regionId])
   const selected = useMemo(() => new Set(conditions.map((c) => c.condition)), [conditions])
   const filtered = useMemo(
     () => conditionList.filter((name) => !search || name.toLowerCase().includes(search.toLowerCase())),

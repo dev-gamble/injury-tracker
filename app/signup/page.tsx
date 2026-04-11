@@ -21,12 +21,13 @@ export default function SignupPage() {
     const { data, error } = await supabase.auth.signUp({ email, password })
     if (error) {
       setError(error.message)
+      setLoading(false)
     } else if (data.session) {
       router.push("/dashboard")
+      // keep loading=true — component unmounts on navigation
     } else {
       setSent(true)
     }
-    setLoading(false)
   }
 
   if (sent) {
@@ -71,8 +72,9 @@ export default function SignupPage() {
           />
         </div>
         {error && <p className="auth-error">{error}</p>}
-        <button type="submit" disabled={loading} className="auth-btn">
-          {loading ? "Creating account…" : "Create Account"}
+        <button type="submit" disabled={loading} className="auth-btn" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+          {loading && <span className="auth-spinner" />}
+          {loading ? "Creating Account…" : "Create Account"}
         </button>
       </form>
       <div className="auth-footer-links">

@@ -16,7 +16,7 @@ const css = `
     border-bottom: 3px solid #c8102e;
     box-shadow: 0 4px 16px rgba(10,35,87,.35);
     padding: 0 24px;
-    height: 66px;
+    height: 80px;
     display: flex;
     align-items: center;
     flex-shrink: 0;

@@ -799,7 +799,7 @@ const KEY_TO_GROUP = {};
  ['neck',['neck']],
  ['shoulder',['leftShoulder','rightShoulder']],
  ['back',['upperBack','spine','lowerBack']],
- ['chest',['chest','leftLung','rightLung']],
+ ['chest',['chest']],
  ['abdomen',['abdomen','pelvis','glutes']],
  ['hip',['leftHip','rightHip']],
  ['elbow',['leftElbow','rightElbow']],

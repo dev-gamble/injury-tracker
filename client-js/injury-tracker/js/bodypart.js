@@ -89,7 +89,7 @@ const BP_REGISTRY = {
     profiles: ()=>CHEST_PROFILES, profileMap: ()=>CHEST_CONDITION_PROFILE,
     getProfile: getChestProfile, getProfileKey: getChestProfileKey,
     calcRating: calculateChestRating,
-    sideKeys: {chest:'Chest',leftLung:'Left Lung',rightLung:'Right Lung'},
+    sideKeys: {chest:'Chest'},
     extremityMap: {},
     note: 'Breathing conditions are rated on how well your lungs work (based on breathing tests) and whether you need oxygen or inhalers.',
   },

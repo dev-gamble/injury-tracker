@@ -50,6 +50,21 @@ export async function GET(
       )
     }
 
+    const isHtml = ext === ".html"
+
+    // Auth guard — only HTML pages require a session; JS/CSS are inert assets
+    if (isHtml) {
+      const { createClient } = await import("@/lib/supabase/server")
+      const supabase = await createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        return attachRequestIdHeader(
+          NextResponse.redirect(new URL("/login", request.url)),
+          requestId
+        )
+      }
+    }
+
     let fileBuffer: Buffer
     try {
       fileBuffer = await fs.readFile(resolvedPath)
@@ -64,12 +79,10 @@ export async function GET(
       throw err
     }
 
-    const isHtml = ext === ".html"
-
     // Inject <base href="/"> so relative paths (css/styles.css, js/data.js)
     // resolve correctly from the root regardless of trailing slash.
     const responseBody = isHtml
-      ? fileBuffer.toString("utf-8").replace("<head>", '<head>\n<base href="/">')
+      ? fileBuffer.toString("utf-8").replace("<head>", '<head>\n<base href="/">\n<link rel="icon" href="/icon.svg" type="image/svg+xml">')
       : new Uint8Array(fileBuffer)
 
     const response = new NextResponse(responseBody, {

@@ -5,6 +5,9 @@ import "./globals.css"
 export const metadata: Metadata = {
   title: "App",
   description: "App description",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+  },
 }
 
 export default function RootLayout({

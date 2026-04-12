@@ -16,8 +16,8 @@ export async function middleware(request: NextRequest) {
     if (
       pathname.startsWith("/_next") ||
       pathname.startsWith("/api") ||
-      pathname.startsWith("/dashboard/tracker/js/") ||
-      pathname.startsWith("/dashboard/tracker/css/") ||
+      pathname.startsWith("/js/") ||
+      pathname.startsWith("/css/") ||
       pathname.match(/\.(?:ico|png|jpg|jpeg|svg|webp|woff|woff2|ttf|eot)$/)
     ) {
       const res = NextResponse.next()

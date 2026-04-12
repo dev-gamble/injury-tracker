@@ -26,7 +26,7 @@ const nextConfig: NextConfig = {
   // Ensure client-js files are included in the standalone Docker build output.
   // Without this, fs.readFile calls in the tracker route handler get ENOENT in production.
   outputFileTracingIncludes: {
-    "/dashboard/tracker/[[...slug]]": ["./client-js/injury-tracker/**/*"],
+    "/[[...slug]]": ["./client-js/injury-tracker/**/*"],
   },
   ...(supabaseHostname && {
     images: {

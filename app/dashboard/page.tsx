@@ -21,7 +21,7 @@ export default async function DashboardPage() {
             Document service-connected injuries and build your VA claim.
           </p>
           <Link
-            href="/dashboard/tracker/"
+            href="/"
             className="inline-block mt-1 rounded bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-700 transition-colors"
           >
             Open Tracker

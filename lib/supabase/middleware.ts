@@ -3,7 +3,7 @@ import { errorToFields, logger, safeFlush } from '@/lib/logging'
 import { getPublicEnv } from "@/lib/env"
 import { NextResponse, type NextRequest } from 'next/server'
 
-// Add any paths that should require authentication
+// Routes that require authentication to access
 const PROTECTED_PREFIXES = ['/dashboard']
 
 export async function updateSession(request: NextRequest, requestId?: string) {

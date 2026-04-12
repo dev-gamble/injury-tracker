@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
 import { errorToFields, logger, safeFlush } from "@/lib/logging"
 import { getOrCreateRequestId, attachRequestIdHeader } from "@/lib/logging/request-id"
 import { promises as fs } from "fs"
 import path from "path"
-import { redirect } from "next/navigation"
 
 export const runtime = "nodejs"
 
@@ -26,7 +24,7 @@ export async function GET(
   { params }: { params: Promise<{ slug?: string[] }> }
 ) {
   const requestId = getOrCreateRequestId(request)
-  const routeLog = logger("dashboard.tracker").with({ requestId })
+  const routeLog = logger("tracker").with({ requestId })
 
   try {
     const { slug } = await params
@@ -35,7 +33,6 @@ export async function GET(
     const resolvedPath = path.resolve(BASE_DIR, relativePath)
 
     // Security: path traversal prevention.
-    // path.resolve normalizes ../sequences; startsWith is the definitive guard.
     if (!resolvedPath.startsWith(BASE_DIR + path.sep) && resolvedPath !== BASE_DIR) {
       routeLog.warn("tracker.path_traversal_attempt", { relativePath })
       return attachRequestIdHeader(
@@ -44,23 +41,13 @@ export async function GET(
       )
     }
 
-    // Security: extension allowlist — only .html, .js, .css are ever served.
-    // Body diagrams are SVG-inlined in index.html; no external image files needed.
+    // Extension allowlist — only .html, .js, .css are served.
     const ext = path.extname(resolvedPath).toLowerCase()
     if (!ALLOWED_EXTENSIONS.has(ext)) {
       return attachRequestIdHeader(
         NextResponse.json({ error: "Not found" }, { status: 404 }),
         requestId
       )
-    }
-
-    // Auth double-check for HTML (defense-in-depth beyond middleware).
-    // Middleware already guards all /dashboard/* routes, but this ensures the
-    // initial page load is always validated even if middleware config changes.
-    if (ext === ".html") {
-      const supabase = await createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) redirect("/login")
     }
 
     let fileBuffer: Buffer
@@ -79,10 +66,10 @@ export async function GET(
 
     const isHtml = ext === ".html"
 
-    // For HTML, inject a <base> tag so relative paths (css/styles.css, js/data.js, etc.)
-    // resolve to /dashboard/tracker/… regardless of whether the URL has a trailing slash.
+    // Inject <base href="/"> so relative paths (css/styles.css, js/data.js)
+    // resolve correctly from the root regardless of trailing slash.
     const responseBody = isHtml
-      ? fileBuffer.toString("utf-8").replace("<head>", '<head>\n<base href="/dashboard/tracker/">')
+      ? fileBuffer.toString("utf-8").replace("<head>", '<head>\n<base href="/">')
       : new Uint8Array(fileBuffer)
 
     const response = new NextResponse(responseBody, {
@@ -99,10 +86,6 @@ export async function GET(
     return attachRequestIdHeader(response, requestId)
 
   } catch (error) {
-    // redirect() from next/navigation throws a NEXT_REDIRECT error — re-throw
-    // it so Next.js can handle the redirect response correctly.
-    if ((error as { digest?: string }).digest?.startsWith("NEXT_REDIRECT")) throw error
-
     routeLog.error("tracker.failed", {
       method: request.method,
       path: request.nextUrl.pathname,

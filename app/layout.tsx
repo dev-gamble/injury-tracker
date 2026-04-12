@@ -3,8 +3,8 @@ import { Providers } from "@/components/providers"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "App",
-  description: "App description",
+  title: "Endex",
+  description: "Service Impact Index",
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
   },

@@ -52,19 +52,6 @@ export async function GET(
 
     const isHtml = ext === ".html"
 
-    // Auth guard — only HTML pages require a session; JS/CSS are inert assets
-    if (isHtml) {
-      const { createClient } = await import("@/lib/supabase/server")
-      const supabase = await createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        return attachRequestIdHeader(
-          NextResponse.redirect(new URL("/login", request.url)),
-          requestId
-        )
-      }
-    }
-
     let fileBuffer: Buffer
     try {
       fileBuffer = await fs.readFile(resolvedPath)

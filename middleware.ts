@@ -10,10 +10,14 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   try {
-    // Skip Next.js internals, API routes, and static assets
+    // Skip Next.js internals, API routes, static assets, and tracker JS/CSS.
+    // Tracker JS/CSS are only reachable after loading the auth-protected HTML,
+    // contain no sensitive data, and don't need per-request token refresh.
     if (
       pathname.startsWith("/_next") ||
       pathname.startsWith("/api") ||
+      pathname.startsWith("/dashboard/tracker/js/") ||
+      pathname.startsWith("/dashboard/tracker/css/") ||
       pathname.match(/\.(?:ico|png|jpg|jpeg|svg|webp|woff|woff2|ttf|eot)$/)
     ) {
       const res = NextResponse.next()

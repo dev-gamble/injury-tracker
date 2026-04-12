@@ -10,9 +10,9 @@ const devConnectSources = isProd
 const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"}`,
-  "style-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "img-src 'self' data: blob: https:",
-  "font-src 'self' data:",
+  "font-src 'self' data: https://fonts.gstatic.com",
   `connect-src 'self' https://*.supabase.co https://api.supabase.com https://api.axiom.co${devConnectSources}`,
   "object-src 'none'",
   "form-action 'self'",
@@ -23,6 +23,11 @@ const csp = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   output: "standalone",
+  // Ensure client-js files are included in the standalone Docker build output.
+  // Without this, fs.readFile calls in the tracker route handler get ENOENT in production.
+  outputFileTracingIncludes: {
+    "/dashboard/tracker/[[...slug]]": ["./client-js/injury-tracker/**/*"],
+  },
   ...(supabaseHostname && {
     images: {
       remotePatterns: [

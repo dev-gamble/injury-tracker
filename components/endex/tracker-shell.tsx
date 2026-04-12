@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { TrackerProvider, useTracker } from "@/lib/endex/tracker-context"
 import { Header } from "./header"
 import { TabBar } from "./tab-bar"
 import { TabMap } from "./tab-map"
@@ -12,9 +13,25 @@ import { TabStatement } from "./tab-statement"
 import { FormModal } from "./form-modal"
 import { ImportModal } from "./import-modal"
 import { Footer } from "./footer"
+import { ToastNotification } from "./toast-notification"
 
-export function TrackerShell() {
+function TrackerShellInner() {
   const [activeTab, setActiveTab] = useState("map")
+  const { pinPlaceMode, cancelPinPlaceMode } = useTracker()
+
+  // Toggle pin-placing class on .endex-root ancestor
+  useEffect(() => {
+    const root = document.querySelector(".endex-root")
+    if (!root) return
+    if (pinPlaceMode) {
+      root.classList.add("pin-placing")
+    } else {
+      root.classList.remove("pin-placing")
+    }
+    return () => {
+      root.classList.remove("pin-placing")
+    }
+  }, [pinPlaceMode])
 
   return (
     <>
@@ -47,6 +64,16 @@ export function TrackerShell() {
 
       <FormModal />
       <ImportModal />
+      <ToastNotification />
+
+      {pinPlaceMode && (
+        <div className="pin-place-prompt">
+          <span>
+            Click the body map to place: <strong>{pinPlaceMode.label}</strong>
+          </span>
+          <button onClick={cancelPinPlaceMode}>Cancel</button>
+        </div>
+      )}
 
       {/* Walkthrough overlay */}
       <div
@@ -64,5 +91,13 @@ export function TrackerShell() {
 
       <Footer />
     </>
+  )
+}
+
+export function TrackerShell() {
+  return (
+    <TrackerProvider>
+      <TrackerShellInner />
+    </TrackerProvider>
   )
 }

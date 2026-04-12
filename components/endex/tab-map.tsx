@@ -1,8 +1,14 @@
+"use client"
+
+import { useTracker } from "@/lib/endex/tracker-context"
 import { BodyPanel } from "./body-panel"
 import { Sidebar } from "./sidebar"
 import { EvaluationPanels } from "./evaluation-panels"
 
 export function TabMap() {
+  const { userId, setUserId, evalPanel } = useTracker()
+  const panelOpen = evalPanel.type !== null
+
   return (
     <>
       <div
@@ -41,6 +47,8 @@ export function TabMap() {
             type="text"
             id="user-id-field"
             placeholder="Your name, case number, or identifier..."
+            value={userId}
+            onChange={(e) => setUserId(e.target.value)}
             style={{
               flex: 1,
               padding: "6px 10px",
@@ -63,8 +71,8 @@ export function TabMap() {
         </span>
       </div>
       <div className="map-layout">
-        <BodyPanel />
-        <Sidebar />
+        {!panelOpen && <BodyPanel />}
+        {!panelOpen && <Sidebar />}
         <EvaluationPanels />
       </div>
     </>

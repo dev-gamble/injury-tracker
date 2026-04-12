@@ -1,26 +1,22 @@
-const PANEL_IDS = [
-  "mental-health-panel",
-  "head-panel",
-  "knee-panel",
-  "back-panel",
-  "shoulder-panel",
-  "neck-panel",
-  "hip-panel",
-  "elbow-panel",
-  "wrist-panel",
-  "ankle-panel",
-  "chest-panel",
-  "abdomen-panel",
-  "leg-panel",
-  "systemic-panel",
-]
+"use client"
+
+import { useTracker } from "@/lib/endex/tracker-context"
+import { EvalPanelMental } from "./eval-panel-mental"
+import { EvalPanelHead } from "./eval-panel-head"
+import { EvalPanelBP } from "./eval-panel-bp"
 
 export function EvaluationPanels() {
-  return (
-    <>
-      {PANEL_IDS.map((id) => (
-        <div key={id} id={id} className="mental-panel hidden"></div>
-      ))}
-    </>
-  )
+  const { evalPanel } = useTracker()
+  if (!evalPanel.type) return null
+
+  switch (evalPanel.type) {
+    case "mental":
+      return <EvalPanelMental />
+    case "head":
+      return <EvalPanelHead />
+    case "bp":
+      return <EvalPanelBP regionId={evalPanel.regionId!} />
+    default:
+      return null
+  }
 }

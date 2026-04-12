@@ -1,16 +1,27 @@
+"use client"
+
+import { useTracker } from "@/lib/endex/tracker-context"
 import { BodyImage } from "./body-image"
 
 export function BodyPanel() {
+  const { curSide, curBody, setSide, setBody, activeViewId } = useTracker()
+
   return (
     <div className="body-panel">
       <div className="toolbar">
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           <span className="tb-lbl">View</span>
           <div className="tgrp">
-            <button className="tog active" id="btn-front">
+            <button
+              className={`tog${curSide === "front" ? " active" : ""}`}
+              onClick={() => setSide("front")}
+            >
               Front
             </button>
-            <button className="tog" id="btn-back">
+            <button
+              className={`tog${curSide === "back" ? " active" : ""}`}
+              onClick={() => setSide("back")}
+            >
               Back
             </button>
           </div>
@@ -18,10 +29,16 @@ export function BodyPanel() {
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           <span className="tb-lbl">Body</span>
           <div className="tgrp">
-            <button className="tog active" id="btn-male">
+            <button
+              className={`tog${curBody === "male" ? " active" : ""}`}
+              onClick={() => setBody("male")}
+            >
               Male
             </button>
-            <button className="tog" id="btn-female">
+            <button
+              className={`tog${curBody === "female" ? " active" : ""}`}
+              onClick={() => setBody("female")}
+            >
               Female
             </button>
           </div>
@@ -29,36 +46,36 @@ export function BodyPanel() {
       </div>
 
       <BodyImage
-        id="view-mf"
+        viewId="mf"
         src="/body-diagrams/body-male-front.png"
         alt="Male front body diagram"
-        pinsId="pins-mf"
-        isHidden={false}
+        isHidden={activeViewId !== "mf"}
         side="front"
+        body="male"
       />
       <BodyImage
-        id="view-mb"
+        viewId="mb"
         src="/body-diagrams/body-male-back.png"
         alt="Male back body diagram"
-        pinsId="pins-mb"
-        isHidden={true}
+        isHidden={activeViewId !== "mb"}
         side="back"
+        body="male"
       />
       <BodyImage
-        id="view-ff"
+        viewId="ff"
         src="/body-diagrams/body-female-front.png"
         alt="Female front body diagram"
-        pinsId="pins-ff"
-        isHidden={true}
+        isHidden={activeViewId !== "ff"}
         side="front"
+        body="female"
       />
       <BodyImage
-        id="view-fb"
+        viewId="fb"
         src="/body-diagrams/body-female-back.png"
         alt="Female back body diagram"
-        pinsId="pins-fb"
-        isHidden={true}
+        isHidden={activeViewId !== "fb"}
         side="back"
+        body="female"
       />
 
       <div className="pin-legend">

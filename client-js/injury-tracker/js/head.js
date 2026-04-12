@@ -168,29 +168,30 @@ function onHeadSearch(val) {
   renderHeadConditionList();
 }
 
-function renderHeadConditionList() {
-  const list = document.getElementById('hd-cond-list');
-  if (!list) return;
-  // Only show current session's selection — committed conditions are hidden (fresh slate)
+function _buildHeadCondListHTML() {
   const currentCond = window._headConditions.find(c => !c._committed);
   const selected = new Set();
-  if(currentCond) selected.add(currentCond.condition);
+  if (currentCond) selected.add(currentCond.condition);
 
   const filtered = VA_HEAD.filter(name => !_headSearch || name.toLowerCase().includes(_headSearch));
-  let h = '';
-  filtered.forEach(name => {
+  if (!filtered.length) return '<div style="padding:14px;color:var(--muted);font-size:12px;text-align:center;">No conditions match your search.</div>';
+  return filtered.map(name => {
     const checked = selected.has(name);
     const badge = checked && currentCond ? '<span class="mh-cond-badge mh-rate-' + currentCond.effectiveRating + '">' + currentCond.effectiveRating + '%</span>' : '';
     const escaped = name.replace(/'/g, "\\'");
-    h += '<div class="mh-cond-item' + (checked ? ' selected' : '') + '" onclick="toggleHeadCondition(\'' + escaped + '\')">' +
+    return '<div class="mh-cond-item' + (checked ? ' selected' : '') + '" onclick="toggleHeadCondition(\'' + escaped + '\')">' +
       '<input type="radio" name="hd-cond" ' + (checked ? 'checked' : '') + ' onclick="event.stopPropagation();toggleHeadCondition(\'' + escaped + '\')">' +
       '<span class="mh-cond-label">' + name + '</span>' +
       badge +
     '</div>';
-  });
-  if (!filtered.length) h = '<div style="padding:14px;color:var(--muted);font-size:12px;text-align:center;">No conditions match your search.</div>';
-  list.innerHTML = h;
-  if(typeof _initCondListScroll === 'function') _initCondListScroll(list);
+  }).join('');
+}
+
+function renderHeadConditionList() {
+  const list = document.getElementById('hd-cond-list');
+  if (!list) return;
+  list.innerHTML = _buildHeadCondListHTML();
+  if (typeof _initCondListScroll === 'function') _initCondListScroll(list);
 }
 
 // ── RENDER PANEL ─────────────────────────────────────────────────────────────
@@ -226,7 +227,7 @@ function renderHeadPanel() {
   '</div>';
 
   // Condition checklist
-  h += '<div class="mh-cond-list" id="hd-cond-list"></div>';
+  h += '<div class="mh-cond-list" id="hd-cond-list">' + _buildHeadCondListHTML() + '</div>';
 
   // Selected conditions evaluation — only current session (non-committed)
   const _visibleConds = conds.filter(c => !c._committed);
@@ -360,8 +361,4 @@ function renderHeadPanel() {
   const _scrollTop = panel.scrollTop;
   panel.innerHTML = h;
   panel.scrollTop = _scrollTop;
-
-  // Render condition list separately (preserves search state)
-  // Use setTimeout to ensure DOM is ready after innerHTML assignment
-  setTimeout(()=>{ renderHeadConditionList(); panel.scrollTop = _scrollTop; }, 0);
 }

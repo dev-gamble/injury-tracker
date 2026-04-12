@@ -568,15 +568,11 @@ function onBPSearch(regionId, val){
   renderBPCondList(regionId);
 }
 
-function renderBPCondList(regionId){
+function _buildBPCondListHTML(regionId){
   const cfg = BP_REGISTRY[regionId];
-  if(!cfg) return;
-  const list = document.getElementById('bp-cond-list-'+regionId);
-  if(!list) return;
+  if(!cfg) return '';
   const conditions = VA_AREA_CONDITIONS[cfg.conditions] || [];
   const conds = window[cfg.stateKey];
-  // Only show the current session's selection (non-committed conditions)
-  // Committed conditions from previous sessions are hidden — fresh slate
   const currentCond = conds.find(c => !c._committed);
   const selected = new Set();
   if(currentCond) selected.add(currentCond.condition);
@@ -586,21 +582,25 @@ function renderBPCondList(regionId){
     const examples = (typeof PHYS_EXAMPLES !== 'undefined' && PHYS_EXAMPLES[name]) || '';
     return name.toLowerCase().includes(_bpSearch) || examples.toLowerCase().includes(_bpSearch);
   });
-  let h = '';
-  filtered.forEach(name => {
+  if(!filtered.length) return '<div style="padding:14px;color:var(--muted);font-size:12px;text-align:center;">No conditions match your search.</div>';
+  return filtered.map(name => {
     const checked = selected.has(name);
     const examples = (typeof PHYS_EXAMPLES !== 'undefined' && PHYS_EXAMPLES[name]) || '';
     const exHtml = examples ? '<span class="mh-cond-examples">e.g. '+examples+'</span>' : '';
     const escaped = name.replace(/'/g,"\\'");
     const badge = checked && currentCond ? '<span class="mh-cond-badge mh-rate-'+currentCond.effectiveRating+'">'+currentCond.effectiveRating+'%</span>' : '';
-    h += '<div class="mh-cond-item'+(checked?' selected':'')+'" onclick="toggleBPCondition(\''+regionId+'\',\''+escaped+'\')">' +
+    return '<div class="mh-cond-item'+(checked?' selected':'')+'" onclick="toggleBPCondition(\''+regionId+'\',\''+escaped+'\')">' +
       '<input type="radio" name="bp-cond-'+regionId+'" '+(checked?'checked':'')+' onclick="event.stopPropagation();toggleBPCondition(\''+regionId+'\',\''+escaped+'\')">' +
       '<span class="mh-cond-label">'+name+exHtml+'</span>' +
       badge +
     '</div>';
-  });
-  if(!filtered.length) h = '<div style="padding:14px;color:var(--muted);font-size:12px;text-align:center;">No conditions match your search.</div>';
-  list.innerHTML = h;
+  }).join('');
+}
+
+function renderBPCondList(regionId){
+  const list = document.getElementById('bp-cond-list-'+regionId);
+  if(!list) return;
+  list.innerHTML = _buildBPCondListHTML(regionId);
   if(typeof _initCondListScroll === 'function') _initCondListScroll(list);
 }
 
@@ -629,8 +629,7 @@ function renderBPPanel(regionId){
   // Info banner
   h += '<div class="mh-info"><strong>'+cfg.title+':</strong> '+cfg.note+' <span class="tip" data-tip="Select your conditions below, then answer the questions for each one. The app will estimate a VA rating based on your answers. You can also manually override any rating if you already know your actual VA percentage.">?</span></div>';
 
-  // Side tabs removed — side selection is now embedded in the condition selection popup
-  // Non-bilateral multi-option panels (e.g. back: Upper/Mid/Lower) still show tabs
+  // Non-bilateral multi-option panels (e.g. back: Upper/Mid/Lower, abdomen: Abdomen/Pelvis) show tabs
   const _sideEntries = Object.entries(cfg.sideKeys);
   const _hasLeft = _sideEntries.some(([k])=>k.toLowerCase().startsWith('left'));
   const _hasRight = _sideEntries.some(([k])=>k.toLowerCase().startsWith('right'));
@@ -651,7 +650,7 @@ function renderBPPanel(regionId){
   '</div>';
 
   // Condition checklist
-  h += '<div class="mh-cond-list" id="bp-cond-list-'+regionId+'"></div>';
+  h += '<div class="mh-cond-list" id="bp-cond-list-'+regionId+'">'+_buildBPCondListHTML(regionId)+'</div>';
 
   // Evaluations — only show current session (non-committed) conditions
   const _visibleConds = conds.filter(c => !c._committed);
@@ -772,8 +771,4 @@ function renderBPPanel(regionId){
   const _scrollTop = panel.scrollTop;
   panel.innerHTML = h;
   panel.scrollTop = _scrollTop;
-  setTimeout(()=>{
-    renderBPCondList(regionId);
-    panel.scrollTop = _scrollTop;
-  }, 0);
 }

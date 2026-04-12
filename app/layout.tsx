@@ -3,7 +3,7 @@ import { Providers } from "@/components/providers"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "Endex",
+  title: "ENDEX",
   description: "Service Impact Index",
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }],

@@ -410,7 +410,7 @@ ${(function(){
 
 <div class="footer">
   <span>Print (Ctrl+P / Cmd+P) to save as PDF</span>
-  <span>&copy; K. Dimond. All Rights Reserved.</span>
+  <span>&copy; 2026 CG Web Lab, LLC. All rights reserved.</span>
 </div>
 </body></html>`);
   w.document.close();
@@ -898,7 +898,7 @@ function exportTXT(){
   }
 
   txt += line + '\n';
-  txt += '(c) K. Dimond. All Rights Reserved.\n';
+  txt += '(c) 2026 CG Web Lab, LLC. All rights reserved.\n';
 
   const blob = new Blob([txt], {type:'text/plain;charset=utf-8;'});
   const url = URL.createObjectURL(blob);

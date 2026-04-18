@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ENDEX — Service Impact Index</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' fill='none'><rect width='36' height='36' rx='4' fill='%230a2357'/><circle cx='18' cy='18' r='11' fill='rgba(255,255,255,0.12)' stroke='%23fff' stroke-width='2'/><path d='M9 9L27 27M27 9L9 27' stroke='%23c8102e' stroke-width='3.5' stroke-linecap='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@700&family=Rajdhani:wght@600&display=swap" rel="stylesheet">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Open+Sans:wght@400;500;600;700&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -940,9 +944,9 @@ body.pin-placing .body-panel{position:relative;z-index:95;}
 /* RESPONSIVE — phone layout */
 @media(max-width:600px){
   header{padding:0 12px;height:56px;}
-  .logo h1{font-size:15px;}
-  .logo svg{width:32px;height:32px;}
-  .logo-sub{display:none;}
+  .logo svg{width:30px !important;height:30px !important;}
+  .logo span{font-size:22px !important;letter-spacing:4px !important;}
+  .logo-sub{display:none !important;}
   .export-btn{padding:6px 12px;font-size:12px;}
   .tabs{padding:0 8px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
   .tab{padding:10px 12px;font-size:11px;white-space:nowrap;}
@@ -998,10 +1002,18 @@ body.color-blind-mode .export-btn{background:#333 !important;border-color:#555 !
 <body>
 
 <header>
-  <div class="logo">
-    <h1>ENDEX</h1>
-    <div class="logo-div"></div>
-    <div class="logo-sub">Index injuries. Build stronger VA claims.</div>
+  <div class="logo" style="display:flex;align-items:center;gap:11px;">
+    <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+      <circle cx="18" cy="18" r="12" fill="rgba(255,255,255,0.1)" stroke="#fff" stroke-width="1.5"/>
+      <path d="M8 8L28 28M28 8L8 28" stroke="#c8102e" stroke-width="3.2" stroke-linecap="round"/>
+    </svg>
+    <div>
+      <div style="display:flex;align-items:baseline;">
+        <span style="font-family:'Teko',sans-serif;font-size:36px;font-weight:700;color:#fff;letter-spacing:6px;line-height:1;">ENDE</span>
+        <span style="font-family:'Teko',sans-serif;font-size:36px;font-weight:700;color:#c8102e;letter-spacing:6px;line-height:1;">X</span>
+      </div>
+      <div class="logo-sub" style="font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:600;color:rgba(255,255,255,0.4);letter-spacing:2px;text-transform:uppercase;margin-top:0;">Disability Claim Index</div>
+    </div>
   </div>
   <div style="display:flex;align-items:center;gap:8px;">
     <button class="export-btn" id="guide-btn" style="background:var(--navy);border-color:var(--navy2);padding:6px 10px;font-size:11px;" onclick="startWalkthrough()" title="How to use this app">
@@ -1020,8 +1032,8 @@ body.color-blind-mode .export-btn{background:#333 !important;border-color:#555 !
     </button>
     <div id="export-menu" class="export-menu hidden">
       <div style="padding:6px 16px 2px;font-size:9px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Project</div>
-      <button onclick="saveProject();closeExportMenu()">Save Project (.vaclaim)</button>
-      <button onclick="loadProject();closeExportMenu()">Load Project (.vaclaim)</button>
+      <button onclick="saveProject();closeExportMenu()">Save Project (.endexclaim)</button>
+      <button onclick="loadProject();closeExportMenu()">Load Project (.endexclaim)</button>
       <div style="padding:6px 16px 2px;font-size:9px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;border-top:1px solid var(--border);">Export</div>
       <button onclick="exportSummary();closeExportMenu()">PDF / Print Summary</button>
       <button onclick="exportCSV();closeExportMenu()">CSV Spreadsheet</button>
@@ -1033,7 +1045,7 @@ body.color-blind-mode .export-btn{background:#333 !important;border-color:#555 !
 
 <div class="tabs">
   <button class="tab active" onclick="showTab('map',this)">Primary Map</button>
-  <button class="tab" id="sc-tab" onclick="showTab('secondary',this)">Severity & Secondary</button>
+  <button class="tab" id="sc-tab" onclick="showTab('secondary',this)">Secondary</button>
   <button class="tab" id="sp-tab" onclick="showTab('special',this)">Special Claims</button>
   <button class="tab" id="tl-tab" onclick="showTab('timeline',this)">Timeline</button>
   <button class="tab" id="rc-tab" onclick="showTab('rating',this)">Rating</button>
@@ -1264,7 +1276,7 @@ body.color-blind-mode .export-btn{background:#333 !important;border-color:#555 !
 <!-- SEVERITY & SECONDARY TAB -->
 <div id="tab-secondary" class="content hidden">
   <div class="tl-bar">
-    <div style="font-size:20px;font-weight:700;font-family:var(--fh);text-transform:uppercase;letter-spacing:.5px;color:var(--navy);">Claim Map — Severity & Secondary</div>
+    <div style="font-size:20px;font-weight:700;font-family:var(--fh);text-transform:uppercase;letter-spacing:.5px;color:var(--navy);">Claim Map — Secondary</div>
   </div>
   <div class="tab-instructions">
     Rate how bad each condition is and add any secondary issues it has caused. Click <strong>"Rate"</strong> to answer questions about your condition. Under each claim, use <strong>"Add Secondary"</strong> to list problems caused by that condition (for example: a knee injury that caused back pain, or PTSD that caused insomnia). Secondary conditions can increase your overall rating.
@@ -4800,7 +4812,7 @@ function _removeCondPin(condId, e){
   updateBadges(); updateCount();
 }
 
-// Next-step toast — suggest going to Severity & Secondary tab
+// Next-step toast — suggest going to Secondary tab
 function _showNextStepToast(){
   // Remove existing toast
   const old = document.getElementById('next-step-toast');
@@ -4808,8 +4820,8 @@ function _showNextStepToast(){
   const toast = document.createElement('div');
   toast.id = 'next-step-toast';
   toast.className = 'next-step-toast';
-  toast.innerHTML = '<span>Pin placed! Rate severity &amp; add secondaries</span>' +
-    '<button onclick="showTab(\'secondary\',document.querySelectorAll(\'.tab\')[1]);_dismissToast()">Go to Severity &amp; Secondary</button>' +
+  toast.innerHTML = '<span>Pin placed! Add secondaries next</span>' +
+    '<button onclick="showTab(\'secondary\',document.querySelectorAll(\'.tab\')[1]);_dismissToast()">Go to Secondary</button>' +
     '<span class="toast-close" onclick="_dismissToast()">&times;</span>';
   document.body.appendChild(toast);
   setTimeout(_dismissToast, 8000);
@@ -8551,7 +8563,7 @@ function removeVocSecondary(condition){
 function updateSecondaryCount(){
   const claims = gatherAllClaims();
   const totalSec = claims.reduce((n,c)=>n+(c.ref.secondaries?.length||0),0);
-  document.getElementById('sc-tab').textContent = totalSec ? 'Severity & Secondary ('+totalSec+')' : 'Severity & Secondary';
+  document.getElementById('sc-tab').textContent = totalSec ? 'Secondary ('+totalSec+')' : 'Secondary';
 }
 
 </script>
@@ -10423,7 +10435,7 @@ function _renderMSTSection(){
     h += '</div></div>';
   }
 
-  // Current conditions as cards (same pattern as Severity & Secondary tab)
+  // Current conditions as cards (same pattern as Secondary tab)
   mst.conditions.forEach((cond, i) => {
     if(!cond.secondaries) cond.secondaries = [];
     const displayName = mst.privacyShield ? 'Private Condition' : cond.name;
@@ -11045,22 +11057,35 @@ function exportSummary(){
 
   const w=window.open('','_blank');
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>ENDEX — Service Impact Index</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@700&family=Rajdhani:wght@600&family=Oswald:wght@600;700&display=swap" rel="stylesheet">
 <style>
 body{font-family:Arial,sans-serif;margin:40px;font-size:13px;color:#111;}
-h1{color:#1d4ed8;font-size:22px;margin:0 0 4px;}
 .sub{color:#888;font-size:10px;margin-bottom:18px;font-family:monospace;}
+
+/* Brand header */
+.report-header{border-bottom:3px solid #0a2357;padding-bottom:18px;margin-bottom:22px;}
+.brand-lockup{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+.brand-word{font-family:'Teko','Arial Narrow',sans-serif;font-size:44px;font-weight:700;letter-spacing:6px;line-height:1;color:#0a2357;}
+.brand-x{color:#c8102e;}
+.brand-sub{font-family:'Rajdhani','Arial Narrow',sans-serif;font-size:11px;font-weight:600;color:#6b7280;letter-spacing:2.5px;text-transform:uppercase;margin-top:3px;}
+.report-title{font-family:'Oswald','Arial Narrow',sans-serif;font-size:16px;font-weight:600;color:#0a2357;letter-spacing:2px;text-transform:uppercase;margin:2px 0 4px;}
+.prepared-for{font-size:13px;font-weight:700;color:#1a2332;margin:6px 0 2px;font-family:monospace;}
+.report-meta{color:#6b7280;font-size:10px;font-family:monospace;}
+
 .disc{background:#fffbeb;border-left:4px solid #fbbf24;padding:10px 14px;border-radius:4px;margin-bottom:18px;font-size:11px;color:#92400e;}
 .stats{display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap;}
-.stat{background:#eff3ff;border:1px solid #bfdbfe;border-radius:7px;padding:9px 16px;}
-.sn{font-size:22px;font-weight:700;color:#1d4ed8;}.sl{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px;font-family:monospace;}
-.section-title{font-size:14px;font-weight:700;color:#1a2332;border-bottom:2px solid #1d4ed8;padding-bottom:6px;margin:24px 0 16px;text-transform:uppercase;letter-spacing:1px;font-family:monospace;}
+.stat{background:#f5f7fc;border:1px solid #c7d2fe;border-radius:7px;padding:9px 16px;}
+.sn{font-size:22px;font-weight:700;color:#0a2357;}.sl{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px;font-family:monospace;}
+.section-title{font-size:14px;font-weight:700;color:#1a2332;border-bottom:2px solid #0a2357;padding-bottom:6px;margin:24px 0 16px;text-transform:uppercase;letter-spacing:1px;font-family:monospace;}
 .diagrams{display:flex;gap:32px;flex-wrap:wrap;margin-bottom:28px;}
 table{width:100%;border-collapse:collapse;}
-th{background:#1d4ed8;color:#fff;padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;font-family:monospace;}
+th{background:#0a2357;color:#fff;padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;font-family:monospace;letter-spacing:.5px;}
 td{padding:8px 10px;border-bottom:1px solid #e0e7ff;vertical-align:top;}
 tr:nth-child(even) td{background:#f8faff;}
 .footer{margin-top:20px;font-size:10px;color:#aaa;font-family:monospace;border-top:1px solid #eee;padding-top:10px;display:flex;justify-content:space-between;}
-@media print{button{display:none;} .detail-card{break-inside:avoid;}}
+@media print{button{display:none;} .detail-card{break-inside:avoid;} .report-header{break-after:avoid;}}
 
 /* Detail Cards */
 .detail-card{border:1px solid #d1d5db;border-radius:8px;padding:16px;margin-bottom:14px;background:#fff;page-break-inside:avoid;}
@@ -11079,8 +11104,22 @@ tr:nth-child(even) td{background:#f8faff;}
 .dc-tags{display:flex;flex-wrap:wrap;gap:4px;}
 .dc-tag{font-size:10px;font-weight:600;padding:2px 8px;border-radius:3px;font-family:monospace;}
 </style></head><body>
-<h1>ENDEX — Service Impact Report</h1>
-<div class="sub">Generated ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</div>
+<div class="report-header">
+  <div class="brand-lockup">
+    <svg width="48" height="48" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="36" height="36" rx="4" fill="#0a2357"/>
+      <circle cx="18" cy="18" r="11" fill="rgba(255,255,255,0.12)" stroke="#fff" stroke-width="2"/>
+      <path d="M9 9L27 27M27 9L9 27" stroke="#c8102e" stroke-width="3.5" stroke-linecap="round"/>
+    </svg>
+    <div>
+      <div class="brand-word">ENDE<span class="brand-x">X</span></div>
+      <div class="brand-sub">Disability Claim Index</div>
+    </div>
+  </div>
+  <div class="report-title">Service Impact Report</div>
+  ${window._userId ? '<div class="prepared-for">Prepared for: ' + window._userId.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>' : ''}
+  <div class="report-meta">Generated ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</div>
+</div>
 <div class="disc"><strong>Notice:</strong> This records personal injury notes only. It does not determine VA eligibility or guarantee claim approval.</div>
 <div class="stats">
   <div class="stat"><div class="sn">${_totalConditions}</div><div class="sl">Total Conditions</div></div>
@@ -12133,7 +12172,7 @@ function normSide(val){
 
 </script>
 <script>
-// ── SAVE / LOAD PROJECT (.vaclaim encrypted files) ──
+// ── SAVE / LOAD PROJECT (.endexclaim encrypted files; legacy .vaclaim also accepted) ──
 
 const VACLAIM_MAGIC = new Uint8Array([0x56, 0x41, 0x43, 0x4C]); // "VACL"
 const VACLAIM_VERSION = 1;
@@ -12338,6 +12377,29 @@ function _showToast(message, color){
 
 // ── SAVE PROJECT UI ──
 
+const ENDEXCLAIM_EXT = '.endexclaim';
+
+function _buildDefaultFilename(){
+  const d = new Date();
+  const yyyymmdd = d.getFullYear().toString() +
+    String(d.getMonth() + 1).padStart(2, '0') +
+    String(d.getDate()).padStart(2, '0');
+  const rawName = (window._userId || '').trim();
+  const namePart = _sanitizeNamePart(rawName) || 'Untitled';
+  const rand4 = String(Math.floor(1000 + Math.random() * 9000));
+  return yyyymmdd + '-' + namePart + '-Endex' + rand4;
+}
+
+function _sanitizeNamePart(s){
+  return s.replace(/[^A-Za-z0-9_-]+/g, '');
+}
+
+function _sanitizeFilename(s){
+  let out = (s || '').trim().replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, ' ');
+  out = out.replace(/\.(endexclaim|vaclaim)$/i, '');
+  return out || _buildDefaultFilename();
+}
+
 function saveProject(){
   if(!crypto.subtle){
     alert('Your browser does not support encryption. Please use HTTPS or a modern browser.');
@@ -12369,6 +12431,14 @@ function _openSaveModal(){
         <div style="background:#eff6ff;border:1px solid #3b82f6;border-left:4px solid #3b82f6;border-radius:6px;padding:12px 14px;font-size:12px;color:#1e40af;line-height:1.5;">
           <strong style="display:block;margin-bottom:4px;font-size:13px;">Sharing with a VSO or attorney?</strong>
           If you plan to share this file with your Veterans Service Organization, attorney, or legal representative, use a <strong>different password</strong> than your personal accounts. Send the password separately from the file — never in the same email or message.
+        </div>
+        <div>
+          <label for="save-filename" style="font-size:12px;font-weight:700;font-family:var(--fh);color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;">Filename</label>
+          <div style="display:flex;align-items:stretch;border:1px solid var(--border);border-radius:6px;overflow:hidden;background:var(--surface);">
+            <input type="text" id="save-filename" value="${_buildDefaultFilename()}" style="flex:1;padding:8px 10px;border:none;outline:none;font-family:var(--fd);font-size:14px;background:transparent;" spellcheck="false">
+            <span style="padding:8px 10px;font-family:var(--fd);font-size:13px;color:var(--muted);background:#f1f5f9;border-left:1px solid var(--border);white-space:nowrap;">${ENDEXCLAIM_EXT}</span>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">Default: <code style="font-family:var(--fd);">YYYYMMDD-Name-Endex####</code>. Edit freely — the extension is added for you.</div>
         </div>
         <div>
           <label style="font-size:12px;font-weight:700;font-family:var(--fh);color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;">Password</label>
@@ -12432,9 +12502,10 @@ async function _doSave(){
     const blob = new Blob([encrypted], { type: 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    const date = new Date().toISOString().slice(0, 10);
+    const rawName = document.getElementById('save-filename').value;
+    const filename = _sanitizeFilename(rawName) + ENDEXCLAIM_EXT;
     a.href = url;
-    a.download = 'va-claim-' + date + '.vaclaim';
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -12482,7 +12553,7 @@ function _openLoadModal(){
         </div>
         <div>
           <label style="font-size:12px;font-weight:700;font-family:var(--fh);color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;">Select File</label>
-          <input type="file" id="load-file" accept=".vaclaim" style="width:100%;padding:6px 0;font-family:var(--fd);font-size:13px;">
+          <input type="file" id="load-file" accept=".endexclaim,.vaclaim" style="width:100%;padding:6px 0;font-family:var(--fd);font-size:13px;">
         </div>
         <div>
           <label style="font-size:12px;font-weight:700;font-family:var(--fh);color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;">Password</label>
@@ -12510,7 +12581,7 @@ async function _doLoad(){
   errEl.style.display = 'none';
 
   if(!fileInput.files.length){
-    errEl.textContent = 'Please select a .vaclaim file.';
+    errEl.textContent = 'Please select an Endex claim file.';
     errEl.style.display = 'block';
     return;
   }
@@ -12532,7 +12603,7 @@ async function _doLoad(){
       jsonString = await _decryptState(arrayBuffer, pw);
     } catch(e){
       if(e.message === 'NOT_VACLAIM'){
-        errEl.textContent = 'This is not a valid .vaclaim file.';
+        errEl.textContent = 'This is not a valid Endex claim file.';
       } else if(e.message === 'NEWER_VERSION'){
         errEl.textContent = 'This file was saved with a newer version of the app. Please update.';
       } else {
@@ -12608,9 +12679,9 @@ const _wtSteps = [
     tip: 'A "primary claim" is a condition directly caused by your military service, such as an injury, illness, or event that happened while serving.'
   },
   {
-    title: 'Step 2: Severity & Secondary',
+    title: 'Step 2: Secondary',
     icon: '&#128279;',
-    body: 'Move to the <strong>Severity & Secondary</strong> tab. Here you\'ll see all your primary conditions listed.<br><br>' +
+    body: 'Move to the <strong>Secondary</strong> tab. Here you\'ll see all your primary conditions listed.<br><br>' +
       'For each one, you can add <strong>secondary conditions</strong> — problems that developed <em>because of</em> a primary condition.<br><br>' +
       'Look for the <strong>"Veterans commonly also claim"</strong> suggestions — these show what other vets have filed with similar conditions.',
     tip: 'A "secondary claim" is a condition caused or made worse by a service-connected condition. Example: bad knees from service → hip problems from altered gait.'
@@ -12654,8 +12725,8 @@ const _wtSteps = [
     title: 'Saving & Exporting',
     icon: '&#128190;',
     body: 'Use the <strong>Import / Export</strong> button in the top right to:<br><br>' +
-      '&#8226; <strong>Save Project</strong> — downloads a .vaclaim file (save your progress)<br>' +
-      '&#8226; <strong>Load Project</strong> — restore a saved .vaclaim file<br>' +
+      '&#8226; <strong>Save Project</strong> — downloads a .endexclaim file (save your progress)<br>' +
+      '&#8226; <strong>Load Project</strong> — restore a saved .endexclaim file<br>' +
       '&#8226; <strong>PDF / Print</strong> — full summary with body diagrams<br>' +
       '&#8226; <strong>CSV / TXT</strong> — spreadsheet or plain text export<br><br>' +
       '<strong style="color:var(--red);">Nothing is saved automatically — always export before closing.</strong>',

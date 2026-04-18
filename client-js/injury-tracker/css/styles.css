@@ -933,9 +933,9 @@ body.pin-placing .body-panel{position:relative;z-index:95;}
 /* RESPONSIVE — phone layout */
 @media(max-width:600px){
   header{padding:0 12px;height:56px;}
-  .logo h1{font-size:15px;}
-  .logo svg{width:32px;height:32px;}
-  .logo-sub{display:none;}
+  .logo svg{width:30px !important;height:30px !important;}
+  .logo span{font-size:22px !important;letter-spacing:4px !important;}
+  .logo-sub{display:none !important;}
   .export-btn{padding:6px 12px;font-size:12px;}
   .tabs{padding:0 8px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
   .tab{padding:10px 12px;font-size:11px;white-space:nowrap;}

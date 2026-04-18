@@ -1,4 +1,4 @@
-// ── SAVE / LOAD PROJECT (.vaclaim encrypted files) ──
+// ── SAVE / LOAD PROJECT (.endexclaim encrypted files; legacy .vaclaim also accepted) ──
 
 const VACLAIM_MAGIC = new Uint8Array([0x56, 0x41, 0x43, 0x4C]); // "VACL"
 const VACLAIM_VERSION = 1;
@@ -209,6 +209,33 @@ function _showToast(message, color){
 
 // ── SAVE PROJECT UI ──
 
+const ENDEXCLAIM_EXT = '.endexclaim';
+
+// Build the default filename: YYYYMMDD-<Name>-Endex<####>
+function _buildDefaultFilename(){
+  const d = new Date();
+  const yyyymmdd = d.getFullYear().toString() +
+    String(d.getMonth() + 1).padStart(2, '0') +
+    String(d.getDate()).padStart(2, '0');
+  const rawName = (window._userId || '').trim();
+  const namePart = _sanitizeNamePart(rawName) || 'Untitled';
+  const rand4 = String(Math.floor(1000 + Math.random() * 9000));
+  return yyyymmdd + '-' + namePart + '-Endex' + rand4;
+}
+
+// Keep filename-safe chars only; collapse whitespace to nothing so the slot stays one token
+function _sanitizeNamePart(s){
+  return s.replace(/[^A-Za-z0-9_-]+/g, '');
+}
+
+// Strip anything the OS would reject in a filename + any trailing extension the user typed
+function _sanitizeFilename(s){
+  let out = (s || '').trim().replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, ' ');
+  // Remove trailing known extension so we can re-append the canonical one
+  out = out.replace(/\.(endexclaim|vaclaim)$/i, '');
+  return out || _buildDefaultFilename();
+}
+
 function saveProject(){
   if(!crypto.subtle){
     alert('Your browser does not support encryption. Please use HTTPS or a modern browser.');
@@ -240,6 +267,14 @@ function _openSaveModal(){
         <div style="background:#eff6ff;border:1px solid #3b82f6;border-left:4px solid #3b82f6;border-radius:6px;padding:12px 14px;font-size:12px;color:#1e40af;line-height:1.5;">
           <strong style="display:block;margin-bottom:4px;font-size:13px;">Sharing with a VSO or attorney?</strong>
           If you plan to share this file with your Veterans Service Organization, attorney, or legal representative, use a <strong>different password</strong> than your personal accounts. Send the password separately from the file — never in the same email or message.
+        </div>
+        <div>
+          <label for="save-filename" style="font-size:12px;font-weight:700;font-family:var(--fh);color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;">Filename</label>
+          <div style="display:flex;align-items:stretch;border:1px solid var(--border);border-radius:6px;overflow:hidden;background:var(--surface);">
+            <input type="text" id="save-filename" value="${_buildDefaultFilename()}" style="flex:1;padding:8px 10px;border:none;outline:none;font-family:var(--fd);font-size:14px;background:transparent;" spellcheck="false">
+            <span style="padding:8px 10px;font-family:var(--fd);font-size:13px;color:var(--muted);background:#f1f5f9;border-left:1px solid var(--border);white-space:nowrap;">${ENDEXCLAIM_EXT}</span>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">Default: <code style="font-family:var(--fd);">YYYYMMDD-Name-Endex####</code>. Edit freely — the extension is added for you.</div>
         </div>
         <div>
           <label style="font-size:12px;font-weight:700;font-family:var(--fh);color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;">Password</label>
@@ -303,9 +338,10 @@ async function _doSave(){
     const blob = new Blob([encrypted], { type: 'application/octet-stream' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    const date = new Date().toISOString().slice(0, 10);
+    const rawName = document.getElementById('save-filename').value;
+    const filename = _sanitizeFilename(rawName) + ENDEXCLAIM_EXT;
     a.href = url;
-    a.download = 'va-claim-' + date + '.vaclaim';
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -353,7 +389,7 @@ function _openLoadModal(){
         </div>
         <div>
           <label style="font-size:12px;font-weight:700;font-family:var(--fh);color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;">Select File</label>
-          <input type="file" id="load-file" accept=".vaclaim" style="width:100%;padding:6px 0;font-family:var(--fd);font-size:13px;">
+          <input type="file" id="load-file" accept=".endexclaim,.vaclaim" style="width:100%;padding:6px 0;font-family:var(--fd);font-size:13px;">
         </div>
         <div>
           <label style="font-size:12px;font-weight:700;font-family:var(--fh);color:var(--navy);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;">Password</label>
@@ -381,7 +417,7 @@ async function _doLoad(){
   errEl.style.display = 'none';
 
   if(!fileInput.files.length){
-    errEl.textContent = 'Please select a .vaclaim file.';
+    errEl.textContent = 'Please select an Endex claim file.';
     errEl.style.display = 'block';
     return;
   }
@@ -403,7 +439,7 @@ async function _doLoad(){
       jsonString = await _decryptState(arrayBuffer, pw);
     } catch(e){
       if(e.message === 'NOT_VACLAIM'){
-        errEl.textContent = 'This is not a valid .vaclaim file.';
+        errEl.textContent = 'This is not a valid Endex claim file.';
       } else if(e.message === 'NEWER_VERSION'){
         errEl.textContent = 'This file was saved with a newer version of the app. Please update.';
       } else {

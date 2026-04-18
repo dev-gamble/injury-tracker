@@ -593,7 +593,7 @@ function _removeCondPin(condId, e){
   updateBadges(); updateCount();
 }
 
-// Next-step toast — suggest going to Severity & Secondary tab
+// Next-step toast — suggest going to Secondary tab
 function _showNextStepToast(){
   // Remove existing toast
   const old = document.getElementById('next-step-toast');
@@ -601,8 +601,8 @@ function _showNextStepToast(){
   const toast = document.createElement('div');
   toast.id = 'next-step-toast';
   toast.className = 'next-step-toast';
-  toast.innerHTML = '<span>Pin placed! Rate severity &amp; add secondaries</span>' +
-    '<button onclick="showTab(\'secondary\',document.querySelectorAll(\'.tab\')[1]);_dismissToast()">Go to Severity &amp; Secondary</button>' +
+  toast.innerHTML = '<span>Pin placed! Add secondaries next</span>' +
+    '<button onclick="showTab(\'secondary\',document.querySelectorAll(\'.tab\')[1]);_dismissToast()">Go to Secondary</button>' +
     '<span class="toast-close" onclick="_dismissToast()">&times;</span>';
   document.body.appendChild(toast);
   setTimeout(_dismissToast, 8000);

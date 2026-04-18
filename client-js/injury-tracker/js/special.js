@@ -372,7 +372,7 @@ function _renderMSTSection(){
     h += '</div></div>';
   }
 
-  // Current conditions as cards (same pattern as Severity & Secondary tab)
+  // Current conditions as cards (same pattern as Secondary tab)
   mst.conditions.forEach((cond, i) => {
     if(!cond.secondaries) cond.secondaries = [];
     const displayName = mst.privacyShield ? 'Private Condition' : cond.name;

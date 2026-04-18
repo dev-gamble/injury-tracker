@@ -4,8 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ENDEX — How to Use</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' fill='none'><rect width='36' height='36' rx='4' fill='%230a2357'/><circle cx='18' cy='18' r='11' fill='rgba(255,255,255,0.12)' stroke='%23fff' stroke-width='2'/><path d='M9 9L27 27M27 9L9 27' stroke='%23c8102e' stroke-width='3.5' stroke-linecap='round'/></svg>">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Open+Sans:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Teko:wght@700&family=Rajdhani:wght@600&family=Oswald:wght@400;600;700&family=Open+Sans:wght@400;600;700&display=swap');
 
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'Open Sans',sans-serif;background:#f4f6fb;color:#1a2332;}
@@ -18,7 +19,13 @@ body{font-family:'Open Sans',sans-serif;background:#f4f6fb;color:#1a2332;}
 .hero::after{content:'';position:absolute;bottom:-40px;left:-40px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.04);}
 .hero-badge{display:inline-block;background:#c8102e;color:#fff;font-family:'Oswald',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:4px 14px;border-radius:3px;margin-bottom:16px;}
 .hero h1{font-family:'Oswald',sans-serif;font-size:52px;font-weight:700;color:#fff;letter-spacing:1px;line-height:1.1;margin-bottom:10px;}
-.hero h1 span{color:#c8102e;}
+.hero h1 > span{font-family:'Teko',sans-serif;color:#fff;letter-spacing:4px;font-weight:700;}
+.hero h1 > span > span{color:#c8102e;}
+.hero-mark{display:block;margin-bottom:14px;}
+.hero-lockup{display:flex;align-items:center;gap:11px;margin-bottom:18px;}
+.hero-lockup-word{font-family:'Teko',sans-serif;font-size:34px;font-weight:700;letter-spacing:6px;line-height:1;color:#fff;}
+.hero-lockup-x{color:#c8102e;}
+.hero-lockup-sub{font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:600;color:rgba(255,255,255,0.5);letter-spacing:2px;text-transform:uppercase;margin-top:2px;}
 .hero-sub{font-size:15px;color:rgba(255,255,255,.78);max-width:640px;line-height:1.65;}
 .hero-sub strong{color:#fff;}
 .hero-stars{color:rgba(255,255,255,.25);font-size:18px;letter-spacing:6px;margin-top:16px;}
@@ -113,8 +120,20 @@ body{font-family:'Open Sans',sans-serif;background:#f4f6fb;color:#1a2332;}
 
 <!-- ═══════════════════ HERO ═══════════════════ -->
 <div class="hero">
+  <div class="hero-lockup">
+    <svg width="40" height="40" viewBox="0 0 36 36" fill="none">
+      <circle cx="18" cy="18" r="12" fill="rgba(255,255,255,0.1)" stroke="#fff" stroke-width="1.5"/>
+      <path d="M8 8L28 28M28 8L8 28" stroke="#c8102e" stroke-width="3.2" stroke-linecap="round"/>
+    </svg>
+    <div>
+      <div style="display:flex;align-items:baseline;">
+        <span class="hero-lockup-word">ENDE</span><span class="hero-lockup-word hero-lockup-x">X</span>
+      </div>
+      <div class="hero-lockup-sub">Disability Claim Index</div>
+    </div>
+  </div>
   <div class="hero-badge">Quick Start Guide</div>
-  <h1>How to Use <span>ENDEX</span></h1>
+  <h1>How to Use <span>ENDE<span>X</span></span></h1>
   <div class="hero-sub"><strong>ENDEX is a tracking, education, and organizational tool</strong> — built to help you index your injuries and organize your VA disability claim step by step, for your own paperwork, a VSO, or legal support. This guide walks through every tab, from placing your first pin to exporting your claim package.</div>
   <div class="hero-badges">
     <span class="hero-chip">&#128274; Browser only</span>
@@ -137,7 +156,7 @@ body{font-family:'Open Sans',sans-serif;background:#f4f6fb;color:#1a2332;}
     <div class="tab-flow-arrow">&rarr;</div>
     <div class="tab-flow-step">
       <div class="tab-flow-num">TAB 2</div>
-      <div class="tab-flow-name">Severity &amp; Secondary</div>
+      <div class="tab-flow-name">Secondary</div>
       <div class="tab-flow-desc">Rate &amp; link secondaries</div>
     </div>
     <div class="tab-flow-arrow">&rarr;</div>
@@ -225,7 +244,7 @@ body{font-family:'Open Sans',sans-serif;background:#f4f6fb;color:#1a2332;}
     <div class="section-num">2</div>
     <div class="section-title">Rate Severity &amp; Add Secondaries</div>
   </div>
-  <div class="section-sub">Tab 2 — Severity &amp; Secondary</div>
+  <div class="section-sub">Tab 2 — Secondary</div>
   <div class="section-body">
     <div class="section-text">
       <p><strong>Every primary you pinned shows up here</strong> with a severity questionnaire built from real VA criteria. Answer the questions and ENDEX surfaces the rating percentage the VA typically assigns for that level of impairment.</p>
@@ -386,7 +405,7 @@ body{font-family:'Open Sans',sans-serif;background:#f4f6fb;color:#1a2332;}
     <div class="section-visual">
       <div style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;color:#0a2357;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Export Formats</div>
       <div style="font-size:12px;line-height:1.9;color:#334155;">
-        <div style="margin-bottom:10px;"><strong style="color:#0a2357;">Save Project (.vaclaim)</strong><br><span style="font-size:11px;color:#6b7280;">Reload your work later with Load Project. This is your backup — save often.</span></div>
+        <div style="margin-bottom:10px;"><strong style="color:#0a2357;">Save Project (.endexclaim)</strong><br><span style="font-size:11px;color:#6b7280;">Reload your work later with Load Project. This is your backup — save often.</span></div>
         <div style="margin-bottom:10px;"><strong style="color:#0a2357;">PDF / Print</strong><br><span style="font-size:11px;color:#6b7280;">Full summary with body diagrams, numbered pins, condition cards, and the pyramiding review.</span></div>
         <div style="margin-bottom:10px;"><strong style="color:#0a2357;">CSV</strong><br><span style="font-size:11px;color:#6b7280;">Spreadsheet format for sharing with a VSO or tracking edits.</span></div>
         <div><strong style="color:#0a2357;">TXT</strong><br><span style="font-size:11px;color:#6b7280;">Plain text — easy to paste into email, VA.gov forms, or other tools.</span></div>
@@ -420,7 +439,7 @@ body{font-family:'Open Sans',sans-serif;background:#f4f6fb;color:#1a2332;}
     </div>
     <div style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:16px;">
       <div style="font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;margin-bottom:6px;color:#fbbf24;">&#9733; Export Before You Close</div>
-      <div style="font-size:12px;color:rgba(255,255,255,.7);line-height:1.6;">ENDEX runs entirely in your browser. Nothing is saved to any server. Use Save Project to download a .vaclaim file — it's the only way to pick up where you left off.</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.7);line-height:1.6;">ENDEX runs entirely in your browser. Nothing is saved to any server. Use Save Project to download a .endexclaim file — it's the only way to pick up where you left off.</div>
     </div>
     <div style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:16px;">
       <div style="font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;margin-bottom:6px;color:#fbbf24;">&#9733; Free Help Exists</div>
@@ -438,7 +457,7 @@ body{font-family:'Open Sans',sans-serif;background:#f4f6fb;color:#1a2332;}
       <p>Search, pick a side (L / R / Both), rate, and drop pins on Front / Back body views. Your starting point.</p>
     </div>
     <div class="grid-card" style="border-top:3px solid #7c3aed;">
-      <div class="grid-card-title" style="color:#7c3aed;">Severity &amp; Secondary</div>
+      <div class="grid-card-title" style="color:#7c3aed;">Secondary</div>
       <p>Severity questionnaires + "Veterans commonly also claim" secondary suggestions with DC codes.</p>
     </div>
     <div class="grid-card" style="border-top:3px solid #c8102e;">

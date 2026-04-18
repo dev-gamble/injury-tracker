@@ -4,15 +4,27 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ENDEX — Service Impact Index</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' fill='none'><rect width='36' height='36' rx='4' fill='%230a2357'/><circle cx='18' cy='18' r='11' fill='rgba(255,255,255,0.12)' stroke='%23fff' stroke-width='2'/><path d='M9 9L27 27M27 9L9 27' stroke='%23c8102e' stroke-width='3.5' stroke-linecap='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@700&family=Rajdhani:wght@600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 
 <header>
-  <div class="logo">
-    <h1>ENDEX</h1>
-    <div class="logo-div"></div>
-    <div class="logo-sub">Index injuries. Build stronger VA claims.</div>
+  <div class="logo" style="display:flex;align-items:center;gap:11px;">
+    <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+      <circle cx="18" cy="18" r="12" fill="rgba(255,255,255,0.1)" stroke="#fff" stroke-width="1.5"/>
+      <path d="M8 8L28 28M28 8L8 28" stroke="#c8102e" stroke-width="3.2" stroke-linecap="round"/>
+    </svg>
+    <div>
+      <div style="display:flex;align-items:baseline;">
+        <span style="font-family:'Teko',sans-serif;font-size:36px;font-weight:700;color:#fff;letter-spacing:6px;line-height:1;">ENDE</span>
+        <span style="font-family:'Teko',sans-serif;font-size:36px;font-weight:700;color:#c8102e;letter-spacing:6px;line-height:1;">X</span>
+      </div>
+      <div class="logo-sub" style="font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:600;color:rgba(255,255,255,0.4);letter-spacing:2px;text-transform:uppercase;margin-top:0;">Disability Claim Index</div>
+    </div>
   </div>
   <div style="display:flex;align-items:center;gap:8px;">
 <button class="export-btn" id="guide-btn" style="background:var(--navy);border-color:var(--navy2);padding:6px 10px;font-size:11px;" onclick="startWalkthrough()" title="How to use this app">
@@ -31,8 +43,8 @@
     </button>
     <div id="export-menu" class="export-menu hidden">
       <div style="padding:6px 16px 2px;font-size:9px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Project</div>
-      <button onclick="saveProject();closeExportMenu()">Save Project (.vaclaim)</button>
-      <button onclick="loadProject();closeExportMenu()">Load Project (.vaclaim)</button>
+      <button onclick="saveProject();closeExportMenu()">Save Project (.endexclaim)</button>
+      <button onclick="loadProject();closeExportMenu()">Load Project (.endexclaim)</button>
       <div style="padding:6px 16px 2px;font-size:9px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;border-top:1px solid var(--border);">Export</div>
       <button onclick="exportSummary();closeExportMenu()">PDF / Print Summary</button>
       <button onclick="exportCSV();closeExportMenu()">CSV Spreadsheet</button>
@@ -44,7 +56,7 @@
 
 <div class="tabs">
   <button class="tab active" onclick="showTab('map',this)">Primary Map</button>
-  <button class="tab" id="sc-tab" onclick="showTab('secondary',this)">Severity & Secondary</button>
+  <button class="tab" id="sc-tab" onclick="showTab('secondary',this)">Secondary</button>
   <button class="tab" id="sp-tab" onclick="showTab('special',this)">Special Claims</button>
   <button class="tab" id="tl-tab" onclick="showTab('timeline',this)">Timeline</button>
   <button class="tab" id="rc-tab" onclick="showTab('rating',this)">Rating</button>
@@ -282,7 +294,7 @@
 <!-- SEVERITY & SECONDARY TAB -->
 <div id="tab-secondary" class="content hidden">
   <div class="tl-bar">
-    <div style="font-size:20px;font-weight:700;font-family:var(--fh);text-transform:uppercase;letter-spacing:.5px;color:var(--navy);">Claim Map — Severity & Secondary</div>
+    <div style="font-size:20px;font-weight:700;font-family:var(--fh);text-transform:uppercase;letter-spacing:.5px;color:var(--navy);">Claim Map — Secondary</div>
   </div>
   <div class="tab-instructions">
     Rate how bad each condition is and add any secondary issues it has caused. Click <strong>"Rate"</strong> to answer questions about your condition. Under each claim, use <strong>"Add Secondary"</strong> to list problems caused by that condition (for example: a knee injury that caused back pain, or PTSD that caused insomnia). Secondary conditions can increase your overall rating.
@@ -373,9 +385,9 @@ const _wtSteps = [
     tip: 'A "primary claim" is a condition directly caused by your military service, such as an injury, illness, or event that happened while serving.'
   },
   {
-    title: 'Step 2: Severity & Secondary',
+    title: 'Step 2: Secondary',
     icon: '&#128279;',
-    body: 'Move to the <strong>Severity & Secondary</strong> tab. Here you\'ll see all your primary conditions listed.<br><br>' +
+    body: 'Move to the <strong>Secondary</strong> tab. Here you\'ll see all your primary conditions listed.<br><br>' +
       'For each one, you can add <strong>secondary conditions</strong> — problems that developed <em>because of</em> a primary condition.<br><br>' +
       'Look for the <strong>"Veterans commonly also claim"</strong> suggestions — these show what other vets have filed with similar conditions.',
     tip: 'A "secondary claim" is a condition caused or made worse by a service-connected condition. Example: bad knees from service → hip problems from altered gait.'
@@ -419,8 +431,8 @@ const _wtSteps = [
     title: 'Saving & Exporting',
     icon: '&#128190;',
     body: 'Use the <strong>Import / Export</strong> button in the top right to:<br><br>' +
-      '&#8226; <strong>Save Project</strong> — downloads a .vaclaim file (save your progress)<br>' +
-      '&#8226; <strong>Load Project</strong> — restore a saved .vaclaim file<br>' +
+      '&#8226; <strong>Save Project</strong> — downloads a .endexclaim file (save your progress)<br>' +
+      '&#8226; <strong>Load Project</strong> — restore a saved .endexclaim file<br>' +
       '&#8226; <strong>PDF / Print</strong> — full summary with body diagrams<br>' +
       '&#8226; <strong>CSV / TXT</strong> — spreadsheet or plain text export<br><br>' +
       '<strong style="color:var(--red);">Nothing is saved automatically — always export before closing.</strong>',

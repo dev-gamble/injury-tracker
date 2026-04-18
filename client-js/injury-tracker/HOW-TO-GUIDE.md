@@ -56,14 +56,14 @@ This is where you document what's wrong and where.
 6. When done, click **Place Pin on Map** to mark it on the body diagram.
 
 ### After Placing a Pin
-A toast message appears at the bottom: **"Pin placed! Rate severity & add secondaries."**
-Click the button to jump straight to the Severity & Secondary tab, or dismiss it and keep adding more conditions.
+A toast message appears at the bottom: **"Pin placed! Add secondaries next."**
+Click the button to jump straight to the Secondary tab, or dismiss it and keep adding more conditions.
 
 ---
 
 ## Step 2: Rate Severity & Add Secondary Conditions
 
-Click the **Severity & Secondary** tab.
+Click the **Secondary** tab.
 
 ### Rating Your Condition
 1. Each condition you added appears as a card.

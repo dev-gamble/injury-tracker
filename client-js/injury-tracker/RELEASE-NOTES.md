@@ -70,7 +70,7 @@ Runs entirely in-browser. No server, no login, no data leaves the device.
 - Domain-based VA rating calculations
 - Bilateral extremity detection (left/right)
 
-### 6. Severity & Secondary Conditions
+### 6. Secondary Conditions
 - Unified claim tree showing all primary conditions with their secondaries
 - "Veterans commonly also claim" suggestion chips with DC codes
 - Add/remove secondary conditions per primary

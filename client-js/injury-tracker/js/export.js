@@ -160,22 +160,35 @@ function exportSummary(){
 
   const w=window.open('','_blank');
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>ENDEX — Service Impact Index</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@700&family=Rajdhani:wght@600&family=Oswald:wght@600;700&display=swap" rel="stylesheet">
 <style>
 body{font-family:Arial,sans-serif;margin:40px;font-size:13px;color:#111;}
-h1{color:#1d4ed8;font-size:22px;margin:0 0 4px;}
 .sub{color:#888;font-size:10px;margin-bottom:18px;font-family:monospace;}
+
+/* Brand header */
+.report-header{border-bottom:3px solid #0a2357;padding-bottom:18px;margin-bottom:22px;}
+.brand-lockup{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+.brand-word{font-family:'Teko','Arial Narrow',sans-serif;font-size:44px;font-weight:700;letter-spacing:6px;line-height:1;color:#0a2357;}
+.brand-x{color:#c8102e;}
+.brand-sub{font-family:'Rajdhani','Arial Narrow',sans-serif;font-size:11px;font-weight:600;color:#6b7280;letter-spacing:2.5px;text-transform:uppercase;margin-top:3px;}
+.report-title{font-family:'Oswald','Arial Narrow',sans-serif;font-size:16px;font-weight:600;color:#0a2357;letter-spacing:2px;text-transform:uppercase;margin:2px 0 4px;}
+.prepared-for{font-size:13px;font-weight:700;color:#1a2332;margin:6px 0 2px;font-family:monospace;}
+.report-meta{color:#6b7280;font-size:10px;font-family:monospace;}
+
 .disc{background:#fffbeb;border-left:4px solid #fbbf24;padding:10px 14px;border-radius:4px;margin-bottom:18px;font-size:11px;color:#92400e;}
 .stats{display:flex;gap:12px;margin-bottom:24px;flex-wrap:wrap;}
-.stat{background:#eff3ff;border:1px solid #bfdbfe;border-radius:7px;padding:9px 16px;}
-.sn{font-size:22px;font-weight:700;color:#1d4ed8;}.sl{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px;font-family:monospace;}
-.section-title{font-size:14px;font-weight:700;color:#1a2332;border-bottom:2px solid #1d4ed8;padding-bottom:6px;margin:24px 0 16px;text-transform:uppercase;letter-spacing:1px;font-family:monospace;}
+.stat{background:#f5f7fc;border:1px solid #c7d2fe;border-radius:7px;padding:9px 16px;}
+.sn{font-size:22px;font-weight:700;color:#0a2357;}.sl{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px;font-family:monospace;}
+.section-title{font-size:14px;font-weight:700;color:#1a2332;border-bottom:2px solid #0a2357;padding-bottom:6px;margin:24px 0 16px;text-transform:uppercase;letter-spacing:1px;font-family:monospace;}
 .diagrams{display:flex;gap:32px;flex-wrap:wrap;margin-bottom:28px;}
 table{width:100%;border-collapse:collapse;}
-th{background:#1d4ed8;color:#fff;padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;font-family:monospace;}
+th{background:#0a2357;color:#fff;padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;font-family:monospace;letter-spacing:.5px;}
 td{padding:8px 10px;border-bottom:1px solid #e0e7ff;vertical-align:top;}
 tr:nth-child(even) td{background:#f8faff;}
 .footer{margin-top:20px;font-size:10px;color:#aaa;font-family:monospace;border-top:1px solid #eee;padding-top:10px;display:flex;justify-content:space-between;}
-@media print{button{display:none;} .detail-card{break-inside:avoid;}}
+@media print{button{display:none;} .detail-card{break-inside:avoid;} .report-header{break-after:avoid;}}
 
 /* Detail Cards */
 .detail-card{border:1px solid #d1d5db;border-radius:8px;padding:16px;margin-bottom:14px;background:#fff;page-break-inside:avoid;}
@@ -194,9 +207,22 @@ tr:nth-child(even) td{background:#f8faff;}
 .dc-tags{display:flex;flex-wrap:wrap;gap:4px;}
 .dc-tag{font-size:10px;font-weight:600;padding:2px 8px;border-radius:3px;font-family:monospace;}
 </style></head><body>
-<h1>ENDEX — Service Impact Report</h1>
-${window._userId ? '<div style="font-size:14px;font-weight:700;color:#1a2332;margin:4px 0 2px;font-family:monospace;">Prepared for: ' + window._userId.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>' : ''}
-<div class="sub">Generated ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</div>
+<div class="report-header">
+  <div class="brand-lockup">
+    <svg width="48" height="48" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="36" height="36" rx="4" fill="#0a2357"/>
+      <circle cx="18" cy="18" r="11" fill="rgba(255,255,255,0.12)" stroke="#fff" stroke-width="2"/>
+      <path d="M9 9L27 27M27 9L9 27" stroke="#c8102e" stroke-width="3.5" stroke-linecap="round"/>
+    </svg>
+    <div>
+      <div class="brand-word">ENDE<span class="brand-x">X</span></div>
+      <div class="brand-sub">Disability Claim Index</div>
+    </div>
+  </div>
+  <div class="report-title">Service Impact Report</div>
+  ${window._userId ? '<div class="prepared-for">Prepared for: ' + window._userId.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</div>' : ''}
+  <div class="report-meta">Generated ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}</div>
+</div>
 <div class="disc"><strong>Notice:</strong> This records personal injury notes only. It does not determine VA eligibility or guarantee claim approval.</div>
 <div class="stats">
   <div class="stat"><div class="sn">${_totalConditions}</div><div class="sl">Total Conditions</div></div>
@@ -410,7 +436,7 @@ ${(function(){
 
 <div class="footer">
   <span>Print (Ctrl+P / Cmd+P) to save as PDF</span>
-  <span>&copy; K. Dimond. All Rights Reserved.</span>
+  <span>&copy; 2026 CG Web Lab, LLC. All rights reserved.</span>
 </div>
 </body></html>`);
   w.document.close();
@@ -898,7 +924,7 @@ function exportTXT(){
   }
 
   txt += line + '\n';
-  txt += '(c) K. Dimond. All Rights Reserved.\n';
+  txt += '(c) 2026 CG Web Lab, LLC. All rights reserved.\n';
 
   const blob = new Blob([txt], {type:'text/plain;charset=utf-8;'});
   const url = URL.createObjectURL(blob);

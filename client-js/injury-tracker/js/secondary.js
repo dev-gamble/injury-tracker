@@ -1665,5 +1665,5 @@ function removeVocSecondary(condition){
 function updateSecondaryCount(){
   const claims = gatherAllClaims();
   const totalSec = claims.reduce((n,c)=>n+(c.ref.secondaries?.length||0),0);
-  document.getElementById('sc-tab').textContent = totalSec ? 'Severity & Secondary ('+totalSec+')' : 'Severity & Secondary';
+  document.getElementById('sc-tab').textContent = totalSec ? 'Secondary ('+totalSec+')' : 'Secondary';
 }

@@ -4,8 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ENDEX — How to Use</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36' fill='none'><rect width='36' height='36' rx='4' fill='%230a2357'/><circle cx='18' cy='18' r='11' fill='rgba(255,255,255,0.12)' stroke='%23fff' stroke-width='2'/><path d='M9 9L27 27M27 9L9 27' stroke='%23c8102e' stroke-width='3.5' stroke-linecap='round'/></svg>">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Open+Sans:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Teko:wght@700&family=Rajdhani:wght@600&family=Oswald:wght@400;600;700&family=Open+Sans:wght@400;600;700&display=swap');
 
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'Open Sans',sans-serif;background:#f4f6fb;color:#1a2332;}
@@ -18,16 +19,26 @@ body{font-family:'Open Sans',sans-serif;background:#f4f6fb;color:#1a2332;}
 .hero::after{content:'';position:absolute;bottom:-40px;left:-40px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.04);}
 .hero-badge{display:inline-block;background:#c8102e;color:#fff;font-family:'Oswald',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:4px 14px;border-radius:3px;margin-bottom:16px;}
 .hero h1{font-family:'Oswald',sans-serif;font-size:52px;font-weight:700;color:#fff;letter-spacing:1px;line-height:1.1;margin-bottom:10px;}
-.hero h1 span{color:#c8102e;}
-.hero-sub{font-size:16px;color:rgba(255,255,255,.7);max-width:600px;line-height:1.6;}
+.hero h1 > span{font-family:'Teko',sans-serif;color:#fff;letter-spacing:4px;font-weight:700;}
+.hero h1 > span > span{color:#c8102e;}
+.hero-mark{display:block;margin-bottom:14px;}
+.hero-lockup{display:flex;align-items:center;gap:11px;margin-bottom:18px;}
+.hero-lockup-word{font-family:'Teko',sans-serif;font-size:34px;font-weight:700;letter-spacing:6px;line-height:1;color:#fff;}
+.hero-lockup-x{color:#c8102e;}
+.hero-lockup-sub{font-family:'Rajdhani',sans-serif;font-size:10px;font-weight:600;color:rgba(255,255,255,0.5);letter-spacing:2px;text-transform:uppercase;margin-top:2px;}
+.hero-sub{font-size:15px;color:rgba(255,255,255,.78);max-width:640px;line-height:1.65;}
+.hero-sub strong{color:#fff;}
 .hero-stars{color:rgba(255,255,255,.25);font-size:18px;letter-spacing:6px;margin-top:16px;}
+.hero-badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;}
+.hero-chip{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;font-family:'Oswald',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:5px 11px;border-radius:20px;}
 
 /* ── SECTION ── */
 .section{padding:40px 60px;}
 .section:nth-child(odd){background:#f8faff;}
 .section-num{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#c8102e,#a50d25);color:#fff;font-family:'Oswald',sans-serif;font-size:22px;font-weight:700;flex-shrink:0;}
-.section-head{display:flex;align-items:center;gap:16px;margin-bottom:20px;}
+.section-head{display:flex;align-items:center;gap:16px;margin-bottom:6px;}
 .section-title{font-family:'Oswald',sans-serif;font-size:26px;font-weight:700;color:#0a2357;text-transform:uppercase;letter-spacing:1px;}
+.section-sub{font-size:12px;font-family:'Oswald',sans-serif;color:#6b7280;letter-spacing:1px;text-transform:uppercase;margin:0 0 20px 60px;}
 .section-body{display:flex;gap:30px;align-items:flex-start;}
 .section-text{flex:1;}
 .section-text p{font-size:14px;line-height:1.7;color:#4b5563;margin-bottom:12px;}
@@ -43,6 +54,10 @@ body{font-family:'Open Sans',sans-serif;background:#f4f6fb;color:#1a2332;}
 .tip-box{background:linear-gradient(135deg,#eff6ff,#e0e7ff);border:1px solid #93c5fd;border-radius:10px;padding:14px 18px;margin-top:16px;font-size:12px;line-height:1.6;color:#1e40af;}
 .tip-box strong{color:#1e3a8a;}
 
+/* ── WARN BOX ── */
+.warn-box{background:linear-gradient(135deg,#fef2f2,#fee2e2);border:1px solid #fca5a5;border-radius:10px;padding:14px 18px;margin-top:16px;font-size:12px;line-height:1.6;color:#991b1b;}
+.warn-box strong{color:#7f1d1d;}
+
 /* ── CHIPS ── */
 .chip-row{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0;}
 .chip{display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;font-family:'Courier New',monospace;border:1px solid;}
@@ -53,15 +68,22 @@ body{font-family:'Open Sans',sans-serif;background:#f4f6fb;color:#1a2332;}
 .chip-blue{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe;}
 
 /* ── PIN DEMO ── */
-.pin-demo{display:flex;gap:20px;justify-content:center;margin:12px 0;}
+.pin-demo{display:flex;gap:16px;justify-content:center;margin:12px 0;}
 .pin-example{text-align:center;font-size:10px;color:#6b7280;}
-.pin-dot{width:32px;height:32px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;margin:0 auto 6px;box-shadow:0 2px 6px rgba(0,0,0,.2);}
+.pin-dot{width:34px;height:34px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;margin:0 auto 6px;box-shadow:0 2px 6px rgba(0,0,0,.2);}
 .pin-dot span{transform:rotate(45deg);color:#fff;font-size:8px;font-weight:800;font-family:'Courier New',monospace;}
 
+/* ── SIDE POPUP DEMO ── */
+.side-pop{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px;box-shadow:0 2px 6px rgba(10,35,87,.08);}
+.side-pop-title{font-family:'Oswald',sans-serif;font-size:11px;font-weight:700;color:#0a2357;text-transform:uppercase;letter-spacing:.8px;text-align:center;margin-bottom:8px;}
+.side-btns{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+.side-btn{background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:8px;padding:8px 4px;text-align:center;font-family:'Oswald',sans-serif;font-size:11px;font-weight:700;color:#0a2357;text-transform:uppercase;letter-spacing:.5px;}
+.side-btn.b{border-color:#7c3aed;background:#f5f3ff;color:#7c3aed;}
+
 /* ── FLOW ARROWS ── */
-.flow{display:flex;align-items:center;gap:0;margin:16px 0;}
-.flow-step{flex:1;text-align:center;padding:12px 8px;background:#fff;border:2px solid #bfdbfe;border-radius:10px;font-size:11px;font-weight:700;color:#0a2357;font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.5px;}
-.flow-arrow{flex:0 0 30px;text-align:center;font-size:20px;color:#c8102e;font-weight:800;}
+.flow{display:flex;align-items:center;gap:0;margin:16px 0;flex-wrap:wrap;}
+.flow-step{flex:1;min-width:120px;text-align:center;padding:12px 8px;background:#fff;border:2px solid #bfdbfe;border-radius:10px;font-size:11px;font-weight:700;color:#0a2357;font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.5px;}
+.flow-arrow{flex:0 0 24px;text-align:center;font-size:20px;color:#c8102e;font-weight:800;}
 
 /* ── RATING MATH ── */
 .math-box{background:#0a2357;border-radius:10px;padding:18px 20px;color:#fff;font-family:'Courier New',monospace;font-size:13px;line-height:2;margin:12px 0;}
@@ -75,10 +97,21 @@ body{font-family:'Open Sans',sans-serif;background:#f4f6fb;color:#1a2332;}
 
 /* ── GRID ── */
 .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
 .grid-card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px;transition:box-shadow .15s;}
 .grid-card-title{font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;color:#0a2357;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;display:flex;align-items:center;gap:8px;}
 .grid-card-title .icon{font-size:18px;}
 .grid-card p{font-size:12px;color:#6b7280;line-height:1.6;}
+
+/* ── OVERVIEW ── */
+.overview{background:linear-gradient(135deg,#f8faff,#eff3ff);padding:36px 60px;border-bottom:1px solid #e5e7eb;}
+.overview-title{font-family:'Oswald',sans-serif;font-size:20px;font-weight:700;color:#0a2357;text-transform:uppercase;letter-spacing:1px;text-align:center;margin-bottom:20px;}
+.tab-flow{display:flex;align-items:stretch;gap:0;}
+.tab-flow-step{flex:1;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px 10px;text-align:center;position:relative;}
+.tab-flow-num{font-family:'Oswald',sans-serif;font-size:11px;font-weight:700;color:#c8102e;letter-spacing:1px;margin-bottom:4px;}
+.tab-flow-name{font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;color:#0a2357;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
+.tab-flow-desc{font-size:10px;color:#6b7280;line-height:1.4;}
+.tab-flow-arrow{display:flex;align-items:center;justify-content:center;flex:0 0 14px;color:#c8102e;font-weight:800;font-size:16px;}
 </style>
 </head>
 <body>
@@ -87,47 +120,119 @@ body{font-family:'Open Sans',sans-serif;background:#f4f6fb;color:#1a2332;}
 
 <!-- ═══════════════════ HERO ═══════════════════ -->
 <div class="hero">
+  <div class="hero-lockup">
+    <svg width="40" height="40" viewBox="0 0 36 36" fill="none">
+      <circle cx="18" cy="18" r="12" fill="rgba(255,255,255,0.1)" stroke="#fff" stroke-width="1.5"/>
+      <path d="M8 8L28 28M28 8L8 28" stroke="#c8102e" stroke-width="3.2" stroke-linecap="round"/>
+    </svg>
+    <div>
+      <div style="display:flex;align-items:baseline;">
+        <span class="hero-lockup-word">ENDE</span><span class="hero-lockup-word hero-lockup-x">X</span>
+      </div>
+      <div class="hero-lockup-sub">Disability Claim Index</div>
+    </div>
+  </div>
   <div class="hero-badge">Quick Start Guide</div>
-  <h1>How to Use <span>ENDEX</span></h1>
-  <div class="hero-sub">Index your injuries. Build stronger VA claims. This guide walks you through every step — from logging your first condition to exporting your complete claim package.</div>
+  <h1>How to Use <span>ENDE<span>X</span></span></h1>
+  <div class="hero-sub"><strong>ENDEX is a tracking, education, and organizational tool</strong> — built to help you index your injuries and organize your VA disability claim step by step, for your own paperwork, a VSO, or legal support. This guide walks through every tab, from placing your first pin to exporting your claim package.</div>
+  <div class="hero-badges">
+    <span class="hero-chip">&#128274; Browser only</span>
+    <span class="hero-chip">&#129302; No AI</span>
+    <span class="hero-chip">&#128230; No server</span>
+    <span class="hero-chip">&#128196; Export-ready</span>
+  </div>
   <div class="hero-stars">&#9733; &#9733; &#9733; &#9733; &#9733;</div>
+</div>
+
+<!-- ═══════════════════ TAB OVERVIEW ═══════════════════ -->
+<div class="overview">
+  <div class="overview-title">The Six Tabs — Your Path Through ENDEX</div>
+  <div class="tab-flow">
+    <div class="tab-flow-step">
+      <div class="tab-flow-num">TAB 1</div>
+      <div class="tab-flow-name">Primary Map</div>
+      <div class="tab-flow-desc">Place pins for each condition</div>
+    </div>
+    <div class="tab-flow-arrow">&rarr;</div>
+    <div class="tab-flow-step">
+      <div class="tab-flow-num">TAB 2</div>
+      <div class="tab-flow-name">Secondary</div>
+      <div class="tab-flow-desc">Rate &amp; link secondaries</div>
+    </div>
+    <div class="tab-flow-arrow">&rarr;</div>
+    <div class="tab-flow-step">
+      <div class="tab-flow-num">TAB 3</div>
+      <div class="tab-flow-name">Special Claims</div>
+      <div class="tab-flow-desc">Presumptive, MST, SMC</div>
+    </div>
+    <div class="tab-flow-arrow">&rarr;</div>
+    <div class="tab-flow-step">
+      <div class="tab-flow-num">TAB 4</div>
+      <div class="tab-flow-name">Timeline</div>
+      <div class="tab-flow-desc">Chronological history</div>
+    </div>
+    <div class="tab-flow-arrow">&rarr;</div>
+    <div class="tab-flow-step">
+      <div class="tab-flow-num">TAB 5</div>
+      <div class="tab-flow-name">Rating</div>
+      <div class="tab-flow-desc">Combined VA math</div>
+    </div>
+    <div class="tab-flow-arrow">&rarr;</div>
+    <div class="tab-flow-step">
+      <div class="tab-flow-num">TAB 6</div>
+      <div class="tab-flow-name">Notes &amp; Statement</div>
+      <div class="tab-flow-desc">Write &amp; export</div>
+    </div>
+  </div>
 </div>
 
 <!-- ═══════════════════ STEP 1 ═══════════════════ -->
 <div class="section">
   <div class="section-head">
     <div class="section-num">1</div>
-    <div class="section-title">Select Your Condition</div>
+    <div class="section-title">Place Your Primary Pins</div>
   </div>
+  <div class="section-sub">Tab 1 — Primary Map</div>
   <div class="section-body">
     <div class="section-text">
-      <p><strong>Search or browse</strong> the Quick Select panel on the right side. Type a condition name (like "tinnitus" or "knee") to search across all body areas, or browse by category.</p>
-      <p><strong>Click a body area</strong> (Knees, Shoulder, Mental Health, etc.) to open its evaluation panel. You'll pick one condition at a time, choose your side (Left / Right / Both), then rate it using VA diagnostic criteria.</p>
-      <p><strong>Custom pins:</strong> Click directly on the body image to drop a pin anywhere for conditions not covered by the standard panels.</p>
+      <p><strong>Start with the Quick Select sidebar.</strong> Search for a condition (like "tinnitus" or "knee") or browse body areas. Toggle the body diagram between <strong>Front</strong> and <strong>Back</strong> views using the buttons above the image.</p>
+      <p><strong>Pick one condition at a time.</strong> Click a body area (Knee, Shoulder, Back, Mental Health, etc.) to open its evaluation panel. Rate severity using real VA diagnostic criteria from 38 CFR Part 4, then place the pin on the body.</p>
+      <p><strong>Side prompt — Left, Right, or Both.</strong> For paired areas, ENDEX asks which side. If you choose Both, it's saved as <strong>bilateral</strong> — same condition, same rating on each side — so the VA bilateral factor can apply later.</p>
+      <p><strong>Custom pins</strong> — click directly on the body anywhere to drop a pin for conditions not covered by a standard panel.</p>
+      <p><strong>Name / ID field</strong> at the top of this tab adds your name or case number to every export so reviewers know whose file they're reading.</p>
       <div class="dyk">
         <span class="dyk-icon">&#128161;</span>
-        <strong>Did you know?</strong> Mental health is the only area where you can select multiple conditions at once. The VA rates all mental health conditions under one combined rating — so PTSD, depression, and anxiety together still get one number.
+        <strong>Did you know?</strong> Mental health is the one area where you can select multiple conditions at once. The VA rates all mental health conditions under a <em>single</em> combined rating — PTSD, depression, and anxiety together still produce one number.
       </div>
     </div>
     <div class="section-visual">
-      <div style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;color:#0a2357;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Pin Types on Your Map</div>
+      <div style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;color:#0a2357;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Side Selection Popup</div>
+      <div class="side-pop">
+        <div class="side-pop-title">Which knee?</div>
+        <div class="side-btns">
+          <div class="side-btn">Left</div>
+          <div class="side-btn">Right</div>
+          <div class="side-btn b">Both</div>
+        </div>
+      </div>
+      <div style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;color:#0a2357;text-transform:uppercase;letter-spacing:1px;margin:18px 0 10px;">Pin Types on the Map</div>
       <div class="pin-demo">
         <div class="pin-example">
           <div class="pin-dot" style="background:#dc2626;"><span>(L) 20%</span></div>
-          Left Side
+          Left
         </div>
         <div class="pin-example">
           <div class="pin-dot" style="background:#dc2626;"><span>(R) 30%</span></div>
-          Right Side
+          Right
         </div>
         <div class="pin-example">
           <div class="pin-dot" style="background:#7c3aed;"><span>(B) 20%</span></div>
           Bilateral
         </div>
       </div>
-      <div style="font-size:11px;color:#6b7280;text-align:center;margin-top:8px;">Pins show your side + estimated rating.<br>Purple = bilateral (both sides).</div>
+      <div style="font-size:11px;color:#6b7280;text-align:center;margin-top:8px;">Pins show your side + estimated rating.<br>Purple = bilateral (both sides, same condition).</div>
       <div class="tip-box" style="margin-top:14px;">
-        <strong>LEFT &amp; RIGHT labels</strong> appear on the body map. Front view: the person's right is on YOUR left (like facing someone). Labels flip on back view.
+        <strong>Left &amp; Right on the map</strong> follow the veteran's body — Front view: the person's right is on <em>your</em> left (as if facing them). Labels flip on the Back view.
       </div>
     </div>
   </div>
@@ -137,21 +242,26 @@ body{font-family:'Open Sans',sans-serif;background:#f4f6fb;color:#1a2332;}
 <div class="section">
   <div class="section-head">
     <div class="section-num">2</div>
-    <div class="section-title">Rate Severity & Add Secondaries</div>
+    <div class="section-title">Rate Severity &amp; Add Secondaries</div>
   </div>
+  <div class="section-sub">Tab 2 — Secondary</div>
   <div class="section-body">
     <div class="section-text">
-      <p><strong>After placing your pin,</strong> go to the Severity & Secondary tab. Each condition shows a rating questionnaire based on real VA diagnostic criteria.</p>
-      <p><strong>"Veterans commonly also claim"</strong> — suggestion chips appear showing the most frequently filed secondary conditions for your primary, with official VA diagnostic codes (DC codes). Click one to add it instantly.</p>
-      <p>A <strong>secondary condition</strong> is something caused or made worse by your service-connected condition — not something that happened separately.</p>
+      <p><strong>Every primary you pinned shows up here</strong> with a severity questionnaire built from real VA criteria. Answer the questions and ENDEX surfaces the rating percentage the VA typically assigns for that level of impairment.</p>
+      <p><strong>"Veterans commonly also claim"</strong> — for each primary, ENDEX shows suggestion chips of the secondary conditions most frequently filed with it, each tagged with its <strong>DC code</strong> (38 CFR Part 4). Click a chip to add it instantly.</p>
+      <p>A <strong>secondary condition</strong> is something caused or made worse by a service-connected condition — not a separate injury. Example: service-connected knee &rarr; hip pain from altered gait &rarr; lower back pain.</p>
+      <p><strong>Evidence gaps</strong> are flagged automatically when a condition is missing key fields (date, description, side). Fix gaps before exporting to strengthen your claim.</p>
       <div class="dyk">
         <span class="dyk-icon">&#128161;</span>
-        <strong>Did you know?</strong> Secondary claims are where most veterans leave money on the table. A 10% tinnitus rating can open the door to secondary claims for migraines, anxiety, and depression — each with its own rating that adds to your total.
+        <strong>Did you know?</strong> Secondaries are the most commonly missed part of a claim. A single primary can support several secondaries — a service-connected knee may tie to hip, back, or gait issues; tinnitus often ties to migraines, anxiety, depression, and sleep problems. Each is tracked separately so nothing falls through the cracks.
+      </div>
+      <div class="warn-box">
+        <strong>&#9888; Pyramiding check.</strong> When you export, ENDEX runs a <strong>38 CFR 4.14 pyramiding / duplicate review</strong> and flags conditions that may overlap — rating the same impairment twice under different codes. A flag isn't proof of pyramiding; bring it to your VSO or attorney.
       </div>
     </div>
     <div class="section-visual">
       <div style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;color:#0a2357;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Common Secondary Examples</div>
-      <div style="font-size:12px;margin-bottom:8px;"><strong style="color:#c8102e;">Knee Injury</strong> commonly leads to:</div>
+      <div style="font-size:12px;margin-bottom:8px;"><strong style="color:#c8102e;">Knee injury</strong> commonly leads to:</div>
       <div class="chip-row">
         <span class="chip chip-blue">Hip Pain</span>
         <span class="chip chip-blue">Back Pain</span>
@@ -166,7 +276,14 @@ body{font-family:'Open Sans',sans-serif;background:#f4f6fb;color:#1a2332;}
         <span class="chip chip-blue">Hypertension</span>
         <span class="chip chip-blue">ED</span>
       </div>
-      <div style="font-size:10px;color:#6b7280;margin-top:10px;text-align:center;">Each chip includes the official DC code from 38 CFR Part 4</div>
+      <div style="font-size:12px;margin:12px 0 8px;"><strong style="color:#c8102e;">Tinnitus</strong> commonly leads to:</div>
+      <div class="chip-row">
+        <span class="chip chip-blue">Migraines</span>
+        <span class="chip chip-blue">Anxiety</span>
+        <span class="chip chip-blue">Depression</span>
+        <span class="chip chip-blue">Sleep issues</span>
+      </div>
+      <div style="font-size:10px;color:#6b7280;margin-top:10px;text-align:center;">Each chip includes the official DC code from 38 CFR Part 4.</div>
     </div>
   </div>
 </div>
@@ -175,37 +292,33 @@ body{font-family:'Open Sans',sans-serif;background:#f4f6fb;color:#1a2332;}
 <div class="section">
   <div class="section-head">
     <div class="section-num">3</div>
-    <div class="section-title">Understand VA Math</div>
+    <div class="section-title">Handle Special Claims</div>
   </div>
+  <div class="section-sub">Tab 3 — Special Claims</div>
   <div class="section-body">
     <div class="section-text">
-      <p>The VA does <strong>not</strong> simply add your ratings together. They use a formula that applies each rating to the <strong>remaining healthy percentage</strong> of your body.</p>
-      <div class="math-box">
-        <div>Condition 1: <span class="highlight">50%</span> &rarr; 100 - 50 = <span class="highlight">50% remaining</span></div>
-        <div>Condition 2: <span class="highlight">30%</span> of 50 = 15 &rarr; 50 - 15 = <span class="highlight">35% remaining</span></div>
-        <div>Condition 3: <span class="highlight">10%</span> of 35 = 3.5 &rarr; 35 - 3.5 = <span class="highlight">31.5% remaining</span></div>
-        <div style="margin-top:8px;border-top:1px solid rgba(255,255,255,.2);padding-top:8px;">
-          Total disability: 100 - 31.5 = 68.5% &rarr; Rounded to <span class="result">70%</span>
+      <p>The Special Claims tab covers four categories with unique VA rules — entitlements many veterans don't know to ask about.</p>
+      <div class="grid-2" style="margin-top:12px;">
+        <div class="grid-card">
+          <div class="grid-card-title"><span class="icon">&#9878;</span> Presumptive</div>
+          <p>Burn pits, Agent Orange, Gulf War, radiation exposure. The VA <strong>automatically</strong> assumes service connection — no nexus letter required when your service matches a qualifying area and time period.</p>
+        </div>
+        <div class="grid-card">
+          <div class="grid-card-title"><span class="icon">&#128274;</span> MST</div>
+          <p>Military Sexual Trauma. No police report needed. The VA accepts buddy statements, counseling records, and behavioral changes as evidence. A <strong>privacy shield</strong> hides MST details throughout the app.</p>
+        </div>
+        <div class="grid-card">
+          <div class="grid-card-title"><span class="icon">&#128176;</span> SMC</div>
+          <p>Special Monthly Compensation. Extra payments on top of your rating for loss of a limb, loss of use, aid-and-attendance, or being housebound. Even 0% rated vets can qualify for SMC-K.</p>
+        </div>
+        <div class="grid-card">
+          <div class="grid-card-title"><span class="icon">&#9888;</span> Physical Loss</div>
+          <p>Loss of limb, organ, or creative organ. Documented separately because it triggers automatic SMC entitlements and can affect combined-rating math in the veteran's favor.</p>
         </div>
       </div>
-      <p style="font-size:12px;color:#6b7280;">50 + 30 + 10 = 90% with regular math, but only <strong>70%</strong> with VA math. The Rating tab calculates this automatically.</p>
-      <div class="dyk">
+      <div class="dyk" style="margin-top:16px;">
         <span class="dyk-icon">&#128161;</span>
-        <strong>Did you know?</strong> Bilateral conditions (same problem on both sides) get a <strong>10% bonus</strong> in the calculation. If both knees are rated 10%, the VA treats them as 19% combined instead of 10% each. This app automatically detects bilateral conditions.
-      </div>
-    </div>
-    <div class="section-visual">
-      <div style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;color:#0a2357;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Rating Milestones</div>
-      <div style="font-size:12px;line-height:2.2;">
-        <div><span class="chip chip-green" style="min-width:40px;text-align:center;">0%</span> Service-connected, no compensation</div>
-        <div><span class="chip chip-green" style="min-width:40px;text-align:center;">10%</span> ~$171/month (2024)</div>
-        <div><span class="chip chip-orange" style="min-width:40px;text-align:center;">30%</span> Dependent benefits start</div>
-        <div><span class="chip chip-orange" style="min-width:40px;text-align:center;">50%</span> ~$1,075/month</div>
-        <div><span class="chip chip-red" style="min-width:40px;text-align:center;">70%</span> ~$1,716/month</div>
-        <div><span class="chip chip-red" style="min-width:40px;text-align:center;">100%</span> ~$3,737/month + CHAMPVA</div>
-      </div>
-      <div class="tip-box" style="margin-top:10px;">
-        <strong>Key threshold:</strong> At 100%, your spouse and dependents qualify for CHAMPVA healthcare coverage.
+        <strong>Did you know?</strong> The PACT Act (2022) expanded burn pit and toxic exposure coverage dramatically. If you served post-9/11 near burn pits, you may be presumptively eligible even without a current diagnosis — enrolling in VA healthcare now establishes the record.
       </div>
     </div>
   </div>
@@ -215,32 +328,16 @@ body{font-family:'Open Sans',sans-serif;background:#f4f6fb;color:#1a2332;}
 <div class="section">
   <div class="section-head">
     <div class="section-num">4</div>
-    <div class="section-title">Special Claims & Evidence</div>
+    <div class="section-title">Review Your Timeline</div>
   </div>
+  <div class="section-sub">Tab 4 — Timeline</div>
   <div class="section-body">
     <div class="section-text">
-      <p>The <strong>Special Claims</strong> tab covers entitlements many veterans don't know about:</p>
-      <div class="grid-2" style="margin-top:12px;">
-        <div class="grid-card">
-          <div class="grid-card-title"><span class="icon">&#9878;</span> Presumptive Claims</div>
-          <p>Served near burn pits, Agent Orange, or in the Gulf? The VA <strong>automatically</strong> assumes your conditions are service-connected. No nexus letter needed.</p>
-        </div>
-        <div class="grid-card">
-          <div class="grid-card-title"><span class="icon">&#128274;</span> MST Claims</div>
-          <p>You do NOT need a police report. The VA accepts buddy statements, behavior changes, and counseling records. Privacy Shield hides details throughout the app.</p>
-        </div>
-        <div class="grid-card">
-          <div class="grid-card-title"><span class="icon">&#128176;</span> SMC Payments</div>
-          <p>Extra monthly payments on top of your rating — for loss of body parts, needing daily help, or being housebound. Even 0% rated vets can get SMC-K.</p>
-        </div>
-        <div class="grid-card">
-          <div class="grid-card-title"><span class="icon">&#9888;</span> Evidence Gaps</div>
-          <p>The app automatically flags incomplete records. Green = complete. Orange = missing fields. Fix gaps before filing to strengthen your claim.</p>
-        </div>
-      </div>
-      <div class="dyk" style="margin-top:16px;">
-        <span class="dyk-icon">&#128161;</span>
-        <strong>Did you know?</strong> The PACT Act (2022) expanded burn pit and toxic exposure coverage dramatically. If you served post-9/11 near burn pits, you may be eligible even without a current diagnosis — enroll in VA healthcare now to establish a record.
+      <p>The Timeline is a <strong>chronological view</strong> of every condition you've logged, ordered by date. Use it to sanity-check your claim before you file.</p>
+      <p><strong>Items only appear when they have a date.</strong> If a condition is missing from the timeline, open it back on the Primary Map and fill in when it started (or when you were first diagnosed / treated).</p>
+      <p>Look for: <strong>gaps</strong> where something should exist, <strong>clusters</strong> of conditions tied to one event or deployment, and <strong>missing evidence</strong> for older entries where records may need to be requested.</p>
+      <div class="tip-box">
+        <strong>Why it matters:</strong> The VA looks for a clear narrative from in-service event &rarr; current disability. A clean timeline makes that narrative obvious to the rater and to anyone helping you file.
       </div>
     </div>
   </div>
@@ -250,27 +347,71 @@ body{font-family:'Open Sans',sans-serif;background:#f4f6fb;color:#1a2332;}
 <div class="section">
   <div class="section-head">
     <div class="section-num">5</div>
-    <div class="section-title">Write, Review & Export</div>
+    <div class="section-title">Understand Your Rating</div>
   </div>
+  <div class="section-sub">Tab 5 — Rating</div>
   <div class="section-body">
     <div class="section-text">
-      <p><strong>Personal Statement</strong> — Write your story in the built-in editor. A sidebar lists all your conditions for quick reference — click any to insert the name. This is also where you document how conditions affect your ability to work (vocational impact).</p>
-      <p><strong>Timeline</strong> — See all your conditions in chronological order. Verify dates, check for gaps, and make sure nothing was missed.</p>
-      <p><strong>Export</strong> — Generate a PDF/Print summary with body diagrams, numbered pins, evidence gaps, and detailed condition cards. Also available as CSV or TXT.</p>
+      <p>The VA does <strong>not</strong> simply add your ratings together. It uses a formula that applies each rating to the <strong>remaining healthy percentage</strong> of your body, then rounds to the nearest 10%. ENDEX does this math automatically.</p>
+      <div class="math-box">
+        <div>Condition 1: <span class="highlight">50%</span> &rarr; 100 &minus; 50 = <span class="highlight">50% remaining</span></div>
+        <div>Condition 2: <span class="highlight">30%</span> of 50 = 15 &rarr; 50 &minus; 15 = <span class="highlight">35% remaining</span></div>
+        <div>Condition 3: <span class="highlight">10%</span> of 35 = 3.5 &rarr; 35 &minus; 3.5 = <span class="highlight">31.5% remaining</span></div>
+        <div style="margin-top:8px;border-top:1px solid rgba(255,255,255,.2);padding-top:8px;">
+          Total: 100 &minus; 31.5 = 68.5% &rarr; Rounded to <span class="result">70%</span>
+        </div>
+      </div>
+      <p style="font-size:12px;color:#6b7280;">Regular math: 50 + 30 + 10 = 90%. VA math: <strong>70%</strong>. This is why combining small ratings matters so much — they stack less as you go.</p>
+      <div class="dyk">
+        <span class="dyk-icon">&#128161;</span>
+        <strong>Bilateral factor.</strong> When the <em>same</em> condition is claimed on both sides (both knees, both shoulders, both hands), the VA adds a 10% bilateral factor to that pair <em>before</em> combining with the rest. ENDEX detects bilateral pins automatically and shows the factor on the Rating tab.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ STEP 6 ═══════════════════ -->
+<div class="section">
+  <div class="section-head">
+    <div class="section-num">6</div>
+    <div class="section-title">Capture Notes &amp; Export</div>
+  </div>
+  <div class="section-sub">Tab 6 — Notes &amp; Statement</div>
+  <div class="section-body">
+    <div class="section-text">
+      <p><strong>Notes &amp; Statement</strong> is a flexible workspace for everything that doesn't fit neatly on the other tabs. Use it however is most useful to you:</p>
+      <p style="margin-left:8px;">
+        &#8226; Draft a VA personal statement in your own words<br>
+        &#8226; Log doctor visits, provider names, dates, and phone calls with the VA<br>
+        &#8226; Keep questions and reminders for your VSO or attorney<br>
+        &#8226; Capture context on specific conditions &mdash; what triggers flare-ups, what helps, who witnessed events<br>
+        &#8226; Paste research, links, or anything else you want travelling with this file
+      </p>
+      <p>A <strong>sidebar on the right</strong> lists every condition you've logged &mdash; click any entry to drop its name into your notes so you don't have to retype it.</p>
+      <p><strong>Write for whoever reads this next</strong> &mdash; a VSO, an attorney, a family member helping, or yourself in six months. Include the details that won't show up elsewhere: dates, places, names, how symptoms affect your routine, and what you've already tried. Specifics make everything downstream easier.</p>
+      <p><strong>Export when you're done.</strong> Use the Import / Export button in the header. <em>Nothing is saved automatically &mdash; always export before closing.</em></p>
       <div class="flow">
         <div class="flow-step">Log Conditions</div>
         <div class="flow-arrow">&rarr;</div>
-        <div class="flow-step">Rate &amp; Add Secondaries</div>
+        <div class="flow-step">Rate &amp; Link Secondaries</div>
         <div class="flow-arrow">&rarr;</div>
-        <div class="flow-step">Check Evidence Gaps</div>
+        <div class="flow-step">Fix Gaps</div>
         <div class="flow-arrow">&rarr;</div>
-        <div class="flow-step">Write Statement</div>
+        <div class="flow-step">Add Notes</div>
         <div class="flow-arrow">&rarr;</div>
         <div class="flow-step">Export &amp; File</div>
       </div>
-      <div class="dyk">
-        <span class="dyk-icon">&#128161;</span>
-        <strong>Did you know?</strong> Your personal statement is one of the most important pieces of your claim. The VA examiner reads it before your C&P exam. Describe <em>how</em> your conditions affect daily life — not just what they are. "I can't play with my kids" is stronger than "my knee hurts."
+    </div>
+    <div class="section-visual">
+      <div style="font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;color:#0a2357;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">Export Formats</div>
+      <div style="font-size:12px;line-height:1.9;color:#334155;">
+        <div style="margin-bottom:10px;"><strong style="color:#0a2357;">Save Project (.endexclaim)</strong><br><span style="font-size:11px;color:#6b7280;">Reload your work later with Load Project. This is your backup — save often.</span></div>
+        <div style="margin-bottom:10px;"><strong style="color:#0a2357;">PDF / Print</strong><br><span style="font-size:11px;color:#6b7280;">Full summary with body diagrams, numbered pins, condition cards, and the pyramiding review.</span></div>
+        <div style="margin-bottom:10px;"><strong style="color:#0a2357;">CSV</strong><br><span style="font-size:11px;color:#6b7280;">Spreadsheet format for sharing with a VSO or tracking edits.</span></div>
+        <div><strong style="color:#0a2357;">TXT</strong><br><span style="font-size:11px;color:#6b7280;">Plain text — easy to paste into email, VA.gov forms, or other tools.</span></div>
+      </div>
+      <div class="warn-box" style="margin-top:14px;">
+        <strong>&#9888; Nothing is saved automatically.</strong> ENDEX runs entirely in your browser. Close the tab without exporting and your work is gone.
       </div>
     </div>
   </div>
@@ -282,23 +423,23 @@ body{font-family:'Open Sans',sans-serif;background:#f4f6fb;color:#1a2332;}
   <div class="grid-2" style="gap:14px;">
     <div style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:16px;">
       <div style="font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;margin-bottom:6px;color:#fbbf24;">&#9733; Claim Everything</div>
-      <div style="font-size:12px;color:rgba(255,255,255,.7);line-height:1.6;">If it happened in service or because of service, claim it. Even a 0% rating establishes service connection — you can increase it later if it gets worse.</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.7);line-height:1.6;">If it happened in service or because of service, claim it. Even a 0% rating establishes service connection — you can increase it later if the condition gets worse.</div>
     </div>
     <div style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:16px;">
       <div style="font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;margin-bottom:6px;color:#fbbf24;">&#9733; Worst Day, Not Best Day</div>
-      <div style="font-size:12px;color:rgba(255,255,255,.7);line-height:1.6;">At your C&P exam, describe your WORST days — not your best. The VA rates based on functional impairment at its peak, including flare-ups.</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.7);line-height:1.6;">At your C&amp;P exam, describe your worst days, not your best. The VA rates based on functional impairment at its peak, including flare-ups.</div>
     </div>
     <div style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:16px;">
       <div style="font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;margin-bottom:6px;color:#fbbf24;">&#9733; Buddy Statements Are Powerful</div>
-      <div style="font-size:12px;color:rgba(255,255,255,.7);line-height:1.6;">A fellow service member, spouse, or friend who witnessed your condition or its effects can write a statement. This is often the evidence that tips a claim from denied to approved.</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.7);line-height:1.6;">A fellow service member, spouse, or friend who witnessed your condition or its effects can write a statement. This is often the evidence that flips a claim from denied to approved.</div>
     </div>
     <div style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:16px;">
-      <div style="font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;margin-bottom:6px;color:#fbbf24;">&#9733; Don't Wait to File</div>
-      <div style="font-size:12px;color:rgba(255,255,255,.7);line-height:1.6;">File within one year of discharge and your rating is backdated to Day 1. After that, it starts from the date you file. File an Intent to File (ITF) immediately to lock in your effective date — you get 1 year to submit the full claim.</div>
+      <div style="font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;margin-bottom:6px;color:#fbbf24;">&#9733; File Intent to File Immediately</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.7);line-height:1.6;">File within one year of discharge and your effective date is backdated to Day 1. Afterward, file an ITF to lock in today's date — then you get a full year to submit the complete claim.</div>
     </div>
     <div style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:16px;">
-      <div style="font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;margin-bottom:6px;color:#fbbf24;">&#9733; Save Your Data</div>
-      <div style="font-size:12px;color:rgba(255,255,255,.7);line-height:1.6;">This app runs entirely in your browser. Nothing is saved on any server. Use the Import/Export button to save your project file — if you close the browser without saving, your data is gone.</div>
+      <div style="font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;margin-bottom:6px;color:#fbbf24;">&#9733; Export Before You Close</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.7);line-height:1.6;">ENDEX runs entirely in your browser. Nothing is saved to any server. Use Save Project to download a .endexclaim file — it's the only way to pick up where you left off.</div>
     </div>
     <div style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:16px;">
       <div style="font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;margin-bottom:6px;color:#fbbf24;">&#9733; Free Help Exists</div>
@@ -307,47 +448,47 @@ body{font-family:'Open Sans',sans-serif;background:#f4f6fb;color:#1a2332;}
   </div>
 </div>
 
-<!-- ═══════════════════ APP FLOW ═══════════════════ -->
+<!-- ═══════════════════ APP TABS AT A GLANCE ═══════════════════ -->
 <div class="section">
   <div style="font-family:'Oswald',sans-serif;font-size:20px;font-weight:700;color:#0a2357;text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;text-align:center;">App Tabs at a Glance</div>
-  <div class="grid-2" style="grid-template-columns:1fr 1fr 1fr;gap:12px;">
+  <div class="grid-3">
     <div class="grid-card" style="border-top:3px solid #1d4ed8;">
       <div class="grid-card-title" style="color:#1d4ed8;">Primary Map</div>
-      <p>Select conditions, choose sides, place pins on the body diagram. Your starting point.</p>
+      <p>Search, pick a side (L / R / Both), rate, and drop pins on Front / Back body views. Your starting point.</p>
     </div>
     <div class="grid-card" style="border-top:3px solid #7c3aed;">
-      <div class="grid-card-title" style="color:#7c3aed;">Severity & Secondary</div>
-      <p>Rate each condition. Add secondary claims with suggestion chips. See all conditions in a tree view.</p>
+      <div class="grid-card-title" style="color:#7c3aed;">Secondary</div>
+      <p>Severity questionnaires + "Veterans commonly also claim" secondary suggestions with DC codes.</p>
     </div>
     <div class="grid-card" style="border-top:3px solid #c8102e;">
       <div class="grid-card-title" style="color:#c8102e;">Special Claims</div>
-      <p>Presumptive service connection, MST, physical loss, and SMC extra payments.</p>
+      <p>Presumptive, MST (privacy-shielded), SMC extra payments, and physical loss entitlements.</p>
     </div>
     <div class="grid-card" style="border-top:3px solid #d97706;">
       <div class="grid-card-title" style="color:#d97706;">Timeline</div>
-      <p>Chronological view of all conditions. Check for gaps and verify dates before filing.</p>
+      <p>Chronological view of everything dated. Check for gaps and verify sequencing before filing.</p>
     </div>
     <div class="grid-card" style="border-top:3px solid #16a34a;">
       <div class="grid-card-title" style="color:#16a34a;">Rating</div>
-      <p>See your estimated combined VA percentage using real VA math. Bilateral detection included.</p>
+      <p>Combined VA percentage with real VA math + automatic bilateral factor detection.</p>
     </div>
     <div class="grid-card" style="border-top:3px solid #0a2357;">
-      <div class="grid-card-title" style="color:#0a2357;">Personal Statement</div>
-      <p>Write your story with a condition reference sidebar. Also tracks vocational impact.</p>
+      <div class="grid-card-title" style="color:#0a2357;">Notes &amp; Statement</div>
+      <p>Draft your personal statement with a condition reference sidebar. Track vocational impact.</p>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════ B&W MODE ═══════════════════ -->
+<!-- ═══════════════════ ACCESSIBILITY / B&W MODE ═══════════════════ -->
 <div class="section" style="padding:24px 60px;background:#f0f0f0;text-align:center;">
   <div style="font-family:'Oswald',sans-serif;font-size:14px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Accessibility</div>
-  <div style="font-size:12px;color:#777;max-width:600px;margin:0 auto;">Click the <strong>B&W Mode</strong> button in the header to switch all colors to black, white, and gray. Body images stay unchanged. Everything is keyboard accessible.</div>
+  <div style="font-size:12px;color:#777;max-width:640px;margin:0 auto;">Click the <strong>B&amp;W Mode</strong> button in the header to switch the UI to black, white, and gray — useful for printing or reducing visual noise. Body images stay unchanged. The full app is keyboard accessible.</div>
 </div>
 
 <!-- ═══════════════════ FOOTER ═══════════════════ -->
 <div class="info-footer">
-  <strong>Documentation & organization tool — not a VA decision engine.</strong> Not an official VA product. Not affiliated with or endorsed by the U.S. Department of Veterans Affairs. Ratings shown are estimates only. No data is stored — export before closing. Talk to a VSO or VA-accredited attorney before filing.
-  <div class="copy">&copy; K. Dimond. All Rights Reserved.</div>
+  <strong>ENDEX is a tracking, education, and organizational tool — not a VA decision engine.</strong> Not an official VA product. Not affiliated with or endorsed by the U.S. Department of Veterans Affairs. Ratings shown are estimates only. No AI reads your information; no data leaves your browser — export before closing. Talk to a VSO or VA-accredited attorney before filing.
+  <div class="copy">&copy; 2026 CG Web Lab, LLC. All rights reserved.</div>
 </div>
 
 </div><!-- /page -->

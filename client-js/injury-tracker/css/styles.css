@@ -61,6 +61,7 @@ header{
   box-shadow:0 2px 8px rgba(200,16,46,.4);transition:all .2s;
 }
 .export-btn:hover{background:var(--red2);transform:translateY(-1px);box-shadow:0 4px 14px rgba(200,16,46,.5);}
+a.export-btn,a.export-btn:link,a.export-btn:visited,a.export-btn:hover,a.export-btn:active,a.export-btn:focus{color:#fff !important;text-decoration:none !important;}
 .export-menu{position:absolute;top:100%;right:0;margin-top:4px;background:var(--surface);border:1px solid var(--border);border-radius:6px;box-shadow:var(--sh2);z-index:90;min-width:180px;overflow:hidden;}
 .export-menu button{display:block;width:100%;text-align:left;padding:10px 16px;border:none;background:transparent;font-family:var(--fh);font-size:12px;font-weight:600;letter-spacing:.3px;text-transform:uppercase;color:var(--navy);cursor:pointer;transition:all .12s;}
 .export-menu button:hover{background:var(--al);color:var(--red);}

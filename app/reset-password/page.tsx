@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { AuthShell } from "@/components/auth/AuthShell"
 
 export default function ResetPasswordPage() {
   const router = useRouter()
@@ -18,7 +19,6 @@ export default function ResetPasswordPage() {
     let mounted = true
 
     async function checkRecoverySession() {
-      // Hash-based recovery links must be exchanged into session state.
       const hash = window.location.hash.startsWith("#")
         ? window.location.hash.slice(1)
         : window.location.hash
@@ -74,68 +74,70 @@ export default function ResetPasswordPage() {
     if (error) {
       setError(error.message)
     } else {
-      router.push("/dashboard")
+      router.push("/")
     }
     setLoading(false)
   }
 
   if (checkingLink) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center p-8">
-        <p className="text-sm text-gray-500">Verifying reset link...</p>
-      </main>
+      <AuthShell title="Verifying reset link" subtitle="One moment...">
+        <div />
+      </AuthShell>
     )
   }
 
   if (!ready) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center p-8">
-        <div className="w-full max-w-sm space-y-4">
-          <h1 className="text-2xl font-bold">Reset link invalid</h1>
-          <p className="text-sm text-gray-500">
-            This link is invalid or expired. Request a new reset email and try again.
-          </p>
-          <Link href="/forgot-password" className="block text-center text-sm underline">
-            Request new reset link
-          </Link>
-        </div>
-      </main>
+      <AuthShell
+        eyebrow="Link Expired"
+        title="Reset link invalid"
+        subtitle="This link is invalid or expired. Request a new reset email and try again."
+        footer={<Link href="/forgot-password" className="auth-link">Request new reset link</Link>}
+      >
+        <div />
+      </AuthShell>
     )
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <div className="w-full max-w-sm space-y-6">
-        <h1 className="text-2xl font-bold">Set new password</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <AuthShell
+      eyebrow="Account Recovery"
+      title="Set new password"
+      subtitle="Choose a strong password you haven't used before."
+    >
+      <form onSubmit={handleSubmit} className="auth-form">
+        <div className="auth-field">
+          <label htmlFor="password" className="auth-label">New password</label>
           <input
+            id="password"
             type="password"
-            placeholder="New password"
+            placeholder="At least 6 characters"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={6}
-            className="w-full rounded border px-3 py-2 text-sm"
+            className="auth-input"
           />
+        </div>
+        <div className="auth-field">
+          <label htmlFor="confirm" className="auth-label">Confirm password</label>
           <input
+            id="confirm"
             type="password"
-            placeholder="Confirm new password"
+            placeholder="Re-enter password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             required
             minLength={6}
-            className="w-full rounded border px-3 py-2 text-sm"
+            className="auth-input"
           />
-          {error && <p className="text-sm text-red-500">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-          >
-            {loading ? "Updating..." : "Update password"}
-          </button>
-        </form>
-      </div>
-    </main>
+        </div>
+        {error && <p className="auth-error">{error}</p>}
+        <button type="submit" disabled={loading} className="auth-submit">
+          {loading ? "Updating..." : "Update password"}
+        </button>
+      </form>
+    </AuthShell>
   )
 }

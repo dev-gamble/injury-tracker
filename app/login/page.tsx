@@ -4,6 +4,7 @@ import { useState } from "react"
 import { supabase } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { AuthShell } from "@/components/auth/AuthShell"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -20,53 +21,57 @@ export default function LoginPage() {
     if (error) {
       setError(error.message)
     } else {
-      router.push("/dashboard")
+      router.push("/")
     }
     setLoading(false)
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <div className="w-full max-w-sm space-y-6">
-        <h1 className="text-2xl font-bold">Sign in</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <AuthShell
+      eyebrow="Secure Access"
+      title="Sign in"
+      subtitle="Enter your credentials to access your claim index."
+      footer={
+        <>
+          Need an account? <Link href="/signup" className="auth-link">Sign up</Link>
+          <br />
+          <Link href="/" className="auth-link-subtle">Back to home</Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="auth-form">
+        <div className="auth-field">
+          <label htmlFor="email" className="auth-label">Email</label>
           <input
+            id="email"
             type="email"
-            placeholder="Email"
+            placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full rounded border px-3 py-2 text-sm"
+            className="auth-input"
           />
+        </div>
+        <div className="auth-field">
+          <label htmlFor="password" className="auth-label">Password</label>
           <input
+            id="password"
             type="password"
-            placeholder="Password"
+            placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="w-full rounded border px-3 py-2 text-sm"
+            className="auth-input"
           />
-          {error && <p className="text-sm text-red-500">{error}</p>}
-          <div className="flex justify-end">
-            <Link href="/forgot-password" className="text-sm text-gray-500 underline">
-              Forgot password?
-            </Link>
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-          >
-            {loading ? "Loading..." : "Sign in"}
-          </button>
-        </form>
-        <p className="text-center text-sm text-gray-500">
-          No account? <Link href="/signup" className="underline">Sign up</Link>
-        </p>
-        <p className="text-center text-sm text-gray-400">
-          <Link href="/" className="underline">Back to home</Link>
-        </p>
-      </div>
-    </main>
+        </div>
+        {error && <p className="auth-error">{error}</p>}
+        <div className="auth-inline-right">
+          <Link href="/forgot-password" className="auth-link-subtle">Forgot password?</Link>
+        </div>
+        <button type="submit" disabled={loading} className="auth-submit">
+          {loading ? "Signing in..." : "Sign in"}
+        </button>
+      </form>
+    </AuthShell>
   )
 }

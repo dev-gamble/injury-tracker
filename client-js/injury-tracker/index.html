@@ -361,8 +361,13 @@ updateView();
 
 <!-- WALKTHROUGH OVERLAY -->
 <div id="walkthrough-overlay" class="bilateral-overlay" style="display:none;z-index:10000;">
-  <div class="bilateral-dialog" style="max-width:480px;padding:0;overflow:hidden;">
-    <div id="wt-content"></div>
+  <div class="wt-dialog" role="dialog" aria-modal="true" aria-labelledby="wt-title">
+    <button type="button" class="wt-close" aria-label="Close walkthrough" onclick="closeWalkthrough()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
+    </button>
+    <div id="wt-progress" class="wt-progress"></div>
+    <div id="wt-body" class="wt-body"></div>
+    <div id="wt-footer" class="wt-footer"></div>
   </div>
 </div>
 
@@ -448,45 +453,59 @@ function startWalkthrough(){
   document.getElementById('walkthrough-overlay').style.display = '';
 }
 
+function closeWalkthrough(){
+  document.getElementById('walkthrough-overlay').style.display = 'none';
+}
+
 function _renderWtStep(){
   const s = _wtSteps[_wtStep];
   const isFirst = _wtStep === 0;
   const isLast = _wtStep === _wtSteps.length - 1;
-  let h = '';
+
   // Progress bar
-  h += '<div style="display:flex;gap:3px;padding:12px 20px 0;">';
+  let prog = '';
   _wtSteps.forEach((_,i) => {
-    h += '<div style="flex:1;height:3px;border-radius:2px;background:'+(i<=_wtStep?'var(--navy)':'#e2e8f0')+';transition:background .2s;"></div>';
+    prog += '<div class="wt-progress-seg'+(i<=_wtStep?' is-active':'')+'"></div>';
   });
-  h += '</div>';
-  // Content
-  h += '<div style="padding:20px 24px;">';
-  h += '<div style="font-size:28px;margin-bottom:6px;">'+s.icon+'</div>';
-  h += '<div style="font-size:16px;font-weight:800;font-family:var(--fh);color:var(--navy);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">'+s.title+'</div>';
-  h += '<div style="font-size:13px;line-height:1.7;color:#334155;">'+s.body+'</div>';
+  document.getElementById('wt-progress').innerHTML = prog;
+
+  // Body
+  let body = '';
+  body += '<div class="wt-icon">'+s.icon+'</div>';
+  body += '<div id="wt-title" class="wt-title">'+s.title+'</div>';
+  body += '<div class="wt-text">'+s.body+'</div>';
   if(s.tip){
-    h += '<div style="margin-top:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;font-size:11px;line-height:1.6;color:#1e40af;">' +
-      '<strong style="color:var(--navy);">&#128161; Good to know:</strong> '+s.tip+'</div>';
+    body += '<div class="wt-tip"><strong>&#128161; Good to know:</strong> '+s.tip+'</div>';
   }
-  h += '</div>';
-  // Buttons
-  h += '<div style="display:flex;gap:8px;padding:0 24px 20px;justify-content:space-between;align-items:center;">';
-  h += '<div style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:10px;">' +
+  const bodyEl = document.getElementById('wt-body');
+  bodyEl.innerHTML = body;
+  bodyEl.scrollTop = 0;
+
+  // Footer
+  let foot = '';
+  foot += '<div class="wt-meta">' +
     '<span>'+(_wtStep+1)+' of '+_wtSteps.length+'</span>' +
-    '<a href="how-to-use-infographic.html" target="_blank" rel="noopener" style="color:var(--navy);font-weight:600;text-decoration:none;border-bottom:1px dotted var(--navy);">Open full guide &rarr;</a>' +
+    '<a href="how-to-use-infographic.html" target="_blank" rel="noopener" class="wt-guide-link">Open full guide &rarr;</a>' +
     '</div>';
-  h += '<div style="display:flex;gap:8px;">';
-  if(!isFirst){
-    h += '<button onclick="_wtStep--;_renderWtStep()" style="padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--navy);font-weight:600;font-size:12px;cursor:pointer;">Back</button>';
-  }
+  foot += '<div class="wt-btns">';
+  // Reserve Back slot with visibility:hidden on step 0 so Next never shifts
+  foot += '<button onclick="_wtStep--;_renderWtStep()" class="wt-btn wt-btn-secondary"'+(isFirst?' style="visibility:hidden;"':'')+'>Back</button>';
   if(isLast){
-    h += '<button onclick="document.getElementById(\'walkthrough-overlay\').style.display=\'none\'" style="padding:8px 20px;border-radius:8px;border:none;background:var(--navy);color:#fff;font-weight:700;font-size:12px;cursor:pointer;">Got it — let\'s go!</button>';
+    foot += '<button onclick="closeWalkthrough()" class="wt-btn wt-btn-primary">Got it &mdash; let\'s go!</button>';
   } else {
-    h += '<button onclick="_wtStep++;_renderWtStep()" style="padding:8px 20px;border-radius:8px;border:none;background:var(--navy);color:#fff;font-weight:700;font-size:12px;cursor:pointer;">Next</button>';
+    foot += '<button onclick="_wtStep++;_renderWtStep()" class="wt-btn wt-btn-primary">Next</button>';
   }
-  h += '</div></div>';
-  document.getElementById('wt-content').innerHTML = h;
+  foot += '</div>';
+  document.getElementById('wt-footer').innerHTML = foot;
 }
+
+// ESC closes the walkthrough
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape'){
+    const ov = document.getElementById('walkthrough-overlay');
+    if(ov && ov.style.display !== 'none'){ closeWalkthrough(); }
+  }
+});
 
 // Auto-show on first visit
 if(!localStorage.getItem('endex_walkthrough_seen')){

@@ -264,6 +264,58 @@ body.pin-placing .body-panel{position:relative;z-index:95;}
 
 .hidden{display:none!important;}
 
+/* SIGNOUT CONFIRMATION MODAL */
+.signout-overlay{
+  position:fixed;inset:0;z-index:1000;
+  background:rgba(10,20,40,.55);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  display:flex;align-items:center;justify-content:center;padding:24px;
+  animation:signoutFade .2s ease both;
+}
+@keyframes signoutFade{from{opacity:0}to{opacity:1}}
+.signout-panel{
+  position:relative;width:100%;max-width:420px;
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  overflow:hidden;
+  box-shadow:0 24px 64px rgba(10,35,87,.4),0 2px 6px rgba(10,35,87,.2);
+  animation:signoutRise .28s cubic-bezier(.2,.7,.2,1) both;
+}
+@keyframes signoutRise{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+.signout-accent{height:3px;background:linear-gradient(90deg,var(--red) 0%,var(--red2) 100%);}
+.signout-body{padding:26px 28px 20px;}
+.signout-icon{
+  width:36px;height:36px;border-radius:50%;
+  background:rgba(200,16,46,.09);color:var(--red);
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:14px;
+}
+.signout-title{
+  font-family:var(--fh);font-size:22px;font-weight:600;letter-spacing:.5px;
+  text-transform:uppercase;color:var(--navy);margin:0 0 10px;line-height:1.2;
+}
+.signout-copy{font-family:var(--fd);font-size:13px;line-height:1.55;color:var(--muted);margin:0;}
+.signout-copy strong{color:var(--text);font-weight:600;}
+.signout-actions{
+  display:flex;gap:10px;justify-content:flex-end;
+  padding:14px 28px 22px;background:var(--surface2);border-top:1px solid var(--border);
+}
+.signout-cancel{
+  background:transparent;border:1px solid var(--border2);color:var(--navy);
+  padding:9px 18px;border-radius:4px;cursor:pointer;
+  font-family:var(--fh);font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;
+  transition:background .15s,color .15s,border-color .15s;
+}
+.signout-cancel:hover{background:var(--navy);border-color:var(--navy);color:#fff;}
+.signout-confirm{
+  background:var(--red);border:2px solid var(--red2);color:#fff;
+  padding:8px 18px;border-radius:4px;cursor:pointer;
+  font-family:var(--fh);font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;
+  display:inline-flex;align-items:center;gap:7px;
+  box-shadow:0 2px 8px rgba(200,16,46,.35);
+  transition:background .15s,transform .15s,box-shadow .15s;
+}
+.signout-confirm:hover{background:var(--red2);transform:translateY(-1px);box-shadow:0 4px 12px rgba(200,16,46,.45);}
+
 /* ── UNIFIED CLAIM MAP ── */
 .cr-tree{display:flex;flex-direction:column;gap:12px;}
 

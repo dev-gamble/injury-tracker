@@ -3,13 +3,15 @@
 import { useState } from 'react'
 import { RegistryPanel } from './RegistryPanel'
 import { CreateKeyForm } from './CreateKeyForm'
+import { AssignmentsPanel } from './AssignmentsPanel'
 import type { KeyRow } from './KeysTable'
 
-type Tab = 'registry' | 'issue'
+type Tab = 'registry' | 'issue' | 'assignments'
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'registry', label: 'Key Registry' },
-  { id: 'issue',    label: 'Issue Key'    },
+  { id: 'registry',    label: 'Key Registry' },
+  { id: 'issue',       label: 'Issue Key'    },
+  { id: 'assignments', label: 'Assignments'  },
 ]
 
 type Props = {
@@ -43,17 +45,19 @@ export function AdminConsole({ rows, errorMessage }: Props) {
 
       <main className="admin-main">
         <div className="admin-panel" key={tab}>
-          {tab === 'registry' ? (
+          {tab === 'registry' && (
             <RegistryPanel
               rows={rows}
               errorMessage={errorMessage}
               onIssue={() => setTab('issue')}
             />
-          ) : (
+          )}
+          {tab === 'issue' && (
             <section className="admin-card">
               <CreateKeyForm />
             </section>
           )}
+          {tab === 'assignments' && <AssignmentsPanel keys={rows} />}
         </div>
       </main>
     </>

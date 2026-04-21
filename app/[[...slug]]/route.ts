@@ -39,6 +39,27 @@ const SIGN_OUT_BUTTON = `<button type="button" class="export-btn header-signin-b
 
 const AUTH_BUTTON_PATTERN = /<!--AUTH_BUTTON_START-->[\s\S]*?<!--AUTH_BUTTON_END-->/
 
+const HTML_ESCAPE_MAP: Record<string, string> = {
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+}
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => HTML_ESCAPE_MAP[c])
+}
+
+// Small identity chip rendered to the left of the sign-out button for
+// authenticated users. Hidden by CSS on narrow viewports. Admins are labeled
+// explicitly; otherwise the tier is derived from current_user_tier() which
+// applies the same active + non-expired predicate the middleware gates on.
+function renderSignedInBlock(email: string, tier: string | null, isAdmin: boolean): string {
+  const label = isAdmin ? 'admin' : tier
+  const tierClass = label ? ` header-identity-tier-${label}` : ''
+  const identity = `<div class="header-identity" aria-label="Account">
+  <span class="header-identity-email" title="${escapeHtml(email)}">${escapeHtml(email)}</span>
+  ${label ? `<span class="header-identity-tier${tierClass}"><span class="header-identity-tier-dot" aria-hidden="true"></span>${escapeHtml(label.toUpperCase())} ACCESS</span>` : ''}
+</div>`
+  return identity + SIGN_OUT_BUTTON
+}
+
 export const runtime = "nodejs"
 
 // Absolute path to the client-js app on disk.
@@ -111,7 +132,17 @@ export async function GET(
       )
       const supabase = await createClient()
       const { data: { user } } = await supabase.auth.getUser()
-      html = html.replace(AUTH_BUTTON_PATTERN, user ? SIGN_OUT_BUTTON : SIGN_IN_BUTTON)
+      let replacement = SIGN_IN_BUTTON
+      if (user) {
+        const isAdmin = (user.app_metadata as { role?: unknown })?.role === 'admin'
+        let tier: string | null = null
+        if (!isAdmin) {
+          const { data: tierData } = await supabase.rpc('current_user_tier')
+          tier = typeof tierData === 'string' ? tierData : null
+        }
+        replacement = renderSignedInBlock(user.email ?? '', tier, isAdmin)
+      }
+      html = html.replace(AUTH_BUTTON_PATTERN, replacement)
       responseBody = html
     } else {
       responseBody = new Uint8Array(fileBuffer)

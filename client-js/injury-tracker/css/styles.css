@@ -318,6 +318,32 @@ body.pin-placing .body-panel{position:relative;z-index:95;}
 }
 .signout-confirm:hover{background:var(--red2);transform:translateY(-1px);box-shadow:0 4px 12px rgba(200,16,46,.45);}
 
+/* HEADER IDENTITY CHIP */
+.header-identity{
+  display:none;flex-direction:column;align-items:flex-end;gap:2px;line-height:1;
+  padding-right:10px;margin-right:2px;border-right:1px solid rgba(255,255,255,.14);
+  max-width:240px;
+}
+.header-identity-email{
+  font-family:var(--fm);font-size:11px;color:rgba(255,255,255,.78);letter-spacing:.2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;
+}
+.header-identity-tier{
+  display:inline-flex;align-items:center;gap:5px;
+  font-family:var(--fh);font-size:9px;font-weight:700;letter-spacing:1.4px;
+  color:rgba(255,255,255,.55);text-transform:uppercase;
+}
+.header-identity-tier-dot{
+  width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.5);
+  box-shadow:0 0 0 1px rgba(255,255,255,.18);
+}
+.header-identity-tier-demo    .header-identity-tier-dot{background:var(--gold);box-shadow:0 0 6px rgba(240,165,0,.55);}
+.header-identity-tier-free    .header-identity-tier-dot{background:#16a34a;box-shadow:0 0 6px rgba(22,163,74,.5);}
+.header-identity-tier-full    .header-identity-tier-dot{background:#60a5fa;box-shadow:0 0 6px rgba(96,165,250,.55);}
+.header-identity-tier-partner .header-identity-tier-dot{background:var(--red);box-shadow:0 0 6px rgba(200,16,46,.6);}
+.header-identity-tier-admin   .header-identity-tier-dot{background:#fff;box-shadow:0 0 6px rgba(255,255,255,.65);}
+@media (min-width:900px){ .header-identity{display:flex;} }
+
 /* ── UNIFIED CLAIM MAP ── */
 .cr-tree{display:flex;flex-direction:column;gap:12px;}
 

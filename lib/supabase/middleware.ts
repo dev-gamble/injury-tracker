@@ -4,7 +4,9 @@ import { getPublicEnv } from "@/lib/env"
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Routes that require authentication to access
-const PROTECTED_PREFIXES = ['/dashboard']
+const PROTECTED_PREFIXES = ['/dashboard', '/admin']
+// Routes that additionally require admin role (app_metadata.role === 'admin')
+const ADMIN_PREFIXES = ['/admin']
 
 export async function updateSession(request: NextRequest, requestId?: string) {
   const env = getPublicEnv()
@@ -37,12 +39,12 @@ export async function updateSession(request: NextRequest, requestId?: string) {
   )
 
   // IMPORTANT: Do not add code between createServerClient and auth.getUser()
-  let hasUser = false
+  let user: Awaited<ReturnType<typeof supabase.auth.getUser>>['data']['user'] = null
   try {
     const {
       data: { user: currentUser },
     } = await supabase.auth.getUser()
-    hasUser = Boolean(currentUser)
+    user = currentUser
   } catch (error) {
     authLog.error('auth.user_fetch_failed', {
       path,
@@ -52,13 +54,35 @@ export async function updateSession(request: NextRequest, requestId?: string) {
     throw error
   }
 
-  if (isProtected && !hasUser) {
+  // When redirecting from middleware, we must copy any cookies Supabase set
+  // during auth.getUser() (via the setAll callback above) onto the redirect
+  // response. A fresh NextResponse.redirect() drops them, which would lose
+  // a freshly rotated session and bounce the user into a login loop.
+  function redirectWithCookies(url: URL) {
+    const redirect = NextResponse.redirect(url)
+    res.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie))
+    return redirect
+  }
+
+  if (isProtected && !user) {
     authLog.info('auth.redirect_login', {
       path,
       redirectTo: '/login',
     })
     await safeFlush(authLog)
-    return NextResponse.redirect(new URL('/login', request.url))
+    return redirectWithCookies(new URL('/login', request.url))
+  }
+
+  const isAdminRoute = ADMIN_PREFIXES.some(
+    (prefix) => path === prefix || path.startsWith(`${prefix}/`)
+  )
+  if (isAdminRoute && user) {
+    const role = (user.app_metadata as { role?: unknown } | null | undefined)?.role
+    if (role !== 'admin') {
+      authLog.warn('auth.admin_forbidden', { path, userId: user.id })
+      await safeFlush(authLog)
+      return redirectWithCookies(new URL('/', request.url))
+    }
   }
 
   return res

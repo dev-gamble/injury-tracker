@@ -7,6 +7,23 @@ import { NextResponse, type NextRequest } from 'next/server'
 const PROTECTED_PREFIXES = ['/dashboard', '/admin', '/redeem-key']
 // Routes that additionally require admin role (app_metadata.role === 'admin')
 const ADMIN_PREFIXES = ['/admin']
+// Routes that authenticated users can visit without an active license grant —
+// i.e., auth-flow pages (login, signup, redeem the key, recover password).
+// Anything outside this list requires a valid grant when the user is signed in.
+const AUTH_FLOW_PREFIXES = [
+  '/login',
+  '/signup',
+  '/redeem-key',
+  '/forgot-password',
+  '/reset-password',
+  '/auth',
+]
+
+// Brief in-memory cache of "this user has access" per edge instance. Avoids a
+// DB round-trip on every request. Only positive results are cached — a fresh
+// redemption is visible immediately, and revocation surfaces within 60s.
+const ACCESS_TTL_MS = 60_000
+const accessCache = new Map<string, number>()
 
 export async function updateSession(request: NextRequest, requestId?: string) {
   const env = getPublicEnv()
@@ -15,6 +32,9 @@ export async function updateSession(request: NextRequest, requestId?: string) {
   const authLog = logger('auth.middleware').with(requestId ? { requestId } : {})
 
   const isProtected = PROTECTED_PREFIXES.some(
+    (prefix) => path === prefix || path.startsWith(`${prefix}/`)
+  )
+  const isAuthFlow = AUTH_FLOW_PREFIXES.some(
     (prefix) => path === prefix || path.startsWith(`${prefix}/`)
   )
   const cookieMethods: CookieMethodsServer = {
@@ -73,16 +93,59 @@ export async function updateSession(request: NextRequest, requestId?: string) {
     return redirectWithCookies(new URL('/login', request.url))
   }
 
+  const role = user
+    ? (user.app_metadata as { role?: unknown } | null | undefined)?.role
+    : undefined
+  const isAdmin = role === 'admin'
+
+  // Authenticated users visiting any non-auth-flow page must have an active
+  // license grant. Without this check, a user with a session but no redeemed
+  // key can browse the product as if fully enrolled. Admins are exempt — they
+  // manage the product and shouldn't be gated by the same license pipeline.
+  if (user && !isAuthFlow && !isAdmin) {
+    const cachedExpiry = accessCache.get(user.id)
+    const hasCachedAccess = cachedExpiry !== undefined && cachedExpiry > Date.now()
+    if (!hasCachedAccess) {
+      if (cachedExpiry !== undefined) accessCache.delete(user.id)
+      try {
+        const { data, error } = await supabase.rpc('current_user_has_access')
+        if (error) {
+          // Fail closed. /redeem-key is in AUTH_FLOW_PREFIXES so it won't loop,
+          // and the user sees the redemption form where they can try again.
+          authLog.warn('auth.access_check_failed', {
+            path,
+            userId: user.id,
+            error: errorToFields(error),
+          })
+          await safeFlush(authLog)
+          return redirectWithCookies(new URL('/redeem-key', request.url))
+        }
+        if (data === true) {
+          accessCache.set(user.id, Date.now() + ACCESS_TTL_MS)
+        } else {
+          authLog.info('auth.redirect_redeem_key', { path, userId: user.id })
+          await safeFlush(authLog)
+          return redirectWithCookies(new URL('/redeem-key', request.url))
+        }
+      } catch (error) {
+        authLog.error('auth.access_check_threw', {
+          path,
+          userId: user.id,
+          error: errorToFields(error),
+        })
+        await safeFlush(authLog)
+        return redirectWithCookies(new URL('/redeem-key', request.url))
+      }
+    }
+  }
+
   const isAdminRoute = ADMIN_PREFIXES.some(
     (prefix) => path === prefix || path.startsWith(`${prefix}/`)
   )
-  if (isAdminRoute && user) {
-    const role = (user.app_metadata as { role?: unknown } | null | undefined)?.role
-    if (role !== 'admin') {
-      authLog.warn('auth.admin_forbidden', { path, userId: user.id })
-      await safeFlush(authLog)
-      return redirectWithCookies(new URL('/', request.url))
-    }
+  if (isAdminRoute && user && !isAdmin) {
+    authLog.warn('auth.admin_forbidden', { path, userId: user.id })
+    await safeFlush(authLog)
+    return redirectWithCookies(new URL('/', request.url))
   }
 
   return res

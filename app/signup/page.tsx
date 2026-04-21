@@ -136,11 +136,10 @@ export default function SignupPage() {
               <input
                 id="password"
                 type="password"
-                placeholder="At least 6 characters"
+                placeholder="At least 8 characters"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={6}
                 className="auth-input"
               />
             </div>

@@ -112,11 +112,10 @@ export default function ResetPasswordPage() {
           <input
             id="password"
             type="password"
-            placeholder="At least 6 characters"
+            placeholder="At least 8 characters"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            minLength={6}
             className="auth-input"
           />
         </div>
@@ -129,7 +128,6 @@ export default function ResetPasswordPage() {
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             required
-            minLength={6}
             className="auth-input"
           />
         </div>

@@ -4,7 +4,7 @@ import { getPublicEnv } from "@/lib/env"
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Routes that require authentication to access
-const PROTECTED_PREFIXES = ['/dashboard', '/admin']
+const PROTECTED_PREFIXES = ['/dashboard', '/admin', '/redeem-key']
 // Routes that additionally require admin role (app_metadata.role === 'admin')
 const ADMIN_PREFIXES = ['/admin']
 

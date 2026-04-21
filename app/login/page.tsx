@@ -69,7 +69,14 @@ export default function LoginPage() {
           <Link href="/forgot-password" className="auth-link-subtle">Forgot password?</Link>
         </div>
         <button type="submit" disabled={loading} className="auth-submit">
-          {loading ? "Signing in..." : "Sign in"}
+          {loading ? (
+            <>
+              <span className="auth-spinner" aria-hidden="true" />
+              Signing in...
+            </>
+          ) : (
+            "Sign in"
+          )}
         </button>
       </form>
     </AuthShell>

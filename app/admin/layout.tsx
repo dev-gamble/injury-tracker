@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { isAdmin } from '@/lib/auth/admin'
 import { redirect } from 'next/navigation'
-import { AdminTabs } from './AdminTabs'
 import './admin.css'
 
 export const dynamic = 'force-dynamic'
@@ -28,18 +27,17 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <div className="admin-logo-sub">Administrative Console</div>
           </div>
         </Link>
+
+        <Link href="/" className="admin-back" aria-label="Return to home">
+          <span className="admin-back-arrow" aria-hidden="true">←</span>
+          <span>Back to app</span>
+        </Link>
       </header>
 
-      <nav className="admin-tabs-wrap" aria-label="Admin sections">
-        <AdminTabs />
-      </nav>
-
-      <main className="admin-main">
-        {children}
-      </main>
+      {children}
 
       <div className="admin-footer">
-        ENDEX Admin · Session authenticated · Actions are logged
+        ENDEX Admin
       </div>
     </div>
   )

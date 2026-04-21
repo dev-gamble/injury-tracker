@@ -1,36 +1,14 @@
-import Link from 'next/link'
-import { createAdminClient } from '@/lib/supabase/admin'
+'use client'
+
 import { KeysTable, type KeyRow } from './KeysTable'
 
-export const dynamic = 'force-dynamic'
-
-type RawRow = {
-  id: string
-  key_prefix: string
-  tier: 'demo' | 'free' | 'full' | 'partner'
-  status: 'active' | 'revoked' | 'expired'
-  max_uses: number
-  current_uses: number
-  expires_at: string | null
-  notes: string | null
-  created_at: string
+type Props = {
+  rows: KeyRow[]
+  errorMessage: string | null
+  onIssue: () => void
 }
 
-export default async function AdminKeysRegistryPage() {
-  const admin = createAdminClient()
-  const { data, error } = await admin
-    .from('license_keys')
-    .select('id, key_prefix, tier, status, max_uses, current_uses, expires_at, notes, created_at')
-    .order('created_at', { ascending: false })
-    .limit(200)
-
-  const rows: KeyRow[] = (data ?? []).map((r: RawRow) => {
-    const expired = r.expires_at !== null && new Date(r.expires_at).getTime() <= Date.now()
-    const effectiveStatus: KeyRow['status'] =
-      r.status === 'active' && expired ? 'expired' : r.status
-    return { ...r, status: effectiveStatus }
-  })
-
+export function RegistryPanel({ rows, errorMessage, onIssue }: Props) {
   const totalActive = rows.filter((r) => r.status === 'active').length
   const totalExpired = rows.filter((r) => r.status === 'expired').length
   const totalRevoked = rows.filter((r) => r.status === 'revoked').length
@@ -50,13 +28,13 @@ export default async function AdminKeysRegistryPage() {
               Issued license keys. Hashes are stored; raw keys are never retrievable after creation. Showing the most recent 200 records.
             </p>
           </div>
-          <Link href="/admin/keys/issue" className="admin-card-head-cta">
+          <button type="button" onClick={onIssue} className="admin-card-head-cta">
             <span>+ New Key</span>
-          </Link>
+          </button>
         </div>
       </div>
 
-      {!error && rows.length > 0 && (
+      {!errorMessage && rows.length > 0 && (
         <div className="admin-stats" role="group" aria-label="Registry summary">
           <div className="admin-stat">
             <span className="admin-stat-label">Active</span>
@@ -77,11 +55,11 @@ export default async function AdminKeysRegistryPage() {
         </div>
       )}
 
-      {error ? (
+      {errorMessage ? (
         <div className="admin-empty">
           <div className="admin-empty-glyph">!</div>
           <h2 className="admin-empty-title">Unable to load registry</h2>
-          <p className="admin-empty-body">{error.message}</p>
+          <p className="admin-empty-body">{errorMessage}</p>
         </div>
       ) : rows.length === 0 ? (
         <div className="admin-empty">
@@ -90,9 +68,9 @@ export default async function AdminKeysRegistryPage() {
           <p className="admin-empty-body">
             The registry is empty. Issue a first credential to get started; partners, demos, and comps all start here.
           </p>
-          <Link href="/admin/keys/issue" className="admin-empty-cta">
+          <button type="button" onClick={onIssue} className="admin-empty-cta">
             Issue first key →
-          </Link>
+          </button>
         </div>
       ) : (
         <KeysTable rows={rows} />

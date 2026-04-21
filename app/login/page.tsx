@@ -6,24 +6,63 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { AuthShell } from "@/components/auth/AuthShell"
 
+type ResendState =
+  | { kind: "idle" }
+  | { kind: "sending" }
+  | { kind: "sent" }
+  | { kind: "error"; message: string }
+
+function isUnconfirmedEmailError(err: { code?: string; message?: string } | null) {
+  if (!err) return false
+  if (err.code === "email_not_confirmed") return true
+  return !!err.message?.toLowerCase().includes("email not confirmed")
+}
+
 export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [unconfirmed, setUnconfirmed] = useState(false)
+  const [resend, setResend] = useState<ResendState>({ kind: "idle" })
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    setUnconfirmed(false)
+    setResend({ kind: "idle" })
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
-      setError(error.message)
+      if (isUnconfirmedEmailError(error)) {
+        setUnconfirmed(true)
+        setError("This email hasn't been confirmed yet. Check your inbox, or resend the confirmation link below.")
+      } else {
+        setError(error.message)
+      }
     } else {
       router.push("/")
     }
     setLoading(false)
+  }
+
+  async function handleResend() {
+    if (!email) {
+      setResend({ kind: "error", message: "Enter your email above first." })
+      return
+    }
+    setResend({ kind: "sending" })
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=/redeem-key` },
+    })
+    if (error) {
+      setResend({ kind: "error", message: error.message })
+      return
+    }
+    setResend({ kind: "sent" })
   }
 
   return (
@@ -65,6 +104,40 @@ export default function LoginPage() {
           />
         </div>
         {error && <p className="auth-error">{error}</p>}
+        {unconfirmed && (
+          <div className="auth-resend" role="group" aria-label="Resend confirmation email">
+            <div className="auth-resend-head">
+              <span className="auth-resend-tag">Unverified</span>
+              <span className="auth-resend-title">Confirmation link lapsed?</span>
+            </div>
+            <p className="auth-resend-copy">
+              We&rsquo;ll send a fresh confirmation email to <span className="auth-resend-mono">{email || "your address"}</span>. Links expire after 1 hour for security.
+            </p>
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={resend.kind === "sending" || resend.kind === "sent"}
+              className={`auth-resend-btn${resend.kind === "sent" ? " is-sent" : ""}`}
+            >
+              {resend.kind === "sending" && (
+                <>
+                  <span className="auth-spinner auth-spinner-dark" aria-hidden="true" />
+                  Sending...
+                </>
+              )}
+              {resend.kind === "sent" && (
+                <>
+                  <span className="auth-resend-check" aria-hidden="true">✓</span>
+                  Sent — check your inbox
+                </>
+              )}
+              {(resend.kind === "idle" || resend.kind === "error") && "Resend confirmation email"}
+            </button>
+            {resend.kind === "error" && (
+              <p className="auth-resend-error">{resend.message}</p>
+            )}
+          </div>
+        )}
         <div className="auth-inline-right">
           <Link href="/forgot-password" className="auth-link-subtle">Forgot password?</Link>
         </div>

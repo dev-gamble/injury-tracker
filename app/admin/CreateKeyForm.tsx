@@ -80,7 +80,6 @@ export function CreateKeyForm() {
     try {
       await navigator.clipboard.writeText(result.rawKey)
       setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
     } catch {
       // clipboard not available; user can still select+copy manually
     }
@@ -149,7 +148,7 @@ export function CreateKeyForm() {
         <div className="admin-warning" role="alert">
           <span className="admin-warning-glyph" aria-hidden="true">!</span>
           <span>
-            <strong>Final view.</strong><br />
+            <strong>Final view</strong><br />
             Only the SHA-256 hash is stored. Leaving this page discards the raw key permanently — we cannot recover it. Confirm the recipient has it before moving on.
           </span>
         </div>

@@ -584,7 +584,7 @@
 
 .admin-stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 0;
   border: 1px solid var(--border);
   border-radius: 2px;
@@ -593,7 +593,7 @@
   background: var(--surface2);
 }
 @media (max-width: 640px) {
-  .admin-stats { grid-template-columns: repeat(2, 1fr); }
+  .admin-stats { grid-template-columns: 1fr; }
 }
 .admin-stat {
   padding: 14px 16px;
@@ -604,7 +604,8 @@
 }
 .admin-stat:last-child { border-right: none; }
 @media (max-width: 640px) {
-  .admin-stat:nth-child(2) { border-right: none; }
+  .admin-stat { border-right: none; border-bottom: 1px solid var(--border); }
+  .admin-stat:last-child { border-bottom: none; }
 }
 .admin-stat-label {
   font-family: var(--fh);

@@ -251,7 +251,6 @@ export function AssignmentsPanel({ keys }: Props) {
                         className="admin-submit admin-assign-submit"
                       >
                         <span>{isPending ? 'Assigning…' : 'Assign key'}</span>
-                        <span className="admin-submit-arrow" aria-hidden="true">→</span>
                       </button>
                     </div>
                   )}

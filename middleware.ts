@@ -11,8 +11,8 @@ export async function middleware(request: NextRequest) {
 
   try {
     // Skip Next.js internals, API routes, static assets, and tracker JS/CSS.
-    // Tracker JS/CSS are only reachable after loading the auth-protected HTML,
-    // contain no sensitive data, and don't need per-request token refresh.
+    // Tracker JS/CSS contain no sensitive data and don't need per-request
+    // token refresh.
     if (
       pathname.startsWith("/_next") ||
       pathname.startsWith("/api") ||

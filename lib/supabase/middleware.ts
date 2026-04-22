@@ -3,25 +3,15 @@ import { errorToFields, logger, safeFlush } from '@/lib/logging'
 import { getPublicEnv } from "@/lib/env"
 import { NextResponse, type NextRequest } from 'next/server'
 
-// Routes that require authentication to access
+// Routes that require authentication to access.
 const PROTECTED_PREFIXES = ['/dashboard', '/admin', '/redeem-key']
 // Routes that additionally require admin role (app_metadata.role === 'admin')
 const ADMIN_PREFIXES = ['/admin']
-// Routes that authenticated users can visit without an active license grant —
-// i.e., auth-flow pages (login, signup, redeem the key, recover password).
-// Anything outside this list requires a valid grant when the user is signed in.
-const AUTH_FLOW_PREFIXES = [
-  '/login',
-  '/signup',
-  '/redeem-key',
-  '/forgot-password',
-  '/reset-password',
-  '/auth',
-]
 
-// Brief in-memory cache of "this user has access" per edge instance. Avoids a
-// DB round-trip on every request. Only positive results are cached — a fresh
-// redemption is visible immediately, and revocation surfaces within 60s.
+// Per-edge-instance cache of "user has access" to skip the RPC on repeat
+// /redeem-key hits. Only positive results are cached — revocation surfaces
+// within 60s, and a user without access stays uncached so a fresh redemption
+// is visible immediately on next navigation.
 const ACCESS_TTL_MS = 60_000
 const accessCache = new Map<string, number>()
 
@@ -31,12 +21,10 @@ export async function updateSession(request: NextRequest, requestId?: string) {
   const path = request.nextUrl.pathname
   const authLog = logger('auth.middleware').with(requestId ? { requestId } : {})
 
-  const isProtected = PROTECTED_PREFIXES.some(
-    (prefix) => path === prefix || path.startsWith(`${prefix}/`)
-  )
-  const isAuthFlow = AUTH_FLOW_PREFIXES.some(
-    (prefix) => path === prefix || path.startsWith(`${prefix}/`)
-  )
+  const matchesPrefix = (prefixes: readonly string[]) =>
+    prefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))
+  const isProtected = matchesPrefix(PROTECTED_PREFIXES)
+  const isAdminRoute = matchesPrefix(ADMIN_PREFIXES)
   const cookieMethods: CookieMethodsServer = {
     getAll() {
       return request.cookies.getAll()
@@ -98,50 +86,35 @@ export async function updateSession(request: NextRequest, requestId?: string) {
     : undefined
   const isAdmin = role === 'admin'
 
-  // Authenticated users visiting any non-auth-flow page must have an active
-  // license grant. Without this check, a user with a session but no redeemed
-  // key can browse the product as if fully enrolled. Admins are exempt — they
-  // manage the product and shouldn't be gated by the same license pipeline.
-  if (user && !isAuthFlow && !isAdmin) {
+  // A user who already holds an active grant shouldn't linger on /redeem-key —
+  // bounce them back to the app. Fail-open: if the RPC errors we leave them on
+  // the page so they can still attempt a redemption.
+  if (user && (path === '/redeem-key' || path.startsWith('/redeem-key/'))) {
     const cachedExpiry = accessCache.get(user.id)
     const hasCachedAccess = cachedExpiry !== undefined && cachedExpiry > Date.now()
-    if (!hasCachedAccess) {
-      if (cachedExpiry !== undefined) accessCache.delete(user.id)
-      try {
-        const { data, error } = await supabase.rpc('current_user_has_access')
-        if (error) {
-          // Fail closed. /redeem-key is in AUTH_FLOW_PREFIXES so it won't loop,
-          // and the user sees the redemption form where they can try again.
-          authLog.warn('auth.access_check_failed', {
-            path,
-            userId: user.id,
-            error: errorToFields(error),
-          })
-          await safeFlush(authLog)
-          return redirectWithCookies(new URL('/redeem-key', request.url))
-        }
-        if (data === true) {
-          accessCache.set(user.id, Date.now() + ACCESS_TTL_MS)
-        } else {
-          authLog.info('auth.redirect_redeem_key', { path, userId: user.id })
-          await safeFlush(authLog)
-          return redirectWithCookies(new URL('/redeem-key', request.url))
-        }
-      } catch (error) {
-        authLog.error('auth.access_check_threw', {
-          path,
-          userId: user.id,
-          error: errorToFields(error),
-        })
+    if (hasCachedAccess) {
+      authLog.info('auth.redeem_key_skip', { path, userId: user.id, cached: true })
+      await safeFlush(authLog)
+      return redirectWithCookies(new URL('/', request.url))
+    }
+    if (cachedExpiry !== undefined) accessCache.delete(user.id)
+    try {
+      const { data, error } = await supabase.rpc('current_user_has_access')
+      if (!error && data === true) {
+        accessCache.set(user.id, Date.now() + ACCESS_TTL_MS)
+        authLog.info('auth.redeem_key_skip', { path, userId: user.id })
         await safeFlush(authLog)
-        return redirectWithCookies(new URL('/redeem-key', request.url))
+        return redirectWithCookies(new URL('/', request.url))
       }
+    } catch (error) {
+      authLog.warn('auth.redeem_key_access_check_failed', {
+        path,
+        userId: user.id,
+        error: errorToFields(error),
+      })
     }
   }
 
-  const isAdminRoute = ADMIN_PREFIXES.some(
-    (prefix) => path === prefix || path.startsWith(`${prefix}/`)
-  )
   if (isAdminRoute && user && !isAdmin) {
     authLog.warn('auth.admin_forbidden', { path, userId: user.id })
     await safeFlush(authLog)

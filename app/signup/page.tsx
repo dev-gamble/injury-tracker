@@ -22,7 +22,7 @@ export default function SignupPage() {
     if (channel !== "key") return
     setLoading(true)
     setError(null)
-    const redirect = `${window.location.origin}/auth/callback?next=${encodeURIComponent("/redeem-key")}`
+    const redirect = `${window.location.origin}/auth/confirm?next=${encodeURIComponent("/redeem-key")}`
     const { data, error } = await supabase.auth.signUp({
       email,
       password,

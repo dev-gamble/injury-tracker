@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase/client"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { AuthShell } from "@/components/auth/AuthShell"
 
@@ -18,14 +18,35 @@ function isUnconfirmedEmailError(err: { code?: string; message?: string } | null
   return !!err.message?.toLowerCase().includes("email not confirmed")
 }
 
-export default function LoginPage() {
+function looksLikeExpiredLink(text: string | null) {
+  if (!text) return false
+  const t = text.toLowerCase()
+  return t.includes("expired") || t.includes("invalid") || t.includes("otp") || t.includes("access_denied")
+}
+
+function LoginInner() {
   const router = useRouter()
+  const params = useSearchParams()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [unconfirmed, setUnconfirmed] = useState(false)
   const [resend, setResend] = useState<ResendState>({ kind: "idle" })
+
+  // Safety net: if a user ever lands here with an expired-link error, forward
+  // them to /resend-confirmation. Supabase parks the real signal in the URL
+  // hash fragment (#error=access_denied&error_code=otp_expired...) which the
+  // server never sees, so check both the query string and the hash.
+  useEffect(() => {
+    const urlError = params.get("error")
+    const hash = typeof window !== "undefined" ? window.location.hash.replace(/^#/, "") : ""
+    const hashParams = new URLSearchParams(hash)
+    const hashError = hashParams.get("error") || hashParams.get("error_code") || hashParams.get("error_description")
+    if (looksLikeExpiredLink(urlError) || looksLikeExpiredLink(hashError)) {
+      router.replace("/resend-confirmation?reason=expired")
+    }
+  }, [params, router])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -56,7 +77,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.resend({
       type: "signup",
       email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=/redeem-key` },
+      options: { emailRedirectTo: `${window.location.origin}/auth/confirm?next=/redeem-key` },
     })
     if (error) {
       setResend({ kind: "error", message: error.message })
@@ -153,5 +174,13 @@ export default function LoginPage() {
         </button>
       </form>
     </AuthShell>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginInner />
+    </Suspense>
   )
 }

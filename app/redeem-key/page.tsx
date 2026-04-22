@@ -59,7 +59,7 @@ export default function RedeemKeyPage() {
           </a>
           <br />
           <br />
-          <Link href="/login" className="auth-link">Back to sign in</Link>
+          <Link href="/" className="auth-link">Back to home</Link>
         </>
       }
     >

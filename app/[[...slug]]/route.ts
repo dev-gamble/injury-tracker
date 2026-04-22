@@ -48,14 +48,24 @@ function escapeHtml(s: string): string {
 
 // Small identity chip rendered to the left of the sign-out button for
 // authenticated users. Hidden by CSS on narrow viewports. Admins are labeled
-// explicitly; otherwise the tier is derived from current_user_tier() which
-// applies the same active + non-expired predicate the middleware gates on.
+// explicitly; otherwise the tier is derived from current_user_tier(). A signed-
+// in user with no active grant (tier === null) sees a subtle "Redeem Key" CTA
+// where the tier badge would normally sit — middleware no longer bounces them
+// to /redeem-key, so this is how they discover the redemption step.
 function renderSignedInBlock(email: string, tier: string | null, isAdmin: boolean): string {
   const label = isAdmin ? 'admin' : tier
   const tierClass = label ? ` header-identity-tier-${label}` : ''
+  let badge = ''
+  if (isAdmin) {
+    badge = `<a href="/admin" class="header-identity-tier header-identity-tier-link${tierClass}" title="Open admin console"><span class="header-identity-tier-dot" aria-hidden="true"></span>ADMIN ACCESS</a>`
+  } else if (label) {
+    badge = `<span class="header-identity-tier${tierClass}"><span class="header-identity-tier-dot" aria-hidden="true"></span>${escapeHtml(label.toUpperCase())} ACCESS</span>`
+  } else {
+    badge = `<a href="/redeem-key" class="header-identity-redeem" title="Redeem your access key"><span class="header-identity-redeem-dot" aria-hidden="true"></span>Redeem Key</a>`
+  }
   const identity = `<div class="header-identity" aria-label="Account">
   <span class="header-identity-email" title="${escapeHtml(email)}">${escapeHtml(email)}</span>
-  ${label ? `<span class="header-identity-tier${tierClass}"><span class="header-identity-tier-dot" aria-hidden="true"></span>${escapeHtml(label.toUpperCase())} ACCESS</span>` : ''}
+  ${badge}
 </div>`
   return identity + SIGN_OUT_BUTTON
 }

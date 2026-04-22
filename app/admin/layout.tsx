@@ -29,7 +29,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </Link>
 
         <Link href="/" className="admin-back" aria-label="Return to home">
-          <span className="admin-back-arrow" aria-hidden="true">←</span>
           <span>Back to app</span>
         </Link>
       </header>

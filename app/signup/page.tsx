@@ -32,6 +32,11 @@ export default function SignupPage() {
       setError(error.message)
     } else if (data.session) {
       router.push("/redeem-key")
+    } else if (data.user && data.user.identities?.length === 0) {
+      // Supabase silently "succeeds" for already-confirmed emails to
+      // prevent enumeration; surface a clear error instead of the
+      // misleading "check your email" screen.
+      setError("An account with this email already exists. Sign in instead.")
     } else {
       setSent(true)
     }
@@ -72,7 +77,7 @@ export default function SignupPage() {
     <AuthShell
       eyebrow="Enrollment"
       title="Create account"
-      subtitle="Two paths into ENDEX. Choose the channel that matches your clearance."
+      subtitle="Choose an ENDEX channel."
       footer={
         <>
           Already registered? <Link href="/login" className="auth-link">Sign in</Link>
@@ -94,7 +99,7 @@ export default function SignupPage() {
             <span className="auth-channel-dot" aria-hidden="true" />
           </span>
           <span className="auth-channel-label">Access Key</span>
-          <span className="auth-channel-sub">Operator-issued</span>
+          <span className="auth-channel-sub">Issued</span>
         </button>
         <button
           type="button"
@@ -116,7 +121,6 @@ export default function SignupPage() {
         {channel === "key" ? (
           <form onSubmit={handleSubmit} className="auth-form">
             <p className="auth-fork-brief">
-              <span className="auth-fork-brief-tag">Protocol</span>
               Enter your credentials below. After email verification you&apos;ll be prompted for your access key.
             </p>
             <div className="auth-field">
@@ -163,7 +167,7 @@ export default function SignupPage() {
             <h3 className="auth-stripe-title">Subscriptions not yet open</h3>
             <p className="auth-stripe-body">
               Commercial enrollment via recurring subscription is in final integration.
-              Use an operator-issued access key to enlist today, or request one from your administrator.
+              Use an issued access key to enlist today, or request one from your administrator.
             </p>
             <button type="button" disabled className="auth-submit is-ghost" aria-disabled="true">
               Subscribe · unavailable

@@ -49,10 +49,17 @@ export default function RedeemKeyPage() {
     <AuthShell
       eyebrow="Access Redemption"
       title="Enter your key"
-      subtitle="Paste or type the access key issued to you. Redemption is final — your seat activates immediately."
+      subtitle="Paste or type the access key issued to you."
       footer={
         <>
-          Lost your key? <Link href="/" className="auth-link-subtle">Back to home</Link>
+          Lost your key? <br />
+          Contact{' '}
+          <a href="mailto:support@endexclaims.com" className="auth-link-subtle">
+            support@endexclaims.com
+          </a>
+          <br />
+          <br />
+          <Link href="/login" className="auth-link">Back to sign in</Link>
         </>
       }
     >

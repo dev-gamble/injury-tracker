@@ -1,6 +1,8 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
+import { revokeKey, unrevokeKey } from './actions'
 
 export type KeyRow = {
   id: string
@@ -101,18 +103,27 @@ export function KeysTable({ rows }: { rows: KeyRow[] }) {
   const [expiresFilter, setExpiresFilter] = useState<ExpiresFilter>('any')
   const [issuedFilter, setIssuedFilter] = useState<IssuedFilter>('any')
   const [openCol, setOpenCol] = useState<FilterColumn | null>(null)
+  const [openActionId, setOpenActionId] = useState<string | null>(null)
+  const [pendingId, setPendingId] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [, startTransition] = useTransition()
+  const router = useRouter()
 
   const rootRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!openCol) return
+    if (!openCol && !openActionId) return
     function onClick(e: MouseEvent) {
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
         setOpenCol(null)
+        setOpenActionId(null)
       }
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpenCol(null)
+      if (e.key === 'Escape') {
+        setOpenCol(null)
+        setOpenActionId(null)
+      }
     }
     document.addEventListener('mousedown', onClick)
     document.addEventListener('keydown', onKey)
@@ -120,7 +131,23 @@ export function KeysTable({ rows }: { rows: KeyRow[] }) {
       document.removeEventListener('mousedown', onClick)
       document.removeEventListener('keydown', onKey)
     }
-  }, [openCol])
+  }, [openCol, openActionId])
+
+  function handleRevokeToggle(row: KeyRow) {
+    setOpenActionId(null)
+    setActionError(null)
+    setPendingId(row.id)
+    startTransition(async () => {
+      const res = row.status === 'revoked' ? await unrevokeKey(row.id) : await revokeKey(row.id)
+      if (!res.ok) {
+        setActionError(res.error)
+        setPendingId(null)
+        return
+      }
+      router.refresh()
+      setPendingId(null)
+    })
+  }
 
   const filtered = useMemo(() => {
     return rows.filter((row) => {
@@ -282,12 +309,13 @@ export function KeysTable({ rows }: { rows: KeyRow[] }) {
               </div>
             </FilterHeader>
             <th>Notes</th>
+            <th className="admin-th-actions" aria-label="Actions"><span className="admin-th-actions-label">·</span></th>
           </tr>
         </thead>
         <tbody>
           {filtered.length === 0 ? (
             <tr>
-              <td colSpan={7} className="admin-no-match-cell">
+              <td colSpan={8} className="admin-no-match-cell">
                 <div className="admin-no-match">
                   <span className="admin-no-match-glyph">— ∅ —</span>
                   <span>No records match the current filters.</span>
@@ -331,12 +359,118 @@ export function KeysTable({ rows }: { rows: KeyRow[] }) {
                       {row.notes || '—'}
                     </div>
                   </td>
+                  <td className="admin-cell-actions">
+                    <RowActions
+                      row={row}
+                      open={openActionId === row.id}
+                      pending={pendingId === row.id}
+                      onToggle={() => {
+                        setOpenActionId((curr) => (curr === row.id ? null : row.id))
+                        setActionError(null)
+                      }}
+                      onRevokeToggle={() => handleRevokeToggle(row)}
+                    />
+                  </td>
                 </tr>
               )
             })
           )}
         </tbody>
       </table>
+      {actionError && (
+        <div className="admin-row-action-error" role="alert">
+          <span className="admin-row-action-error-tag">ERR</span>
+          <span>{actionError}</span>
+          <button type="button" onClick={() => setActionError(null)} aria-label="Dismiss">×</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function RowActions({
+  row,
+  open,
+  pending,
+  onToggle,
+  onRevokeToggle,
+}: {
+  row: KeyRow
+  open: boolean
+  pending: boolean
+  onToggle: () => void
+  onRevokeToggle: () => void
+}) {
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const popRef = useRef<HTMLDivElement>(null)
+  const [direction, setDirection] = useState<'down' | 'up'>('down')
+
+  useLayoutEffect(() => {
+    if (!open) return
+    const btn = btnRef.current
+    const pop = popRef.current
+    if (!btn) return
+    const btnRect = btn.getBoundingClientRect()
+    const popHeight = pop?.offsetHeight ?? 140
+    const spaceBelow = window.innerHeight - btnRect.bottom
+    const spaceAbove = btnRect.top
+    setDirection(spaceBelow < popHeight + 16 && spaceAbove > spaceBelow ? 'up' : 'down')
+  }, [open])
+
+  const isRevoked = row.status === 'revoked'
+  const isExpired = row.status === 'expired'
+  // Expired keys can't flip on their own; block the toggle and surface why.
+  const disableRevoke = isExpired
+  const revokeLabel = isRevoked ? 'Reinstate' : 'Revoke'
+  const revokeHint = isRevoked
+    ? 'Restore to active status'
+    : isExpired
+      ? 'Expired keys cannot be revoked'
+      : 'Invalidate this key immediately'
+
+  return (
+    <div className="admin-row-action">
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={onToggle}
+        className={`admin-row-action-btn${open ? ' is-open' : ''}${pending ? ' is-pending' : ''}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Actions for ${row.key_prefix}`}
+        disabled={pending}
+      >
+        <span className="admin-row-action-dots" aria-hidden="true">
+          <span /><span /><span />
+        </span>
+      </button>
+      {open && (
+        <div
+          ref={popRef}
+          className={`admin-row-action-menu${direction === 'up' ? ' is-up' : ''}`}
+          role="menu"
+        >
+          <div className="admin-row-action-header">
+            <span className="admin-row-action-header-label">Key</span>
+            <span className="admin-row-action-header-prefix">{row.key_prefix}</span>
+          </div>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={onRevokeToggle}
+            disabled={disableRevoke}
+            className={`admin-row-action-item${isRevoked ? ' is-reinstate' : ' is-danger'}${disableRevoke ? ' is-disabled' : ''}`}
+          >
+            <span className="admin-row-action-item-glyph" aria-hidden="true">
+              {isRevoked ? '↺' : '⊘'}
+            </span>
+            <span className="admin-row-action-item-body">
+              <span className="admin-row-action-item-label">{revokeLabel}</span>
+              <span className="admin-row-action-item-hint">{revokeHint}</span>
+            </span>
+          </button>
+        </div>
+      )}
     </div>
   )
 }

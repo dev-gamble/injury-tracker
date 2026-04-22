@@ -584,7 +584,7 @@
 
 .admin-stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 0;
   border: 1px solid var(--border);
   border-radius: 2px;
@@ -592,8 +592,15 @@
   overflow: hidden;
   background: var(--surface2);
 }
-@media (max-width: 640px) {
+@media (max-width: 900px) {
+  .admin-stats { grid-template-columns: repeat(2, 1fr); }
+  .admin-stat:nth-child(-n+2) { border-bottom: 1px solid var(--border); }
+  .admin-stat:nth-child(2n) { border-right: none; }
+}
+@media (max-width: 520px) {
   .admin-stats { grid-template-columns: 1fr; }
+  .admin-stat { border-right: none !important; border-bottom: 1px solid var(--border); }
+  .admin-stat:last-child { border-bottom: none; }
 }
 .admin-stat {
   padding: 14px 16px;
@@ -625,6 +632,7 @@
 }
 .admin-stat-val.is-warn { color: var(--red); }
 .admin-stat-val.is-good { color: var(--green); }
+.admin-stat-val.is-danger { color: var(--text); }
 
 .admin-table-wrap {
   margin: 22px 0 0;
@@ -1614,4 +1622,229 @@
   .admin-assign-unassign { align-self: flex-end; }
   .admin-assign-form { flex-direction: column; }
   .admin-assign-submit { width: 100%; justify-content: center; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   ROW ACTIONS — kebab menu on each registry row.
+   A deliberately small affordance: a 3-dot glyph that reveals a narrow
+   dossier-styled menu anchored to the right edge. Destructive intent is
+   flagged with the red left accent bar used throughout the admin console.
+   ───────────────────────────────────────────────────────────────────── */
+.admin-th-actions {
+  width: 56px;
+  text-align: center !important;
+}
+.admin-th-actions-label {
+  display: inline-block;
+  color: var(--border2);
+  letter-spacing: 2px;
+}
+.admin-cell-actions {
+  width: 56px;
+  text-align: right;
+  position: relative;
+}
+.admin-row-action {
+  position: relative;
+  display: inline-flex;
+}
+.admin-row-action-btn {
+  appearance: none;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  transition: background .15s, border-color .15s, color .15s, transform .15s;
+}
+.admin-row-action-btn:hover {
+  background: rgba(10,35,87,.06);
+  border-color: var(--border);
+  color: var(--navy);
+}
+.admin-row-action-btn.is-open {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+}
+.admin-row-action-btn.is-pending {
+  opacity: .55;
+  cursor: progress;
+}
+.admin-row-action-btn:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+.admin-row-action-dots {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: center;
+  justify-content: center;
+}
+.admin-row-action-dots span {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.admin-row-action-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 240px;
+  background: var(--surface);
+  border: 1px solid var(--navy);
+  border-radius: 2px;
+  box-shadow: 0 14px 38px -10px rgba(10,35,87,.35), 0 6px 12px rgba(10,35,87,.12);
+  z-index: 40;
+  overflow: hidden;
+  animation: adminRowActionIn .16s ease-out both;
+}
+.admin-row-action-menu.is-up {
+  top: auto;
+  bottom: calc(100% + 6px);
+  transform-origin: bottom right;
+}
+@keyframes adminRowActionIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.admin-row-action-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px 8px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+}
+.admin-row-action-header-label {
+  font-family: var(--fh);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.admin-row-action-header-prefix {
+  font-family: var(--fm);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--navy);
+  letter-spacing: 1px;
+}
+
+.admin-row-action-item {
+  appearance: none;
+  background: transparent;
+  border: none;
+  border-left: 3px solid transparent;
+  width: 100%;
+  text-align: left;
+  padding: 11px 14px 11px 11px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+  font-family: var(--fd);
+}
+.admin-row-action-item + .admin-row-action-item {
+  border-top: 1px solid var(--border);
+}
+.admin-row-action-item:hover:not(.is-disabled) {
+  background: rgba(10,35,87,.04);
+}
+.admin-row-action-item.is-danger {
+  color: var(--red);
+}
+.admin-row-action-item.is-danger:hover:not(.is-disabled) {
+  background: rgba(200,16,46,.06);
+  border-left-color: var(--red);
+}
+.admin-row-action-item.is-reinstate {
+  color: var(--navy);
+}
+.admin-row-action-item.is-reinstate:hover:not(.is-disabled) {
+  background: rgba(10,35,87,.06);
+  border-left-color: var(--navy);
+}
+.admin-row-action-item.is-disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+.admin-row-action-item-glyph {
+  font-family: var(--fm);
+  font-size: 16px;
+  font-weight: 700;
+  width: 22px;
+  text-align: center;
+  line-height: 1;
+  color: inherit;
+}
+.admin-row-action-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.admin-row-action-item-label {
+  font-family: var(--fh);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.3px;
+  text-transform: uppercase;
+  color: inherit;
+}
+.admin-row-action-item-hint {
+  font-size: 11.5px;
+  color: var(--muted);
+  letter-spacing: .1px;
+}
+
+.admin-row-action-error {
+  margin: 10px 32px 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(200,16,46,.28);
+  border-left: 3px solid var(--red);
+  background: rgba(200,16,46,.05);
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+  color: var(--text);
+}
+.admin-row-action-error-tag {
+  font-family: var(--fh);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  padding: 3px 7px;
+  background: var(--red);
+  color: #fff;
+  border-radius: 2px;
+}
+.admin-row-action-error button {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 2px;
+  transition: color .12s, background .12s;
+}
+.admin-row-action-error button:hover {
+  color: var(--red);
+  background: rgba(200,16,46,.08);
 }

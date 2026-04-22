@@ -240,6 +240,66 @@ export async function assignKeyToUser(
   return { ok: true }
 }
 
+// ---------------------------------------------------------------------------
+// Key status — revoke / unrevoke directly from the registry row action menu.
+// "expired" is never a target: it's derived from expires_at and must remain
+// coherent with time. We only toggle between active and revoked.
+// ---------------------------------------------------------------------------
+
+export type KeyStatusResult = { ok: true; status: 'active' | 'revoked' } | { ok: false; error: string }
+
+async function setKeyStatus(licenseKeyId: string, next: 'active' | 'revoked'): Promise<KeyStatusResult> {
+  const log = logger(`admin.keys.${next === 'revoked' ? 'revoke' : 'unrevoke'}`)
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!isAdmin(user)) {
+    log.warn('forbidden', { userId: user?.id ?? null })
+    return { ok: false, error: 'Forbidden' }
+  }
+  if (!UUID_RE.test(licenseKeyId)) {
+    return { ok: false, error: 'Invalid identifier' }
+  }
+
+  const admin = createAdminClient()
+  const { data: existing, error: fetchErr } = await admin
+    .from('license_keys')
+    .select('id, status, expires_at')
+    .eq('id', licenseKeyId)
+    .single()
+
+  if (fetchErr || !existing) {
+    return { ok: false, error: 'Key not found' }
+  }
+
+  // Guard: don't let an admin flip an expired key back to active — the date
+  // logic still says expired, so the UI would lie. They need to edit expiry first.
+  if (next === 'active' && existing.expires_at && new Date(existing.expires_at) <= new Date()) {
+    return { ok: false, error: 'Key is past its expiry — extend the expiry date before reactivating.' }
+  }
+
+  const { error: updateErr } = await admin
+    .from('license_keys')
+    .update({ status: next })
+    .eq('id', licenseKeyId)
+
+  if (updateErr) {
+    log.error('update_failed', { code: updateErr.code, error: updateErr.message })
+    return { ok: false, error: 'Failed to update key status' }
+  }
+
+  log.info('success', { licenseKeyId, by: user!.id, next })
+  return { ok: true, status: next }
+}
+
+export async function revokeKey(licenseKeyId: string): Promise<KeyStatusResult> {
+  return setKeyStatus(licenseKeyId, 'revoked')
+}
+
+export async function unrevokeKey(licenseKeyId: string): Promise<KeyStatusResult> {
+  return setKeyStatus(licenseKeyId, 'active')
+}
+
 export async function unassignKey(userLicenseKeyId: string): Promise<AssignmentActionResult> {
   const log = logger('admin.assignments.unassign')
 

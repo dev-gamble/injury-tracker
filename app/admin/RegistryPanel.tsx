@@ -10,6 +10,7 @@ type Props = {
 
 export function RegistryPanel({ rows, errorMessage, onIssue }: Props) {
   const totalActive = rows.filter((r) => r.status === 'active').length
+  const totalRevoked = rows.filter((r) => r.status === 'revoked').length
   const totalExpired = rows.filter((r) => r.status === 'expired').length
   const totalRedemptions = rows.reduce((sum, r) => sum + r.current_uses, 0)
 
@@ -40,12 +41,16 @@ export function RegistryPanel({ rows, errorMessage, onIssue }: Props) {
             <span className="admin-stat-val is-good">{totalActive}</span>
           </div>
           <div className="admin-stat">
+            <span className="admin-stat-label">Redemptions</span>
+            <span className="admin-stat-val">{totalRedemptions}</span>
+          </div>
+          <div className="admin-stat">
             <span className="admin-stat-label">Expired</span>
             <span className="admin-stat-val is-warn">{totalExpired}</span>
           </div>
           <div className="admin-stat">
-            <span className="admin-stat-label">Redemptions</span>
-            <span className="admin-stat-val">{totalRedemptions}</span>
+            <span className="admin-stat-label">Revoked</span>
+            <span className="admin-stat-val is-danger">{totalRevoked}</span>
           </div>
         </div>
       )}

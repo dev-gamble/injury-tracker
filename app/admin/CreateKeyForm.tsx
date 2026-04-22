@@ -245,7 +245,6 @@ export function CreateKeyForm() {
         )}
 
         <div className="admin-submit-row">
-          <span className="admin-submit-hint">Irrevocable once issued</span>
           <button type="submit" disabled={loading} className="admin-submit">
             <span>{loading ? 'Generating…' : 'Generate key'}</span>
             <span className="admin-submit-arrow" aria-hidden="true">→</span>

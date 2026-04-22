@@ -163,7 +163,7 @@ export default function SignupPage() {
         ) : (
           <div className="auth-stripe" role="status">
             <div className="auth-stripe-rule" aria-hidden="true">
-              <span>//</span> Pending release
+              <span>{'//'}</span> Pending release
             </div>
             <h3 className="auth-stripe-title">Subscriptions not yet open</h3>
             <p className="auth-stripe-body">

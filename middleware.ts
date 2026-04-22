@@ -5,8 +5,8 @@ import { updateSession } from "@/lib/supabase/middleware"
 
 // Next.js-rendered app routes. These have no legitimate inline scripts of our
 // own — only Next's internal hydration scripts, which it auto-nonces when the
-// CSP includes 'strict-dynamic' + 'nonce-*' and an x-nonce request header is
-// present. Tracker paths (served by [[...slug]]) fall back to the loose CSP
+// incoming request CSP includes 'strict-dynamic' + 'nonce-*'. Tracker paths
+// (served by [[...slug]]) fall back to the loose CSP
 // in next.config.ts because the signout-modal injection ships inline handlers.
 const APP_ROUTE_PREFIXES = [
   "/login",
@@ -79,20 +79,22 @@ export async function middleware(request: NextRequest) {
       return attachRequestIdHeader(res, requestId)
     }
 
-    // For app routes only: plumb a per-request nonce through the request so
-    // Next's internal inline hydration scripts get nonced, then override the
-    // default CSP with a strict policy that drops 'unsafe-inline'.
+    // For app routes only: plumb a per-request CSP through the request so
+    // Next's internal inline hydration scripts get nonced, then mirror that
+    // same CSP on the response to drop 'unsafe-inline'.
     let nonce: string | undefined
+    let strictCsp: string | undefined
     if (isAppRoute(pathname)) {
       nonce = generateNonce()
-      request.headers.set("x-nonce", nonce)
+      strictCsp = buildStrictCsp(nonce)
+      request.headers.set("Content-Security-Policy", strictCsp)
     }
 
     const res = await updateSession(request, requestId)
     const durationMs = Date.now() - startedAt
 
-    if (nonce) {
-      res.headers.set("Content-Security-Policy", buildStrictCsp(nonce))
+    if (strictCsp) {
+      res.headers.set("Content-Security-Policy", strictCsp)
     }
 
     if (res.status >= 500) {

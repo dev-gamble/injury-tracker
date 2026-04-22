@@ -1,4 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
+import { isAdmin } from '@/lib/auth/admin'
+import { redirect } from 'next/navigation'
 import { AdminConsole } from './AdminConsole'
 import type { KeyRow } from './KeysTable'
 
@@ -17,6 +20,14 @@ type RawRow = {
 }
 
 export default async function AdminPage() {
+  // Defense in depth: the layout and middleware already gate admin, but the
+  // page itself reaches for the service-role client — re-verify locally so a
+  // future refactor (nested route without the layout, layout check regressed)
+  // can't silently hand a non-admin the service role.
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!isAdmin(user)) redirect('/')
+
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('license_keys')

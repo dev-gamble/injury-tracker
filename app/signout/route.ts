@@ -8,6 +8,22 @@ export async function POST(request: NextRequest) {
   const routeLog = logger("auth.signout").with({ requestId })
 
   try {
+    // Defense in depth against cross-origin signout-forging. SameSite=Lax
+    // cookies already block most cases; rejecting any POST whose Origin
+    // doesn't match the request host closes the small remaining window (e.g.,
+    // a sibling subdomain on a shared parent).
+    const origin = request.headers.get("origin")
+    if (origin && origin !== request.nextUrl.origin) {
+      routeLog.warn("signout.origin_mismatch", {
+        origin,
+        expected: request.nextUrl.origin,
+      })
+      return attachRequestIdHeader(
+        NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+        requestId
+      )
+    }
+
     const supabase = await createClient()
     await supabase.auth.signOut()
     routeLog.info("signout.success", {

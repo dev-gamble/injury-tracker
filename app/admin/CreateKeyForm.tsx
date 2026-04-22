@@ -49,8 +49,8 @@ export function CreateKeyForm() {
     e.preventDefault()
     // Strict digit check — <input type="number"> accepts "1e2", and
     // parseInt("1e2", 10) silently returns 1 instead of 100.
-    if (!/^\d+$/.test(maxUses)) {
-      setResult({ ok: false, error: 'Max uses must be a whole number (no decimals or scientific notation).' })
+    if (!/^\d+$/.test(maxUses) || parseInt(maxUses, 10) < 1) {
+      setResult({ ok: false, error: 'Max uses must be a whole number greater than 0.' })
       return
     }
     setLoading(true)
@@ -203,8 +203,11 @@ export function CreateKeyForm() {
               id="maxUses"
               type="number"
               min={1}
+              step={1}
+              inputMode="numeric"
+              pattern="[1-9][0-9]*"
               value={maxUses}
-              onChange={(e) => setMaxUses(e.target.value)}
+              onChange={(e) => setMaxUses(e.target.value.replace(/\D/g, ''))}
               required
               className="admin-input admin-input-mono"
               placeholder="1"

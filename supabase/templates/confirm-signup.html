@@ -47,7 +47,7 @@
               <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:4px 0 26px;">
                 <tr>
                   <td style="background:#c8102e;border:2px solid #a50d25;border-radius:4px;box-shadow:0 2px 8px rgba(200,16,46,0.35);">
-                    <a href="{{ .ConfirmationURL }}"
+                    <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup&next=/redeem-key"
                        style="display:inline-block;padding:12px 30px;font-family:'Oswald',Impact,Arial,sans-serif;font-size:14px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:#ffffff;text-decoration:none;line-height:1;">Confirm email</a>
                   </td>
                 </tr>
@@ -90,7 +90,7 @@
               </p>
 
               <p style="margin:0;font-size:11.5px;color:#5a6782;line-height:1.55;">
-                This link expires in 1 hour. If it lapses before you click it, head back to the sign-in page and use &ldquo;Resend confirmation&rdquo; to issue a new one. If you didn&rsquo;t sign up for ENDEX, you can safely ignore this email.
+                This link expires in 1 hour. If you didn&rsquo;t sign up for ENDEX, you can safely ignore this email.
               </p>
             </td>
           </tr>

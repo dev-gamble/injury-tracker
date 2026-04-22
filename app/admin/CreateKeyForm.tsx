@@ -250,7 +250,6 @@ export function CreateKeyForm() {
         <div className="admin-submit-row">
           <button type="submit" disabled={loading} className="admin-submit">
             <span>{loading ? 'Generating…' : 'Generate key'}</span>
-            <span className="admin-submit-arrow" aria-hidden="true">→</span>
           </button>
         </div>
       </form>

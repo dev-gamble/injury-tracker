@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { errorToFields, logger, safeFlush } from "@/lib/logging"
 import { attachRequestIdHeader, getOrCreateRequestId } from "@/lib/logging/request-id"
+import { safeNext } from "@/lib/auth/safe-next"
 import { NextRequest, NextResponse } from "next/server"
 import type { EmailOtpType } from "@supabase/supabase-js"
 
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
 
   const tokenHash = searchParams.get("token_hash")
   const typeParam = searchParams.get("type")
-  const next = searchParams.get("next") ?? "/"
+  const next = safeNext(searchParams.get("next"))
 
   try {
     if (!tokenHash || !typeParam || !ALLOWED_TYPES.has(typeParam as EmailOtpType)) {
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
 
     const type = typeParam as EmailOtpType
     const supabase = await createClient()
-    const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type })
+    const { data, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type })
 
     if (error) {
       routeLog.warn("confirm.verify_failed", { type, error: errorToFields(error) })
@@ -57,7 +58,22 @@ export async function GET(request: NextRequest) {
     }
 
     routeLog.info("confirm.success", { type, next })
-    return attachRequestIdHeader(NextResponse.redirect(new URL(next, origin)), requestId)
+    const response = NextResponse.redirect(new URL(next, origin))
+
+    // For password recovery, bind a short-lived HttpOnly marker cookie to the
+    // verified user. /reset-password gates the form on (cookie.value === user.id),
+    // so a normal signed-in user who never went through recovery can't reach it.
+    if (type === "recovery" && data.user?.id) {
+      response.cookies.set("endex_pw_recovery", data.user.id, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: 15 * 60,
+      })
+    }
+
+    return attachRequestIdHeader(response, requestId)
   } catch (error) {
     routeLog.error("confirm.failed", { error: errorToFields(error) })
     throw error

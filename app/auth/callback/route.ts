@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { errorToFields, logger, safeFlush } from "@/lib/logging"
 import { attachRequestIdHeader, getOrCreateRequestId } from "@/lib/logging/request-id"
+import { safeNext } from "@/lib/auth/safe-next"
 import { NextRequest, NextResponse } from "next/server"
 
 // Returns a reason slug for /resend-confirmation when the error looks like an
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
   const routeLog = logger("auth.callback").with({ requestId })
   const { searchParams, origin } = request.nextUrl
   const code = searchParams.get("code")
-  const next = searchParams.get("next") ?? "/"
+  const next = safeNext(searchParams.get("next"))
   const errorParam = searchParams.get("error")
   const errorDescription = searchParams.get("error_description")
 

@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       method: request.method,
       path: request.nextUrl.pathname,
     })
-    const response = NextResponse.redirect(new URL("/login", request.url), { status: 303 })
+    const response = NextResponse.redirect(new URL("/login", request.nextUrl.origin), { status: 303 })
     // Clear any recovery marker so it can't outlive the session that produced it.
     response.cookies.delete("endex_pw_recovery")
     return attachRequestIdHeader(response, requestId)

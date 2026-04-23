@@ -1854,9 +1854,9 @@
 
 /* ============================================================
    RESPONSIVE — small-screen adjustments for the admin console.
-   The registry table has 8 columns and overflows below ~900px.
-   Strategy: shed non-essential columns at each breakpoint, tighten
-   paddings, and stack header CTAs. Horizontal scroll is a fallback.
+   The registry table has 7 columns. Strategy: shed non-essential
+   columns at each breakpoint; Actions (col 7) is never hidden.
+   Horizontal scroll is a fallback below 900px.
    ============================================================ */
 
 @media (max-width: 900px) {
@@ -1887,11 +1887,9 @@
   .admin-th-filter:last-child .admin-th-btn { padding-right: 20px; }
   .admin-table-filter-bar { padding: 10px 20px; }
 
-  /* Drop Issued (6) and Notes (7) — least load-bearing on mobile. */
+  /* Drop Issued (6) — least load-bearing on mobile. Actions (7) stays visible. */
   .admin-table thead th:nth-child(6),
-  .admin-table tbody td:nth-child(6),
-  .admin-table thead th:nth-child(7),
-  .admin-table tbody td:nth-child(7) { display: none; }
+  .admin-table tbody td:nth-child(6) { display: none; }
 
   .admin-empty { padding: 44px 20px; }
   .admin-warning { margin: 18px 20px 0; }
@@ -1927,6 +1925,7 @@
   /* Also drop Expires (5). Keep Prefix / Tier / Status / Uses / Actions. */
   .admin-table thead th:nth-child(5),
   .admin-table tbody td:nth-child(5) { display: none; }
+  /* Actions (7) stays sticky, visible at all widths. */
 
   /* The decorative '••••-••••' suffix doubles the prefix cell width. */
   .admin-cell-prefix::after { display: none; }

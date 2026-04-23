@@ -60,7 +60,7 @@ function formatDate(iso: string | null): { label: string; never: boolean } {
     const d = new Date(iso)
     const date = d.toISOString().slice(0, 10)
     const time = d.toISOString().slice(11, 16)
-    return { label: `${date} ${time}`, never: false }
+    return { label: `${date} ${time} UTC`, never: false }
   } catch {
     return { label: iso, never: false }
   }
@@ -308,14 +308,13 @@ export function KeysTable({ rows }: { rows: KeyRow[] }) {
                 })}
               </div>
             </FilterHeader>
-            <th>Notes</th>
             <th className="admin-th-actions" aria-label="Actions"><span className="admin-th-actions-label">·</span></th>
           </tr>
         </thead>
         <tbody>
           {filtered.length === 0 ? (
             <tr>
-              <td colSpan={8} className="admin-no-match-cell">
+              <td colSpan={7} className="admin-no-match-cell">
                 <div className="admin-no-match">
                   <span className="admin-no-match-glyph">— ∅ —</span>
                   <span>No records match the current filters.</span>
@@ -353,11 +352,6 @@ export function KeysTable({ rows }: { rows: KeyRow[] }) {
                   </td>
                   <td>
                     <span className="admin-cell-date">{issued.label}</span>
-                  </td>
-                  <td>
-                    <div className={`admin-cell-notes${row.notes ? '' : ' is-empty'}`}>
-                      {row.notes || '—'}
-                    </div>
                   </td>
                   <td className="admin-cell-actions">
                     <RowActions

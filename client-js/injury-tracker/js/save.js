@@ -237,6 +237,7 @@ function _sanitizeFilename(s){
 }
 
 function saveProject(){
+  if(typeof _requireAccess === 'function' && !_requireAccess()) return;
   if(!crypto.subtle){
     alert('Your browser does not support encryption. Please use HTTPS or a modern browser.');
     return;
@@ -245,6 +246,7 @@ function saveProject(){
 }
 
 function _openSaveModal(){
+  if(typeof _requireAccess === 'function' && !_requireAccess()) return;
   let modal = document.getElementById('save-modal');
   if(!modal){
     modal = document.createElement('div');
@@ -301,6 +303,7 @@ function closeSaveModal(){
 }
 
 async function _doSave(){
+  if(typeof _requireAccess === 'function' && !_requireAccess()) return;
   const pw = document.getElementById('save-pw').value;
   const pwConfirm = document.getElementById('save-pw-confirm').value;
   const errEl = document.getElementById('save-error');
@@ -360,6 +363,7 @@ async function _doSave(){
 // ── LOAD PROJECT UI ──
 
 function loadProject(){
+  if(typeof _requireAccess === 'function' && !_requireAccess()) return;
   if(!crypto.subtle){
     alert('Your browser does not support encryption. Please use HTTPS or a modern browser.');
     return;
@@ -368,6 +372,7 @@ function loadProject(){
 }
 
 function _openLoadModal(){
+  if(typeof _requireAccess === 'function' && !_requireAccess()) return;
   let modal = document.getElementById('load-modal');
   if(!modal){
     modal = document.createElement('div');
@@ -411,6 +416,7 @@ function closeLoadModal(){
 }
 
 async function _doLoad(){
+  if(typeof _requireAccess === 'function' && !_requireAccess()) return;
   const fileInput = document.getElementById('load-file');
   const pw = document.getElementById('load-pw').value;
   const errEl = document.getElementById('load-error');

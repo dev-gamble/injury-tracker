@@ -38,6 +38,16 @@ const SIGN_OUT_BUTTON = `<button type="button" class="export-btn header-signin-b
 <script>(function(){var m=function(){return document.getElementById('signout-modal');};window.__openSignoutModal=function(){var el=m();if(el){el.classList.remove('hidden');document.body.style.overflow='hidden';}};window.__closeSignoutModal=function(){var el=m();if(el){el.classList.add('hidden');document.body.style.overflow='';}};window.__dismissSignoutModal=function(e){if(e&&e.target&&e.target.id==='signout-modal')window.__closeSignoutModal();};document.addEventListener('keydown',function(e){if(e.key==='Escape'){var el=m();if(el&&!el.classList.contains('hidden'))window.__closeSignoutModal();}});})();</script>`
 
 const AUTH_BUTTON_PATTERN = /<!--AUTH_BUTTON_START-->[\s\S]*?<!--AUTH_BUTTON_END-->/
+const ACCESS_STATE_PATTERN = /<!--ACCESS_STATE_START-->[\s\S]*?<!--ACCESS_STATE_END-->/
+
+// Stamped alongside the auth button so the tracker JS knows which dropdown
+// features to gate. Any signed-in user with an active grant (tier !== null)
+// or admin role gets full access; everyone else sees locked items with an
+// upgrade tooltip. This is a UX gate, not a security boundary — the tracker
+// is purely client-side.
+function renderAccessState(hasAccess: boolean): string {
+  return `<!--ACCESS_STATE_START--><script>window.__endexAccess={hasAccess:${hasAccess ? 'true' : 'false'}};</script><!--ACCESS_STATE_END-->`
+}
 
 const HTML_ESCAPE_MAP: Record<string, string> = {
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -85,6 +95,15 @@ const MIME_TYPES: Record<string, string> = {
 
 const ALLOWED_EXTENSIONS = new Set(Object.keys(MIME_TYPES))
 
+// HTML files served by this route. The tracker directory contains alternate
+// standalone HTML bundles (e.g. ENDEX (Standalone).html) that ship the same
+// app *without* the access-gate injection — serving them would let a user
+// bypass the gate by visiting an alternate URL. Keep this list explicit.
+const ALLOWED_HTML_FILES = new Set([
+  "index.html",
+  "how-to-use-infographic.html",
+])
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ slug?: string[] }> }
@@ -118,6 +137,19 @@ export async function GET(
 
     const isHtml = ext === ".html"
 
+    // HTML allowlist — the tracker dir contains alternate standalone bundles
+    // that aren't access-gated. Only index.html and the help page are served.
+    if (isHtml) {
+      const htmlName = path.basename(resolvedPath).toLowerCase()
+      if (!ALLOWED_HTML_FILES.has(htmlName)) {
+        routeLog.warn("tracker.html_not_allowlisted", { file: htmlName })
+        return attachRequestIdHeader(
+          NextResponse.json({ error: "Not found" }, { status: 404 }),
+          requestId
+        )
+      }
+    }
+
     let fileBuffer: Buffer
     try {
       fileBuffer = await fs.readFile(resolvedPath)
@@ -143,6 +175,7 @@ export async function GET(
       const supabase = await createClient()
       const { data: { user } } = await supabase.auth.getUser()
       let replacement = SIGN_IN_BUTTON
+      let hasAccess = false
       if (user) {
         const isAdmin = (user.app_metadata as { role?: unknown })?.role === 'admin'
         let tier: string | null = null
@@ -150,9 +183,11 @@ export async function GET(
           const { data: tierData } = await supabase.rpc('current_user_tier')
           tier = typeof tierData === 'string' ? tierData : null
         }
+        hasAccess = isAdmin || tier !== null
         replacement = renderSignedInBlock(user.email ?? '', tier, isAdmin)
       }
       html = html.replace(AUTH_BUTTON_PATTERN, replacement)
+      html = html.replace(ACCESS_STATE_PATTERN, renderAccessState(hasAccess))
       responseBody = html
     } else {
       responseBody = new Uint8Array(fileBuffer)

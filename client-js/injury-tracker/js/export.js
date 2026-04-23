@@ -2,6 +2,7 @@
 
 // ── PDF / PRINT SUMMARY ──
 function exportSummary(){
+  if(typeof _requireAccess === 'function' && !_requireAccess()) return;
   const hasBPExport = typeof BP_REGISTRY!=='undefined' && Object.values(BP_REGISTRY).some(cfg=>(window[cfg.stateKey]||[]).length>0);
   const _pk = _getPanelKeys();
   const filteredInj = injuries.filter(i => !_pk.has(i.key));
@@ -444,6 +445,7 @@ ${(function(){
 
 // ── CSV EXPORT ──
 function exportCSV(){
+  if(typeof _requireAccess === 'function' && !_requireAccess()) return;
   const _pk2 = _getPanelKeys();
   const filteredInj2 = injuries.filter(i => !_pk2.has(i.key));
   if(!filteredInj2.length && !(window._mentalHealthConditions||[]).length && !(window._headConditions||[]).length){alert('No injuries to export.');return;}

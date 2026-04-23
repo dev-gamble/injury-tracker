@@ -33,6 +33,7 @@
       Sign in
     </a>
     <!--AUTH_BUTTON_END-->
+<!--ACCESS_STATE_START--><script>window.__endexAccess={hasAccess:false};</script><!--ACCESS_STATE_END-->
 <button class="export-btn" id="guide-btn" style="background:var(--navy);border-color:var(--navy2);padding:6px 10px;font-size:11px;" onclick="startWalkthrough()" title="How to use this app">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       Guide
@@ -49,11 +50,11 @@
     </button>
     <div id="export-menu" class="export-menu hidden">
       <div style="padding:6px 16px 2px;font-size:9px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Project</div>
-      <button onclick="saveProject();closeExportMenu()">Save Project (.endexclaim)</button>
-      <button onclick="loadProject();closeExportMenu()">Load Project (.endexclaim)</button>
+      <button data-locked-feature onclick="saveProject();closeExportMenu()">Save Project (.endexclaim)</button>
+      <button data-locked-feature onclick="loadProject();closeExportMenu()">Load Project (.endexclaim)</button>
       <div style="padding:6px 16px 2px;font-size:9px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;border-top:1px solid var(--border);">Export</div>
-      <button onclick="exportSummary();closeExportMenu()">PDF / Print Summary</button>
-      <button onclick="exportCSV();closeExportMenu()">CSV Spreadsheet</button>
+      <button data-locked-feature onclick="exportSummary();closeExportMenu()">PDF / Print Summary</button>
+      <button data-locked-feature onclick="exportCSV();closeExportMenu()">CSV Spreadsheet</button>
       <button onclick="exportTXT();closeExportMenu()">TXT Report</button>
     </div>
   </div>
@@ -344,6 +345,7 @@
 
 
 
+<script src="js/access-gate.js"></script>
 <script src="js/data.js"></script>
 <script src="js/map.js"></script>
 <script src="js/form.js"></script>
@@ -359,6 +361,24 @@
 <script src="js/export.js"></script>
 <script src="js/import.js"></script>
 <script src="js/save.js"></script>
+<script>
+// Visual lock only — the real gate lives in each restricted function
+// (see access-gate.js + _requireAccess calls in save.js/export.js). This
+// just grays out the dropdown items and shows a tooltip.
+(function(){
+  if((window.__endexAccess||{}).hasAccess) return;
+  function lockItems(){
+    var items = document.querySelectorAll('[data-locked-feature]');
+    for(var i=0;i<items.length;i++){
+      items[i].classList.add('export-menu-item-locked');
+      items[i].setAttribute('title','Requires key or subscription');
+      items[i].setAttribute('aria-disabled','true');
+    }
+  }
+  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',lockItems);}
+  else{lockItems();}
+})();
+</script>
 <script>
 // INIT
 buildSidebar();

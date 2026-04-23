@@ -41,7 +41,16 @@ export async function POST(request: NextRequest) {
       method: request.method,
       path: request.nextUrl.pathname,
     })
-    const response = NextResponse.redirect(new URL("/login", request.nextUrl.origin), { status: 303 })
+    // Use a relative Location header rather than constructing an absolute URL.
+    // Behind a TLS-terminating proxy (DO App Platform) the internal request
+    // host/scheme may not match the public one, so absolute URLs built from
+    // request.url / nextUrl.origin can leak 127.0.0.1:8080 into the redirect.
+    // Browsers resolve a relative Location against the current page URL —
+    // which is always the public origin — so this is proxy-agnostic.
+    const response = new NextResponse(null, {
+      status: 303,
+      headers: { Location: "/login" },
+    })
     // Clear any recovery marker so it can't outlive the session that produced it.
     response.cookies.delete("endex_pw_recovery")
     return attachRequestIdHeader(response, requestId)

@@ -48,13 +48,33 @@ function LoginInner() {
     }
   }, [params, router])
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault()
-    setLoading(true)
+    // Read directly from the form rather than from React state: autofill and
+    // controlled-input edge cases can leave state stale at submit time, which
+    // then reaches Supabase as an empty email/password and surfaces as the
+    // cryptic "missing email or phone" error.
+    const formData = new FormData(e.currentTarget)
+    const emailValue = String(formData.get("email") ?? "").trim()
+    const passwordValue = String(formData.get("password") ?? "")
+
     setError(null)
     setUnconfirmed(false)
     setResend({ kind: "idle" })
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+
+    if (!emailValue || !passwordValue) {
+      setError("Email and password are required.")
+      return
+    }
+
+    setLoading(true)
+    // Keep state in sync for downstream UI (resend email display, etc.).
+    if (emailValue !== email) setEmail(emailValue)
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: emailValue,
+      password: passwordValue,
+    })
     if (error) {
       if (isUnconfirmedEmailError(error)) {
         setUnconfirmed(true)
@@ -104,6 +124,7 @@ function LoginInner() {
           <label htmlFor="email" className="auth-label">Email</label>
           <input
             id="email"
+            name="email"
             type="email"
             placeholder="you@example.com"
             value={email}
@@ -116,6 +137,7 @@ function LoginInner() {
           <label htmlFor="password" className="auth-label">Password</label>
           <input
             id="password"
+            name="password"
             type="password"
             placeholder="••••••••"
             value={password}

@@ -10,18 +10,29 @@ export async function POST(request: NextRequest) {
   try {
     // Defense in depth against cross-origin signout-forging. SameSite=Lax
     // cookies already block most cases; rejecting any POST whose Origin
-    // doesn't match the request host closes the small remaining window (e.g.,
-    // a sibling subdomain on a shared parent).
-    const origin = request.headers.get("origin")
-    if (origin && origin !== request.nextUrl.origin) {
-      routeLog.warn("signout.origin_mismatch", {
-        origin,
-        expected: request.nextUrl.origin,
-      })
-      return attachRequestIdHeader(
-        NextResponse.json({ error: "Forbidden" }, { status: 403 }),
-        requestId
-      )
+    // hostname doesn't match the request host closes the small remaining
+    // window (e.g., a sibling subdomain on a shared parent). Compare
+    // hostnames only — behind a TLS-terminating proxy, the browser's
+    // Origin scheme won't always match the internal request scheme.
+    const originHeader = request.headers.get("origin")
+    if (originHeader) {
+      const hostHeader = request.headers.get("host") ?? request.nextUrl.host
+      let originHost: string | null = null
+      try {
+        originHost = new URL(originHeader).host
+      } catch {
+        originHost = null
+      }
+      if (!originHost || originHost !== hostHeader) {
+        routeLog.warn("signout.origin_mismatch", {
+          origin: originHeader,
+          expected: hostHeader,
+        })
+        return attachRequestIdHeader(
+          NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+          requestId
+        )
+      }
     }
 
     const supabase = await createClient()

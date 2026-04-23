@@ -77,7 +77,7 @@ function LoginInner() {
     const { error } = await supabase.auth.resend({
       type: "signup",
       email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/confirm?next=/redeem-key` },
+      options: { emailRedirectTo: `${window.location.origin}/auth/confirm?next=/auth/post-confirm` },
     })
     if (error) {
       setResend({ kind: "error", message: error.message })

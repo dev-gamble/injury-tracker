@@ -36,7 +36,7 @@ function ResendConfirmationInner() {
     e.preventDefault()
     if (!email) return
     setStatus({ kind: "sending" })
-    const redirect = `${window.location.origin}/auth/confirm?next=${encodeURIComponent("/redeem-key")}`
+    const redirect = `${window.location.origin}/auth/confirm?next=${encodeURIComponent("/auth/post-confirm")}`
     const { error } = await supabase.auth.resend({
       type: "signup",
       email,
@@ -82,7 +82,7 @@ function ResendConfirmationInner() {
           </li>
           <li className="auth-journey-step">
             <span className="auth-journey-mark" aria-hidden="true">03</span>
-            <span className="auth-journey-label">Redeem access key</span>
+            <span className="auth-journey-label">Set up access</span>
           </li>
         </ol>
       </AuthShell>

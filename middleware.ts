@@ -15,6 +15,7 @@ const APP_ROUTE_PREFIXES = [
   "/reset-password",
   "/resend-confirmation",
   "/redeem-key",
+  "/subscribe",
   "/admin",
   "/auth",
   "/dashboard",

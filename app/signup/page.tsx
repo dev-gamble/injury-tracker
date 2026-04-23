@@ -22,7 +22,7 @@ export default function SignupPage() {
     if (channel !== "key") return
     setLoading(true)
     setError(null)
-    const redirect = `${window.location.origin}/auth/confirm?next=${encodeURIComponent("/redeem-key")}`
+    const redirect = `${window.location.origin}/auth/confirm?next=${encodeURIComponent("/auth/post-confirm")}`
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -31,7 +31,7 @@ export default function SignupPage() {
     if (error) {
       setError(error.message)
     } else if (data.session) {
-      router.push("/redeem-key")
+      router.push("/auth/post-confirm")
     } else if (data.user && data.user.identities?.length === 0) {
       // Supabase silently "succeeds" for already-confirmed emails to
       // prevent enumeration; surface a clear error instead of the
@@ -66,7 +66,7 @@ export default function SignupPage() {
           </li>
           <li className="auth-journey-step">
             <span className="auth-journey-mark" aria-hidden="true">03</span>
-            <span className="auth-journey-label">Redeem access key</span>
+            <span className="auth-journey-label">Set up access</span>
           </li>
         </ol>
       </AuthShell>
@@ -166,13 +166,6 @@ export default function SignupPage() {
               <span>{'//'}</span> Pending release
             </div>
             <h3 className="auth-stripe-title">Subscriptions not yet open</h3>
-            <p className="auth-stripe-body">
-              Commercial enrollment via recurring subscription is in final integration.
-              Use an issued access key to enlist today, or request one from your administrator.
-            </p>
-            <button type="button" disabled className="auth-submit is-ghost" aria-disabled="true">
-              Subscribe · unavailable
-            </button>
             <button
               type="button"
               onClick={() => setChannel("key")}

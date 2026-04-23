@@ -12,7 +12,7 @@
 <body style="margin:0;padding:0;background:#f0f2f5;font-family:'Open Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;color:#0a1628;-webkit-font-smoothing:antialiased;">
   <!-- Preheader (hidden in body, shown in inbox preview) -->
   <div style="display:none;max-height:0;overflow:hidden;opacity:0;visibility:hidden;mso-hide:all;">
-    Confirm your email to activate ENDEX and redeem your access key.
+    Confirm your email to activate your ENDEX account.
   </div>
 
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f0f2f5;">
@@ -40,14 +40,14 @@
               <p style="margin:0 0 8px;font-family:'Oswald','Open Sans',Arial,sans-serif;font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:#c8102e;">Verification Required</p>
               <h1 style="margin:0 0 14px;font-family:'Oswald',Impact,Arial,sans-serif;font-size:26px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:#0a2357;line-height:1.15;">Confirm your email</h1>
               <p style="margin:0 0 22px;font-size:14px;line-height:1.55;color:#5a6782;">
-                Welcome to ENDEX. Confirm this email address to activate your account and proceed to access-key redemption.
+                Welcome to ENDEX. Confirm this email address to activate your account and continue to access setup.
               </p>
 
               <!-- CTA button -->
               <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:4px 0 26px;">
                 <tr>
                   <td style="background:#c8102e;border:2px solid #a50d25;border-radius:4px;box-shadow:0 2px 8px rgba(200,16,46,0.35);">
-                    <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup&next=/redeem-key"
+                    <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup&next=/auth/post-confirm"
                        style="display:inline-block;padding:12px 30px;font-family:'Oswald',Impact,Arial,sans-serif;font-size:14px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:#ffffff;text-decoration:none;line-height:1;">Confirm email</a>
                   </td>
                 </tr>
@@ -73,7 +73,7 @@
                       <tr>
                         <td style="padding:4px 0;font-family:'Oswald',Arial,sans-serif;font-size:12px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:#5a6782;">
                           <span style="display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;background:#ffffff;color:#5a6782;border:1px solid #c5ccda;border-radius:3px;font-family:'Courier New',monospace;font-size:11px;font-weight:700;margin-right:10px;vertical-align:middle;">03</span>
-                          Redeem access key
+                          Set up access
                         </td>
                       </tr>
                     </table>
@@ -86,7 +86,7 @@
                 Button not working? Copy and paste this link into your browser:
               </p>
               <p style="margin:0 0 18px;font-family:'Courier New',monospace;font-size:11px;color:#0a2357;word-break:break-all;background:#f5f7fa;border:1px solid #d8dde8;border-radius:4px;padding:9px 11px;line-height:1.5;">
-                {{ .ConfirmationURL }}
+                {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup&next=/auth/post-confirm
               </p>
 
               <p style="margin:0;font-size:11.5px;color:#5a6782;line-height:1.55;">

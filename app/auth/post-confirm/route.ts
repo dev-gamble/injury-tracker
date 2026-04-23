@@ -23,10 +23,10 @@ export async function GET(request: NextRequest) {
 
     try {
       const { data, error } = await supabase.rpc("current_user_has_access")
-      // Fail-open on RPC error: we can't confirm access, so we route to
-      // /subscribe rather than block a legitimate user. A provisioned user
-      // will see the wrong page for the duration of the outage — log loudly
-      // so transient DB issues are visible in observability.
+      // Fail-open on RPC error: we can't confirm access, so we fall through
+      // to channel-based routing rather than block a legitimate user. A
+      // provisioned user will see the wrong page during the outage — log
+      // loudly so transient DB issues are visible in observability.
       if (error) {
         routeLog.warn("post_confirm.access_check_rpc_error", {
           userId: user.id,
@@ -43,9 +43,16 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Default new confirmed users into the subscription flow. Users with an
-    // issued access key can reach /redeem-key from the subscribe page.
-    routeLog.info("post_confirm.route_subscribe", { userId: user.id })
+    // Channel is captured in user_metadata at signup. It's user-writable, but
+    // the only impact is which waiting-room page they land on — neither
+    // grants access on its own.
+    const channel = (user.user_metadata as { access_channel?: unknown } | null)?.access_channel
+    if (channel === "key") {
+      routeLog.info("post_confirm.route_redeem_key", { userId: user.id })
+      return attachRequestIdHeader(NextResponse.redirect(new URL("/redeem-key", origin)), requestId)
+    }
+
+    routeLog.info("post_confirm.route_subscribe", { userId: user.id, channel: typeof channel === "string" ? channel : null })
     return attachRequestIdHeader(NextResponse.redirect(new URL("/subscribe", origin)), requestId)
   } catch (error) {
     routeLog.error("post_confirm.failed", { error: errorToFields(error) })

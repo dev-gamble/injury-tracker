@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server"
 import { errorToFields, logger, safeFlush } from "@/lib/logging"
 import { attachRequestIdHeader, getOrCreateRequestId } from "@/lib/logging/request-id"
-import { NextRequest, NextResponse } from "next/server"
+import { relativeRedirect } from "@/lib/auth/relative-redirect"
+import { NextRequest } from "next/server"
 
 // Post-confirmation decision point. A confirmed user lands here and gets
 // routed to the next step of activation. The split is deliberate so the
@@ -10,7 +11,6 @@ import { NextRequest, NextResponse } from "next/server"
 export async function GET(request: NextRequest) {
   const requestId = getOrCreateRequestId(request)
   const routeLog = logger("auth.post_confirm").with({ requestId })
-  const { origin } = request.nextUrl
 
   try {
     const supabase = await createClient()
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     if (!user) {
       routeLog.info("post_confirm.no_user")
-      return attachRequestIdHeader(NextResponse.redirect(new URL("/login", origin)), requestId)
+      return attachRequestIdHeader(relativeRedirect("/login"), requestId)
     }
 
     try {
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
         })
       } else if (data === true) {
         routeLog.info("post_confirm.has_access", { userId: user.id })
-        return attachRequestIdHeader(NextResponse.redirect(new URL("/", origin)), requestId)
+        return attachRequestIdHeader(relativeRedirect("/"), requestId)
       }
     } catch (error) {
       routeLog.warn("post_confirm.access_check_failed", {
@@ -49,11 +49,11 @@ export async function GET(request: NextRequest) {
     const channel = (user.user_metadata as { access_channel?: unknown } | null)?.access_channel
     if (channel === "key") {
       routeLog.info("post_confirm.route_redeem_key", { userId: user.id })
-      return attachRequestIdHeader(NextResponse.redirect(new URL("/redeem-key", origin)), requestId)
+      return attachRequestIdHeader(relativeRedirect("/redeem-key"), requestId)
     }
 
     routeLog.info("post_confirm.route_subscribe", { userId: user.id, channel: typeof channel === "string" ? channel : null })
-    return attachRequestIdHeader(NextResponse.redirect(new URL("/subscribe", origin)), requestId)
+    return attachRequestIdHeader(relativeRedirect("/subscribe"), requestId)
   } catch (error) {
     routeLog.error("post_confirm.failed", { error: errorToFields(error) })
     throw error

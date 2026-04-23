@@ -1,8 +1,9 @@
 import { createClient } from "@/lib/supabase/server"
 import { errorToFields, logger, safeFlush } from "@/lib/logging"
 import { attachRequestIdHeader, getOrCreateRequestId } from "@/lib/logging/request-id"
+import { relativeRedirect } from "@/lib/auth/relative-redirect"
 import { safeNext } from "@/lib/auth/safe-next"
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import type { EmailOtpType } from "@supabase/supabase-js"
 
 const ALLOWED_TYPES: ReadonlySet<EmailOtpType> = new Set<EmailOtpType>([
@@ -24,7 +25,7 @@ function classifyVerifyError(description: string | null): "expired" | "used" | "
 export async function GET(request: NextRequest) {
   const requestId = getOrCreateRequestId(request)
   const routeLog = logger("auth.confirm").with({ requestId })
-  const { searchParams, origin } = request.nextUrl
+  const { searchParams } = request.nextUrl
 
   const tokenHash = searchParams.get("token_hash")
   const typeParam = searchParams.get("type")
@@ -33,9 +34,7 @@ export async function GET(request: NextRequest) {
   try {
     if (!tokenHash || !typeParam || !ALLOWED_TYPES.has(typeParam as EmailOtpType)) {
       routeLog.warn("confirm.bad_request", { hasTokenHash: !!tokenHash, type: typeParam })
-      const redirect = new URL("/resend-confirmation", origin)
-      redirect.searchParams.set("reason", "invalid")
-      return attachRequestIdHeader(NextResponse.redirect(redirect), requestId)
+      return attachRequestIdHeader(relativeRedirect("/resend-confirmation?reason=invalid"), requestId)
     }
 
     const type = typeParam as EmailOtpType
@@ -48,17 +47,16 @@ export async function GET(request: NextRequest) {
       // Password recovery failures belong on /forgot-password; the
       // resend-confirmation page is scoped to signup verification.
       if (type === "recovery") {
-        const redirect = new URL("/forgot-password", origin)
-        redirect.searchParams.set("error", error.message)
-        return attachRequestIdHeader(NextResponse.redirect(redirect), requestId)
+        return attachRequestIdHeader(
+          relativeRedirect(`/forgot-password?error=${encodeURIComponent(error.message)}`),
+          requestId,
+        )
       }
-      const redirect = new URL("/resend-confirmation", origin)
-      redirect.searchParams.set("reason", reason)
-      return attachRequestIdHeader(NextResponse.redirect(redirect), requestId)
+      return attachRequestIdHeader(relativeRedirect(`/resend-confirmation?reason=${reason}`), requestId)
     }
 
     routeLog.info("confirm.success", { type, next })
-    const response = NextResponse.redirect(new URL(next, origin))
+    const response = relativeRedirect(next)
 
     // For password recovery, bind a short-lived HttpOnly marker cookie to the
     // verified user. /reset-password gates the form on (cookie.value === user.id),

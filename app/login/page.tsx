@@ -28,7 +28,6 @@ function LoginInner() {
   const router = useRouter()
   const params = useSearchParams()
   const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [unconfirmed, setUnconfirmed] = useState(false)
@@ -130,6 +129,7 @@ function LoginInner() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            autoComplete="email"
             className="auth-input"
           />
         </div>
@@ -140,9 +140,8 @@ function LoginInner() {
             name="password"
             type="password"
             placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
             required
+            autoComplete="current-password"
             className="auth-input"
           />
         </div>

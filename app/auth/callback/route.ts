@@ -1,8 +1,9 @@
 import { createClient } from "@/lib/supabase/server"
 import { errorToFields, logger, safeFlush } from "@/lib/logging"
 import { attachRequestIdHeader, getOrCreateRequestId } from "@/lib/logging/request-id"
+import { relativeRedirect } from "@/lib/auth/relative-redirect"
 import { safeNext } from "@/lib/auth/safe-next"
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 
 // Returns a reason slug for /resend-confirmation when the error looks like an
 // expired, invalid, or already-used confirmation link. Returns null for
@@ -19,7 +20,7 @@ function classifyLinkError(code: string | null, description: string | null): str
 export async function GET(request: NextRequest) {
   const requestId = getOrCreateRequestId(request)
   const routeLog = logger("auth.callback").with({ requestId })
-  const { searchParams, origin } = request.nextUrl
+  const { searchParams } = request.nextUrl
   const code = searchParams.get("code")
   const next = safeNext(searchParams.get("next"))
   const errorParam = searchParams.get("error")
@@ -30,13 +31,12 @@ export async function GET(request: NextRequest) {
       routeLog.warn("callback.provider_error", { error: errorParam, errorDescription })
       const reason = classifyLinkError(errorParam, errorDescription)
       if (reason) {
-        const redirect = new URL("/resend-confirmation", origin)
-        redirect.searchParams.set("reason", reason)
-        return attachRequestIdHeader(NextResponse.redirect(redirect), requestId)
+        return attachRequestIdHeader(relativeRedirect(`/resend-confirmation?reason=${reason}`), requestId)
       }
-      const redirect = new URL("/login", origin)
-      redirect.searchParams.set("error", errorDescription ?? errorParam)
-      return attachRequestIdHeader(NextResponse.redirect(redirect), requestId)
+      return attachRequestIdHeader(
+        relativeRedirect(`/login?error=${encodeURIComponent(errorDescription ?? errorParam)}`),
+        requestId,
+      )
     }
 
     if (!code) {
@@ -44,9 +44,7 @@ export async function GET(request: NextRequest) {
       // which never reaches the server. Arriving here with no code and no
       // query-string error is almost always that case — route to resend.
       routeLog.warn("callback.missing_code", {})
-      const redirect = new URL("/resend-confirmation", origin)
-      redirect.searchParams.set("reason", "expired")
-      return attachRequestIdHeader(NextResponse.redirect(redirect), requestId)
+      return attachRequestIdHeader(relativeRedirect("/resend-confirmation?reason=expired"), requestId)
     }
 
     const supabase = await createClient()
@@ -56,17 +54,16 @@ export async function GET(request: NextRequest) {
       routeLog.warn("callback.exchange_failed", { error: errorToFields(error) })
       const reason = classifyLinkError(null, error.message)
       if (reason) {
-        const redirect = new URL("/resend-confirmation", origin)
-        redirect.searchParams.set("reason", reason)
-        return attachRequestIdHeader(NextResponse.redirect(redirect), requestId)
+        return attachRequestIdHeader(relativeRedirect(`/resend-confirmation?reason=${reason}`), requestId)
       }
-      const redirect = new URL("/login", origin)
-      redirect.searchParams.set("error", error.message)
-      return attachRequestIdHeader(NextResponse.redirect(redirect), requestId)
+      return attachRequestIdHeader(
+        relativeRedirect(`/login?error=${encodeURIComponent(error.message)}`),
+        requestId,
+      )
     }
 
     routeLog.info("callback.success", { next })
-    return attachRequestIdHeader(NextResponse.redirect(new URL(next, origin)), requestId)
+    return attachRequestIdHeader(relativeRedirect(next), requestId)
   } catch (error) {
     routeLog.error("callback.failed", { error: errorToFields(error) })
     throw error

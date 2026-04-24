@@ -27,6 +27,13 @@
     </div>
   </div>
   <div style="display:flex;align-items:center;gap:8px;">
+<!--AUTH_BUTTON_START-->
+    <a href="/login" class="export-btn header-signin-btn" style="background:var(--navy);border-color:var(--navy2);padding:6px 10px;font-size:11px;" title="Sign in">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+      Sign in
+    </a>
+    <!--AUTH_BUTTON_END-->
+<!--ACCESS_STATE_START--><script>window.__endexAccess={hasAccess:false};</script><!--ACCESS_STATE_END-->
 <button class="export-btn" id="guide-btn" style="background:var(--navy);border-color:var(--navy2);padding:6px 10px;font-size:11px;" onclick="startWalkthrough()" title="How to use this app">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       Guide
@@ -36,10 +43,10 @@
       <span id="cb-label">B&W Mode</span>
     </button>
     <div style="position:relative;" id="export-wrap">
-    <button class="export-btn" onclick="toggleExportMenu()">
+    <button id="import-export-btn" class="export-btn" onclick="toggleExportMenu()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 004.561 21h14.878a2 2 0 001.94-1.515L22 17"/></svg>
       Import / Export
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg>
+      <svg class="export-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg>
     </button>
     <div id="export-menu" class="export-menu hidden">
       <div style="padding:6px 16px 2px;font-size:9px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Project</div>
@@ -338,6 +345,7 @@
 
 
 
+<script src="js/access-gate.js"></script>
 <script src="js/data.js"></script>
 <script src="js/map.js"></script>
 <script src="js/form.js"></script>
@@ -354,6 +362,30 @@
 <script src="js/import.js"></script>
 <script src="js/save.js"></script>
 <script>
+// Visual lock only — the real gate lives in each restricted function
+// (see access-gate.js + _requireAccess calls in save.js/export.js). This
+// swaps the Import/Export button into a disabled state that shows the
+// upgrade toast on click instead of opening the dropdown.
+(function(){
+  if((window.__endexAccess||{}).hasAccess) return;
+  function lockButton(){
+    var btn = document.getElementById('import-export-btn');
+    if(!btn) return;
+    btn.classList.add('export-btn-locked');
+    btn.setAttribute('title','Requires key or subscription');
+    btn.setAttribute('aria-disabled','true');
+    btn.removeAttribute('onclick');
+    btn.addEventListener('click', function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      if(typeof _requireAccess === 'function') _requireAccess();
+    });
+  }
+  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',lockButton);}
+  else{lockButton();}
+})();
+</script>
+<script>
 // INIT
 buildSidebar();
 updateView();
@@ -361,8 +393,13 @@ updateView();
 
 <!-- WALKTHROUGH OVERLAY -->
 <div id="walkthrough-overlay" class="bilateral-overlay" style="display:none;z-index:10000;">
-  <div class="bilateral-dialog" style="max-width:480px;padding:0;overflow:hidden;">
-    <div id="wt-content"></div>
+  <div class="wt-dialog" role="dialog" aria-modal="true" aria-labelledby="wt-title">
+    <button type="button" class="wt-close" aria-label="Close walkthrough" onclick="closeWalkthrough()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>
+    </button>
+    <div id="wt-progress" class="wt-progress"></div>
+    <div id="wt-body" class="wt-body"></div>
+    <div id="wt-footer" class="wt-footer"></div>
   </div>
 </div>
 
@@ -448,45 +485,59 @@ function startWalkthrough(){
   document.getElementById('walkthrough-overlay').style.display = '';
 }
 
+function closeWalkthrough(){
+  document.getElementById('walkthrough-overlay').style.display = 'none';
+}
+
 function _renderWtStep(){
   const s = _wtSteps[_wtStep];
   const isFirst = _wtStep === 0;
   const isLast = _wtStep === _wtSteps.length - 1;
-  let h = '';
+
   // Progress bar
-  h += '<div style="display:flex;gap:3px;padding:12px 20px 0;">';
+  let prog = '';
   _wtSteps.forEach((_,i) => {
-    h += '<div style="flex:1;height:3px;border-radius:2px;background:'+(i<=_wtStep?'var(--navy)':'#e2e8f0')+';transition:background .2s;"></div>';
+    prog += '<div class="wt-progress-seg'+(i<=_wtStep?' is-active':'')+'"></div>';
   });
-  h += '</div>';
-  // Content
-  h += '<div style="padding:20px 24px;">';
-  h += '<div style="font-size:28px;margin-bottom:6px;">'+s.icon+'</div>';
-  h += '<div style="font-size:16px;font-weight:800;font-family:var(--fh);color:var(--navy);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">'+s.title+'</div>';
-  h += '<div style="font-size:13px;line-height:1.7;color:#334155;">'+s.body+'</div>';
+  document.getElementById('wt-progress').innerHTML = prog;
+
+  // Body
+  let body = '';
+  body += '<div class="wt-icon">'+s.icon+'</div>';
+  body += '<div id="wt-title" class="wt-title">'+s.title+'</div>';
+  body += '<div class="wt-text">'+s.body+'</div>';
   if(s.tip){
-    h += '<div style="margin-top:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;font-size:11px;line-height:1.6;color:#1e40af;">' +
-      '<strong style="color:var(--navy);">&#128161; Good to know:</strong> '+s.tip+'</div>';
+    body += '<div class="wt-tip"><strong>&#128161; Good to know:</strong> '+s.tip+'</div>';
   }
-  h += '</div>';
-  // Buttons
-  h += '<div style="display:flex;gap:8px;padding:0 24px 20px;justify-content:space-between;align-items:center;">';
-  h += '<div style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:10px;">' +
+  const bodyEl = document.getElementById('wt-body');
+  bodyEl.innerHTML = body;
+  bodyEl.scrollTop = 0;
+
+  // Footer
+  let foot = '';
+  foot += '<div class="wt-meta">' +
     '<span>'+(_wtStep+1)+' of '+_wtSteps.length+'</span>' +
-    '<a href="how-to-use-infographic.html" target="_blank" rel="noopener" style="color:var(--navy);font-weight:600;text-decoration:none;border-bottom:1px dotted var(--navy);">Open full guide &rarr;</a>' +
+    '<a href="how-to-use-infographic.html" target="_blank" rel="noopener" class="wt-guide-link">Open full guide &rarr;</a>' +
     '</div>';
-  h += '<div style="display:flex;gap:8px;">';
-  if(!isFirst){
-    h += '<button onclick="_wtStep--;_renderWtStep()" style="padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--navy);font-weight:600;font-size:12px;cursor:pointer;">Back</button>';
-  }
+  foot += '<div class="wt-btns">';
+  // Reserve Back slot with visibility:hidden on step 0 so Next never shifts
+  foot += '<button onclick="_wtStep--;_renderWtStep()" class="wt-btn wt-btn-secondary"'+(isFirst?' style="visibility:hidden;"':'')+'>Back</button>';
   if(isLast){
-    h += '<button onclick="document.getElementById(\'walkthrough-overlay\').style.display=\'none\'" style="padding:8px 20px;border-radius:8px;border:none;background:var(--navy);color:#fff;font-weight:700;font-size:12px;cursor:pointer;">Got it — let\'s go!</button>';
+    foot += '<button onclick="closeWalkthrough()" class="wt-btn wt-btn-primary">Got it &mdash; let\'s go!</button>';
   } else {
-    h += '<button onclick="_wtStep++;_renderWtStep()" style="padding:8px 20px;border-radius:8px;border:none;background:var(--navy);color:#fff;font-weight:700;font-size:12px;cursor:pointer;">Next</button>';
+    foot += '<button onclick="_wtStep++;_renderWtStep()" class="wt-btn wt-btn-primary">Next</button>';
   }
-  h += '</div></div>';
-  document.getElementById('wt-content').innerHTML = h;
+  foot += '</div>';
+  document.getElementById('wt-footer').innerHTML = foot;
 }
+
+// ESC closes the walkthrough
+document.addEventListener('keydown', function(e){
+  if(e.key === 'Escape'){
+    const ov = document.getElementById('walkthrough-overlay');
+    if(ov && ov.style.display !== 'none'){ closeWalkthrough(); }
+  }
+});
 
 // Auto-show on first visit
 if(!localStorage.getItem('endex_walkthrough_seen')){

@@ -5,9 +5,6 @@ import "./globals.css"
 export const metadata: Metadata = {
   title: "ENDEX",
   description: "Service Impact Index",
-  icons: {
-    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
-  },
 }
 
 export default function RootLayout({

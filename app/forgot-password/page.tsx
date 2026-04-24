@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { supabase } from "@/lib/supabase/client"
 import Link from "next/link"
+import { AuthShell } from "@/components/auth/AuthShell"
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
@@ -15,7 +16,7 @@ export default function ForgotPasswordPage() {
     setLoading(true)
     setError(null)
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: `${window.location.origin}/auth/confirm?next=/reset-password`,
     })
     if (error) {
       setError(error.message)
@@ -27,54 +28,48 @@ export default function ForgotPasswordPage() {
 
   if (sent) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center p-8">
-        <div className="w-full max-w-sm space-y-4">
-          <h1 className="text-2xl font-bold">Check your email</h1>
-          <p className="text-sm text-gray-500">
-            We sent a password reset link to <strong>{email}</strong>.
-          </p>
-          <Link href="/login" className="block text-center text-sm underline">
-            Back to sign in
-          </Link>
-        </div>
-      </main>
+      <AuthShell
+        eyebrow="Email Sent"
+        title="Check your email"
+        subtitle={`We sent a password reset link to ${email}.`}
+        footer={<Link href="/login" className="auth-link">Back to sign in</Link>}
+      >
+        <div />
+      </AuthShell>
     )
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <div className="w-full max-w-sm space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">Reset password</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Enter your email and we&apos;ll send you a reset link.
-          </p>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <AuthShell
+      eyebrow="Account Recovery"
+      title="Reset password"
+      subtitle="Enter your email and we'll send you a reset link."
+      footer={
+        <>
+          <Link href="/login" className="auth-link">Back to sign in</Link>
+          <br />
+          <Link href="/" className="auth-link-subtle">Back to home</Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="auth-form">
+        <div className="auth-field">
+          <label htmlFor="email" className="auth-label">Email</label>
           <input
+            id="email"
             type="email"
-            placeholder="Email"
+            placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="w-full rounded border px-3 py-2 text-sm"
+            className="auth-input"
           />
-          {error && <p className="text-sm text-red-500">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-          >
-            {loading ? "Sending..." : "Send reset link"}
-          </button>
-        </form>
-        <p className="text-center text-sm text-gray-500">
-          <Link href="/login" className="underline">Back to sign in</Link>
-        </p>
-        <p className="text-center text-sm text-gray-400">
-          <Link href="/" className="underline">Back to home</Link>
-        </p>
-      </div>
-    </main>
+        </div>
+        {error && <p className="auth-error">{error}</p>}
+        <button type="submit" disabled={loading} className="auth-submit">
+          {loading ? "Sending..." : "Send reset link"}
+        </button>
+      </form>
+    </AuthShell>
   )
 }

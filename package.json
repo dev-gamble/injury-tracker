@@ -12,7 +12,8 @@
     "db:init": "npm install && npx tsx scripts/setup-db.ts",
     "db:dump": "npx supabase db dump --linked -f supabase/schema.sql",
     "db:push": "npx supabase db push",
-    "db:reset": "npx supabase db reset"
+    "db:reset": "npx supabase db reset",
+    "make-admin": "npx tsx scripts/make-admin.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.6.1",

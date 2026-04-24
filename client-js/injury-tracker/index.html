@@ -43,18 +43,18 @@
       <span id="cb-label">B&W Mode</span>
     </button>
     <div style="position:relative;" id="export-wrap">
-    <button class="export-btn" onclick="toggleExportMenu()">
+    <button id="import-export-btn" class="export-btn" onclick="toggleExportMenu()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 004.561 21h14.878a2 2 0 001.94-1.515L22 17"/></svg>
       Import / Export
       <svg class="export-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg>
     </button>
     <div id="export-menu" class="export-menu hidden">
       <div style="padding:6px 16px 2px;font-size:9px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Project</div>
-      <button data-locked-feature onclick="saveProject();closeExportMenu()">Save Project (.endexclaim)</button>
-      <button data-locked-feature onclick="loadProject();closeExportMenu()">Load Project (.endexclaim)</button>
+      <button onclick="saveProject();closeExportMenu()">Save Project (.endexclaim)</button>
+      <button onclick="loadProject();closeExportMenu()">Load Project (.endexclaim)</button>
       <div style="padding:6px 16px 2px;font-size:9px;font-weight:700;color:var(--muted);letter-spacing:1px;text-transform:uppercase;border-top:1px solid var(--border);">Export</div>
-      <button data-locked-feature onclick="exportSummary();closeExportMenu()">PDF / Print Summary</button>
-      <button data-locked-feature onclick="exportCSV();closeExportMenu()">CSV Spreadsheet</button>
+      <button onclick="exportSummary();closeExportMenu()">PDF / Print Summary</button>
+      <button onclick="exportCSV();closeExportMenu()">CSV Spreadsheet</button>
       <button onclick="exportTXT();closeExportMenu()">TXT Report</button>
     </div>
   </div>
@@ -364,19 +364,25 @@
 <script>
 // Visual lock only — the real gate lives in each restricted function
 // (see access-gate.js + _requireAccess calls in save.js/export.js). This
-// just grays out the dropdown items and shows a tooltip.
+// swaps the Import/Export button into a disabled state that shows the
+// upgrade toast on click instead of opening the dropdown.
 (function(){
   if((window.__endexAccess||{}).hasAccess) return;
-  function lockItems(){
-    var items = document.querySelectorAll('[data-locked-feature]');
-    for(var i=0;i<items.length;i++){
-      items[i].classList.add('export-menu-item-locked');
-      items[i].setAttribute('title','Requires key or subscription');
-      items[i].setAttribute('aria-disabled','true');
-    }
+  function lockButton(){
+    var btn = document.getElementById('import-export-btn');
+    if(!btn) return;
+    btn.classList.add('export-btn-locked');
+    btn.setAttribute('title','Requires key or subscription');
+    btn.setAttribute('aria-disabled','true');
+    btn.removeAttribute('onclick');
+    btn.addEventListener('click', function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      if(typeof _requireAccess === 'function') _requireAccess();
+    });
   }
-  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',lockItems);}
-  else{lockItems();}
+  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',lockButton);}
+  else{lockButton();}
 })();
 </script>
 <script>

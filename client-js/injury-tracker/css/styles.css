@@ -71,6 +71,10 @@ a.export-btn,a.export-btn:link,a.export-btn:visited,a.export-btn:hover,a.export-
 .export-menu button.export-menu-item-locked{color:#94a3b8;cursor:not-allowed;background:transparent;position:relative;padding-right:36px;}
 .export-menu button.export-menu-item-locked:hover{background:#f8fafc;color:#94a3b8;}
 .export-menu button.export-menu-item-locked::after{content:"";position:absolute;right:14px;top:50%;width:12px;height:12px;transform:translateY(-50%);background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='11' width='18' height='11' rx='2'/><path d='M7 11V7a5 5 0 0 1 10 0v4'/></svg>");background-repeat:no-repeat;background-size:contain;opacity:.85;}
+.export-btn.export-btn-locked{background:#94a3b8;border-color:#7a8699;box-shadow:none;cursor:not-allowed;}
+.export-btn.export-btn-locked:hover{background:#94a3b8;transform:none;box-shadow:none;}
+.export-btn.export-btn-locked .export-chevron{display:none;}
+.export-btn.export-btn-locked::after{content:"";display:inline-block;width:12px;height:12px;margin-left:2px;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='11' width='18' height='11' rx='2'/><path d='M7 11V7a5 5 0 0 1 10 0v4'/></svg>");background-repeat:no-repeat;background-size:contain;opacity:.9;}
 
 /* TABS */
 .tabs{display:flex;border-bottom:3px solid var(--navy);padding:0 28px;background:var(--navy2);}

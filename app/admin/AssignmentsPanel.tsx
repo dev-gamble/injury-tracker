@@ -99,7 +99,7 @@ export function AssignmentsPanel({ keys }: Props) {
         <h1 id="admin-assignments-title" className="admin-card-title">Manual Assignments</h1>
         <p className="admin-card-subtitle">
           Attach or detach license keys on behalf of a user. Use when someone has lost their key,
-          needs a different tier, or should be switched between seats. Unassigning frees a seat on
+          needs a different group, or should be switched between seats. Unassigning frees a seat on
           the original key immediately.
         </p>
       </div>
@@ -186,8 +186,11 @@ export function AssignmentsPanel({ keys }: Props) {
                         <li key={a.id} className="admin-assign-item">
                           <div className="admin-assign-item-body">
                             <div className="admin-assign-item-main">
-                              <span className={`admin-pill admin-pill-tier-${a.key.tier}`}>
-                                {a.key.tier}
+                              <span
+                                className="admin-pill admin-pill-group"
+                                style={{ ['--g' as never]: a.key.group_color } as React.CSSProperties}
+                              >
+                                {a.key.group_name}
                               </span>
                               <span className="admin-assign-prefix">{a.key.key_prefix}</span>
                               <span className={`admin-pill admin-pill-status-${a.key.status}`}>
@@ -238,7 +241,7 @@ export function AssignmentsPanel({ keys }: Props) {
                         <option value="">Select a key…</option>
                         {eligibleKeys.map((k) => (
                           <option key={k.id} value={k.id}>
-                            {k.key_prefix} · {k.tier.toUpperCase()} · {k.current_uses}/{k.max_uses}
+                            {k.key_prefix} · {k.group_name.toUpperCase()} · {k.current_uses}/{k.max_uses}
                             {' · '}
                             {k.expires_at ? formatDate(k.expires_at) : 'no expiry'}
                           </option>

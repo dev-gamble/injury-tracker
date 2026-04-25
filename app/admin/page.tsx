@@ -10,7 +10,8 @@ export const dynamic = 'force-dynamic'
 type RawRow = {
   id: string
   key_prefix: string
-  tier: 'demo' | 'free' | 'full' | 'partner'
+  group_name: string
+  group_color: string
   status: 'active' | 'revoked' | 'expired'
   max_uses: number
   current_uses: number
@@ -31,7 +32,7 @@ export default async function AdminPage() {
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('license_keys')
-    .select('id, key_prefix, tier, status, max_uses, current_uses, expires_at, notes, created_at')
+    .select('id, key_prefix, group_name, group_color, status, max_uses, current_uses, expires_at, notes, created_at')
     .order('created_at', { ascending: false })
     .limit(200)
 

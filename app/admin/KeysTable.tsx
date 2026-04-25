@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { revokeKey, unrevokeKey } from './actions'
+import { KeyDetailsModal } from './KeyDetailsModal'
 
 export type KeyRow = {
   id: string
@@ -117,6 +118,7 @@ export function KeysTable({ rows }: { rows: KeyRow[] }) {
   const [openActionId, setOpenActionId] = useState<string | null>(null)
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [detailRowId, setDetailRowId] = useState<string | null>(null)
   const [, startTransition] = useTransition()
   const router = useRouter()
 
@@ -347,7 +349,20 @@ export function KeysTable({ rows }: { rows: KeyRow[] }) {
               const issued = formatDate(row.created_at)
               const exhausted = row.current_uses >= row.max_uses
               return (
-                <tr key={row.id}>
+                <tr
+                  key={row.id}
+                  className="admin-tr-clickable"
+                  onClick={() => setDetailRowId(row.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      setDetailRowId(row.id)
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Open details for ${row.key_prefix}`}
+                >
                   <td>
                     <span className="admin-cell-prefix">{row.key_prefix}</span>
                   </td>
@@ -372,7 +387,7 @@ export function KeysTable({ rows }: { rows: KeyRow[] }) {
                   <td>
                     <span className="admin-cell-date">{issued.label}</span>
                   </td>
-                  <td className="admin-cell-actions">
+                  <td className="admin-cell-actions" onClick={(e) => e.stopPropagation()}>
                     <RowActions
                       row={row}
                       open={openActionId === row.id}
@@ -397,6 +412,16 @@ export function KeysTable({ rows }: { rows: KeyRow[] }) {
           <button type="button" onClick={() => setActionError(null)} aria-label="Dismiss">×</button>
         </div>
       )}
+      {detailRowId && (() => {
+        const detailRow = rows.find((r) => r.id === detailRowId)
+        if (!detailRow) return null
+        return (
+          <KeyDetailsModal
+            row={detailRow}
+            onClose={() => setDetailRowId(null)}
+          />
+        )
+      })()}
     </div>
   )
 }

@@ -2015,3 +2015,201 @@
   .admin-issued-actions { flex-direction: column; align-items: stretch; }
   .admin-btn-ghost { width: 100%; }
 }
+
+/* ============================================================
+   CLICKABLE ROW + DETAIL MODAL
+   ============================================================ */
+
+.admin-tr-clickable {
+  cursor: pointer;
+  transition: background .12s, box-shadow .12s;
+}
+.admin-tr-clickable:hover {
+  background: color-mix(in srgb, var(--navy) 4%, transparent);
+}
+.admin-tr-clickable:focus-visible {
+  outline: none;
+  background: color-mix(in srgb, var(--navy) 6%, transparent);
+  box-shadow: inset 3px 0 0 var(--red);
+}
+/* Don't bleed the hover state into the actions cell — the kebab needs to feel
+   like a discrete affordance, not part of the row click target. */
+.admin-tr-clickable .admin-cell-actions { cursor: default; }
+
+.admin-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: color-mix(in srgb, var(--navy) 35%, rgba(0,0,0,.45));
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 80px 24px 32px;
+  animation: admin-modal-fade .18s ease-out;
+}
+
+@keyframes admin-modal-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes admin-modal-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.admin-modal-panel {
+  position: relative;
+  width: min(560px, 100%);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 3px;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.6) inset,
+    0 24px 60px -20px rgba(10,35,87,.35),
+    0 6px 18px -10px rgba(10,35,87,.25);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 112px);
+  overflow: hidden;
+  animation: admin-modal-rise .22s cubic-bezier(.2,.8,.25,1);
+}
+
+.admin-modal-head {
+  position: relative;
+  padding: 26px 32px 18px;
+  border-bottom: 1px dashed var(--border);
+}
+
+.admin-modal-eyebrow {
+  font-family: var(--fh);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.admin-modal-title {
+  font-family: var(--fm);
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: 3px;
+  color: var(--navy);
+  margin: 0 0 10px;
+  word-break: break-all;
+}
+
+.admin-modal-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.admin-modal-close:hover {
+  background: rgba(10,35,87,.06);
+  border-color: var(--border);
+  color: var(--navy);
+}
+.admin-modal-close:focus-visible {
+  outline: 2px solid var(--navy);
+  outline-offset: 2px;
+}
+
+.admin-modal-body {
+  padding: 18px 32px 22px;
+  overflow-y: auto;
+}
+
+.admin-modal-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.admin-modal-notes-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.admin-modal-notes-label {
+  margin-bottom: 0;
+}
+.admin-modal-notes-count {
+  font-family: var(--fm);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--muted2);
+  font-variant-numeric: tabular-nums;
+}
+.admin-modal-notes-count.is-over { color: var(--red); }
+
+.admin-modal-notes-input {
+  resize: vertical;
+  min-height: 110px;
+  line-height: 1.55;
+}
+
+.admin-modal-error {
+  margin-top: 4px;
+}
+
+.admin-modal-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 32px 18px;
+  border-top: 1px solid var(--border);
+  background: var(--surface2, #fafafa);
+}
+
+.admin-modal-saved {
+  font-family: var(--fh);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--muted);
+  min-height: 1em;
+  transition: color .15s;
+}
+.admin-modal-saved.is-on {
+  color: var(--green);
+}
+
+.admin-modal-foot-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.admin-modal-save {
+  padding: 10px 18px;
+  font-size: 12px;
+}
+
+@media (max-width: 560px) {
+  .admin-modal-backdrop { padding: 24px 12px; align-items: flex-end; }
+  .admin-modal-panel { max-height: calc(100vh - 48px); }
+  .admin-modal-head, .admin-modal-body { padding-left: 20px; padding-right: 20px; }
+  .admin-modal-foot { padding-left: 20px; padding-right: 20px; flex-direction: column; align-items: stretch; }
+  .admin-modal-foot-actions { justify-content: flex-end; }
+}

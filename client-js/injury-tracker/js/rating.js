@@ -634,18 +634,14 @@ function renderRating(){
   const c = document.getElementById('rc-list');
   if(!c) return;
 
-  // VA calculation is a paid feature — non-access users see an upgrade card
-  // instead of any computed numbers.
-  if(typeof _hasAccess === 'function' && !_hasAccess()){
-    c.innerHTML = _ratingLockCardHTML();
-    updateRatingCount();
-    return;
-  }
+  const _locked = typeof _hasAccess === 'function' && !_hasAccess();
 
   buildRatingItems();
 
   const hasBPConds = typeof BP_REGISTRY!=='undefined' && Object.values(BP_REGISTRY).some(cfg=>(window[cfg.stateKey]||[]).length>0);
   if(!_ratingItems.length && !(window._mentalHealthConditions && window._mentalHealthConditions.length) && !(window._headConditions && window._headConditions.length) && !hasBPConds){
+    // No conditions at all — show the same friendly empty state to everyone.
+    // Locked users with zero data have nothing to preview anyway.
     c.innerHTML = '<div class="empty">No injuries logged yet.<br>Add injuries from the Body Map tab to calculate your combined VA rating.</div>';
     updateRatingCount();
     return;
@@ -1208,6 +1204,7 @@ function renderRating(){
 
   const _scrollY = window.scrollY;
   c.innerHTML = html;
+  if(_locked){ _applyRatingPreview(c); }
   window.scrollTo(0, _scrollY);
   updateRatingCount();
 }
@@ -1244,33 +1241,92 @@ function onEvalRatingChange(type, condId, val){
 function updateRatingCount(){
   const el = document.getElementById('rc-tab');
   if(!el) return;
-  // Hide the computed % from the tab label when the user can't see the breakdown.
-  if(typeof _hasAccess === 'function' && !_hasAccess()){
-    el.textContent = 'Rating';
-    return;
-  }
   const result = calculateVARating();
   el.textContent = result.rounded > 0 ? `Rating (${result.rounded}%)` : 'Rating';
 }
 
-// Friendly upgrade card shown on the Rating tab when the user lacks access.
-// Same visual language as the access-gate toast — navy/red bordered card with
-// a lock icon, brief explainer, and a CTA to redeem an access key.
-function _ratingLockCardHTML(){
-  return [
-    '<div class="rc-lock" role="region" aria-label="Rating calculator locked">',
-    '  <div class="rc-lock-icon" aria-hidden="true">',
-    '    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">',
-    '      <rect x="4" y="11" width="16" height="10" rx="1.5"/>',
-    '      <path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
-    '    </svg>',
-    '  </div>',
-    '  <div class="rc-lock-eyebrow">Rating Calculator</div>',
-    '  <div class="rc-lock-title">Access required</div>',
-    '  <p class="rc-lock-copy">Your VA calculation details require an active access key or subscription. Once unlocked, your combined rating, per-condition breakdown, and bilateral factor will appear here automatically.</p>',
-    '  <a href="/login" class="rc-lock-cta">Sign In</a>',
-    '</div>'
-  ].join('');
+// Locked-preview transform.
+//
+// Locked users see the real calculation render — info card, section title,
+// and the first primary card stay sharp and interactive so the calculator
+// feels alive. Everything below that is moved into a fade region with three
+// stacked backdrop-filter overlays (true rack-focus blur), then a soft veil
+// dissolves into the page background where the sign-in CTA sits.
+//
+// We render the full HTML first (so we can lift authentic elements), then
+// surgically rewrap the DOM. No content is duplicated; the structure is just
+// reshuffled so the bottom of the rating tab fades into a friendly nudge.
+function _applyRatingPreview(container){
+  if(!container || !container.children.length) return;
+
+  const VISIBLE_CARDS = 1;
+  const visible = document.createElement('div');
+  visible.className = 'rc-preview-visible';
+  const fade = document.createElement('div');
+  fade.className = 'rc-preview-fade';
+  fade.setAttribute('aria-hidden', 'true');
+
+  let cardsShown = 0;
+  let switched = false;
+  Array.from(container.children).forEach(function(child){
+    if(switched){ fade.appendChild(child); return; }
+    visible.appendChild(child);
+    if(child.classList && child.classList.contains('rc-card')){
+      cardsShown++;
+      if(cardsShown >= VISIBLE_CARDS) switched = true;
+    }
+  });
+
+  // Neuter any focusable / interactive nodes inside the fade so keyboard
+  // users can't tab into invisible inputs or trigger calculations.
+  fade.querySelectorAll('input, button, select, textarea').forEach(function(el){
+    el.setAttribute('disabled', 'disabled');
+    el.tabIndex = -1;
+  });
+  fade.querySelectorAll('a').forEach(function(a){
+    a.removeAttribute('href');
+    a.tabIndex = -1;
+  });
+
+  // Three stacked overlays produce a smooth depth-of-field gradient: each
+  // layer's mask starts lower than the last, so blur intensity grows toward
+  // the bottom rather than landing as a single uniform smear.
+  for(var i=1; i<=3; i++){
+    var blur = document.createElement('div');
+    blur.className = 'rc-preview-blur rc-preview-blur-' + i;
+    blur.setAttribute('aria-hidden', 'true');
+    fade.appendChild(blur);
+  }
+
+  // Veil dissolves the bottom of the fade into page background so the CTA
+  // doesn't land on a hard edge.
+  var veil = document.createElement('div');
+  veil.className = 'rc-preview-veil';
+  veil.setAttribute('aria-hidden', 'true');
+  fade.appendChild(veil);
+
+  var wrap = document.createElement('div');
+  wrap.className = 'rc-preview-wrap';
+  wrap.appendChild(fade);
+
+  // CTA sits BELOW the fade as a sibling, then pulls itself up with a
+  // negative margin so it appears to emerge from the dissolve.
+  var cta = document.createElement('div');
+  cta.className = 'rc-preview-cta';
+  cta.innerHTML = ''
+    + '<div class="rc-preview-cta-inner">'
+    +   '<div class="rc-preview-cta-eyebrow">Continue your calculation</div>'
+    +   '<h3 class="rc-preview-cta-title">Sign in to use the VA calculator</h3>'
+    +   '<p class="rc-preview-cta-copy">Your full combined rating, per-condition breakdown, and step-by-step VA math are saved to your account.</p>'
+    +   '<div class="rc-preview-cta-actions">'
+    +     '<a href="/login" class="rc-preview-cta-btn">Sign in</a>'
+    +   '</div>'
+    + '</div>';
+  wrap.appendChild(cta);
+
+  container.innerHTML = '';
+  container.appendChild(visible);
+  container.appendChild(wrap);
 }
 
 // ── EXPORT HELPERS ──

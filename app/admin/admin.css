@@ -2044,9 +2044,10 @@
   -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  padding: 80px 24px 32px;
+  padding: 32px 24px;
+  overflow-y: auto;
   animation: admin-modal-fade .18s ease-out;
 }
 
@@ -2161,6 +2162,60 @@
   font-variant-numeric: tabular-nums;
 }
 .admin-modal-notes-count.is-over { color: var(--red); }
+
+.admin-modal-notes-edit {
+  appearance: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--fh);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color .15s;
+}
+.admin-modal-notes-edit:hover,
+.admin-modal-notes-edit:focus-visible {
+  color: var(--navy);
+  outline: none;
+}
+.admin-modal-notes-edit svg {
+  opacity: .8;
+}
+
+.admin-modal-notes-display {
+  margin: 0;
+  padding: 12px 14px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--navy);
+  border-radius: 2px;
+  color: var(--text);
+  font-family: var(--fd);
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.admin-modal-notes-empty {
+  margin: 0;
+  padding: 12px 14px;
+  background: var(--surface2);
+  border: 1px dashed var(--border2);
+  border-radius: 2px;
+  color: var(--muted);
+  font-family: var(--fd);
+  font-size: 12.5px;
+  line-height: 1.5;
+  font-style: italic;
+}
 
 .admin-modal-notes-input {
   resize: vertical;

@@ -1,9 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import type { KeyRow } from './KeysTable'
 import {
-  listAssignmentUsers,
   assignKeyToUser,
   unassignKey,
   type AssignmentUser,
@@ -11,6 +10,10 @@ import {
 
 type Props = {
   keys: KeyRow[]
+  users: AssignmentUser[]
+  loading: boolean
+  loadError: string | null
+  onReload: () => Promise<void>
 }
 
 function formatDate(iso: string | null) {
@@ -18,30 +21,12 @@ function formatDate(iso: string | null) {
   return new Date(iso).toISOString().slice(0, 10)
 }
 
-export function AssignmentsPanel({ keys }: Props) {
-  const [users, setUsers] = useState<AssignmentUser[]>([])
-  const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState<string | null>(null)
+export function AssignmentsPanel({ keys, users, loading, loadError, onReload }: Props) {
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [pendingKeyId, setPendingKeyId] = useState('')
   const [isPending, startTransition] = useTransition()
-
-  async function reload() {
-    const res = await listAssignmentUsers()
-    if (res.ok) {
-      setUsers(res.users)
-      setLoadError(null)
-    } else {
-      setLoadError(res.error)
-    }
-    setLoading(false)
-  }
-
-  useEffect(() => {
-    reload()
-  }, [])
 
   const filtered = useMemo(() => {
     if (!query) return users
@@ -71,7 +56,7 @@ export function AssignmentsPanel({ keys }: Props) {
         setActionError(res.error)
         return
       }
-      await reload()
+      await onReload()
     })
   }
 
@@ -85,7 +70,7 @@ export function AssignmentsPanel({ keys }: Props) {
         return
       }
       setPendingKeyId('')
-      await reload()
+      await onReload()
     })
   }
 

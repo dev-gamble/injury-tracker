@@ -1317,7 +1317,7 @@ function _applyRatingPreview(container){
     + '<div class="rc-preview-cta-inner">'
     +   '<div class="rc-preview-cta-eyebrow">Continue your calculation</div>'
     +   '<h3 class="rc-preview-cta-title">Sign in to use the VA calculator</h3>'
-    +   '<p class="rc-preview-cta-copy">Your full combined rating, per-condition breakdown, and step-by-step VA math are saved to your account.</p>'
+    +   '<p class="rc-preview-cta-copy">See your full combined rating and the step-by-step math behind your number.</p>'
     +   '<div class="rc-preview-cta-actions">'
     +     '<a href="/login" class="rc-preview-cta-btn">Sign in</a>'
     +   '</div>'

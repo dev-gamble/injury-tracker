@@ -277,10 +277,10 @@ body.pin-placing .body-panel{position:relative;z-index:95;}
 .signout-overlay{
   position:fixed;inset:0;z-index:1000;
   background:rgba(10,20,40,.55);
-  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
   display:flex;align-items:center;justify-content:center;padding:24px;
   animation:signoutFade .2s ease both;
 }
+.signout-overlay.hidden{display:none;}
 @keyframes signoutFade{from{opacity:0}to{opacity:1}}
 .signout-panel{
   position:relative;width:100%;max-width:420px;

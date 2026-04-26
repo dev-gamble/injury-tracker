@@ -479,6 +479,8 @@ async function _doLoad(){
 // ── UNSAVED WORK WARNING ──
 
 window.addEventListener('beforeunload', function(e){
+  // The sign-out modal already warns about losing data — don't double-prompt.
+  if(window.__signingOut) return;
   const hasData = (injuries || []).length > 0 ||
     (window._mentalHealthConditions || []).length > 0 ||
     (window._headConditions || []).length > 0;

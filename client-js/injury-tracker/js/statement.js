@@ -200,8 +200,8 @@ function _renderVocationalInStatement(){
   }
   h += '</select>';
   h += '<div class="cr-custom-row">' +
-    '<input type="text" class="cr-custom-input" id="ps-custom-voc" placeholder="Custom vocational condition...">' +
-    '<button class="cr-custom-btn" onclick="addCustomVocFromStatement()">Add</button>' +
+    '<input type="text" class="cr-custom-input" id="ps-custom-voc" placeholder="Custom vocational condition..." oninput="_toggleCustomAddBtn(this)">' +
+    '<button class="cr-custom-btn" disabled onclick="addCustomVocFromStatement()">Add</button>' +
   '</div>';
 
   h += '<div style="margin-top:8px;">' +

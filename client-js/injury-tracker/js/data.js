@@ -52,6 +52,14 @@ function _getPanelKeys(){
 // Returns default info field values for new conditions
 function _condInfoDefaults(){ return {date:'',location:'',event:'',description:'',medicalCare:'',clinicName:'',witnesses:'',stillBeingSeen:false}; }
 
+// Toggle the adjacent .cr-custom-btn's disabled state based on input contents.
+// Wired via `oninput="_toggleCustomAddBtn(this)"` on each `.cr-custom-input`.
+function _toggleCustomAddBtn(input){
+  const row = input.closest('.cr-custom-row');
+  const btn = row ? row.querySelector('.cr-custom-btn') : null;
+  if(btn) btn.disabled = !input.value.trim();
+}
+
 // Attach scroll-bottom detection to condition lists (hides "Scroll for more" hint)
 function _initCondListScroll(listEl){
   if(!listEl) return;

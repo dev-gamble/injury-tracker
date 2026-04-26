@@ -547,7 +547,8 @@ body.pin-placing .body-panel{position:relative;z-index:95;}
 .cr-custom-input:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 2px rgba(200,16,46,.15);}
 .cr-custom-input::placeholder{color:var(--muted);font-style:italic;}
 .cr-custom-btn{padding:6px 12px;border-radius:6px;border:none;background:var(--navy);color:#fff;font-family:var(--fh);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;transition:all .15s;white-space:nowrap;}
-.cr-custom-btn:hover{background:var(--red);}
+.cr-custom-btn:hover:not(:disabled){background:var(--red);}
+.cr-custom-btn:disabled{background:var(--muted);opacity:.55;cursor:not-allowed;}
 .cr-pending-sec{background:#f0f4ff;border:2px solid #818cf8;border-radius:10px;padding:14px;margin-top:8px;}
 .cr-pending-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #c7d2fe;}
 .cr-pending-name{font-size:14px;font-weight:700;font-family:var(--fh);color:#3730a3;}
@@ -815,7 +816,23 @@ body.pin-placing .body-panel{position:relative;z-index:95;}
 }
 .mh-combined-label{font-family:var(--fh);font-size:12px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:1px;}
 .mh-combined-value{font-family:var(--fm);font-size:42px;font-weight:800;color:var(--navy);line-height:1.1;margin-top:4px;}
-.mh-combined-note{font-size:11px;color:var(--muted);margin-top:4px;}
+.mh-combined-note{font-size:11px;color:var(--muted);margin-top:8px;}
+/* Multi-condition tiles (head/face panel) — same simple aesthetic as the
+   single-rating mental-health card, just one tile per independently-rated
+   condition. */
+.mh-combined-tiles{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:10px;}
+.mh-combined-tile{
+  background:rgba(10,35,87,.04);border:1px solid var(--border);border-radius:8px;
+  padding:8px 16px;text-align:center;min-width:96px;
+}
+.mh-combined-tile-name{
+  font-family:var(--fd);font-size:11px;font-weight:600;color:var(--muted);
+  white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis;
+  letter-spacing:.2px;
+}
+.mh-combined-tile-val{
+  font-family:var(--fm);font-size:26px;font-weight:800;color:var(--navy);line-height:1.15;margin-top:2px;
+}
 
 /* Empty state */
 .mh-empty{text-align:center;padding:30px 20px;color:var(--muted);font-size:13px;line-height:1.6;}

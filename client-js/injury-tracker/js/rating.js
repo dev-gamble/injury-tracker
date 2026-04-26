@@ -632,6 +632,16 @@ function _extTip(ext){ return _EXT_TIPS[ext] ? ' <span class="tip" data-tip="'+_
 
 function renderRating(){
   const c = document.getElementById('rc-list');
+  if(!c) return;
+
+  // VA calculation is a paid feature — non-access users see an upgrade card
+  // instead of any computed numbers.
+  if(typeof _hasAccess === 'function' && !_hasAccess()){
+    c.innerHTML = _ratingLockCardHTML();
+    updateRatingCount();
+    return;
+  }
+
   buildRatingItems();
 
   const hasBPConds = typeof BP_REGISTRY!=='undefined' && Object.values(BP_REGISTRY).some(cfg=>(window[cfg.stateKey]||[]).length>0);
@@ -1234,8 +1244,33 @@ function onEvalRatingChange(type, condId, val){
 function updateRatingCount(){
   const el = document.getElementById('rc-tab');
   if(!el) return;
+  // Hide the computed % from the tab label when the user can't see the breakdown.
+  if(typeof _hasAccess === 'function' && !_hasAccess()){
+    el.textContent = 'Rating';
+    return;
+  }
   const result = calculateVARating();
   el.textContent = result.rounded > 0 ? `Rating (${result.rounded}%)` : 'Rating';
+}
+
+// Friendly upgrade card shown on the Rating tab when the user lacks access.
+// Same visual language as the access-gate toast — navy/red bordered card with
+// a lock icon, brief explainer, and a CTA to redeem an access key.
+function _ratingLockCardHTML(){
+  return [
+    '<div class="rc-lock" role="region" aria-label="Rating calculator locked">',
+    '  <div class="rc-lock-icon" aria-hidden="true">',
+    '    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">',
+    '      <rect x="4" y="11" width="16" height="10" rx="1.5"/>',
+    '      <path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+    '    </svg>',
+    '  </div>',
+    '  <div class="rc-lock-eyebrow">Rating Calculator</div>',
+    '  <div class="rc-lock-title">Access required</div>',
+    '  <p class="rc-lock-copy">Your VA calculation details require an active access key or subscription. Once unlocked, your combined rating, per-condition breakdown, and bilateral factor will appear here automatically.</p>',
+    '  <a href="/login" class="rc-lock-cta">Sign In</a>',
+    '</div>'
+  ].join('');
 }
 
 // ── EXPORT HELPERS ──

@@ -10,7 +10,7 @@ type Channel = "key" | "subscription"
 
 export default function SignupPage() {
   const router = useRouter()
-  const [channel, setChannel] = useState<Channel>("key")
+  const [channel, setChannel] = useState<Channel>("subscription")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -92,30 +92,30 @@ export default function SignupPage() {
         <button
           type="button"
           role="radio"
-          aria-checked={channel === "key"}
-          onClick={() => { setChannel("key"); setError(null) }}
-          className={`auth-channel${channel === "key" ? " is-active" : ""}`}
-        >
-          <span className="auth-channel-head">
-            <span className="auth-channel-tag">Channel 01</span>
-            <span className="auth-channel-dot" aria-hidden="true" />
-          </span>
-          <span className="auth-channel-label">Access Key</span>
-          <span className="auth-channel-sub">Issued</span>
-        </button>
-        <button
-          type="button"
-          role="radio"
           aria-checked={channel === "subscription"}
           onClick={() => { setChannel("subscription"); setError(null) }}
           className={`auth-channel${channel === "subscription" ? " is-active" : ""}`}
         >
           <span className="auth-channel-head">
-            <span className="auth-channel-tag">Channel 02</span>
+            <span className="auth-channel-tag">Channel 01</span>
             <span className="auth-channel-dot" aria-hidden="true" />
           </span>
           <span className="auth-channel-label">Subscription</span>
           <span className="auth-channel-sub">Commercial</span>
+        </button>
+        <button
+          type="button"
+          role="radio"
+          aria-checked={channel === "key"}
+          onClick={() => { setChannel("key"); setError(null) }}
+          className={`auth-channel${channel === "key" ? " is-active" : ""}`}
+        >
+          <span className="auth-channel-head">
+            <span className="auth-channel-tag">Channel 02</span>
+            <span className="auth-channel-dot" aria-hidden="true" />
+          </span>
+          <span className="auth-channel-label">Access Key</span>
+          <span className="auth-channel-sub">Issued</span>
         </button>
       </div>
 

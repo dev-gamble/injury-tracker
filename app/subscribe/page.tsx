@@ -28,17 +28,12 @@ export default async function SubscribePage() {
     <AuthShell
       eyebrow="Subscription"
       title="Activate ENDEX"
-      subtitle="Start your subscription to unlock the full tracker."
       footer={
         <>
           Have an access key? <Link href="/redeem-key" className="auth-link">Redeem it here</Link>
           <br />
           <br />
-          <form action="/signout" method="post">
-            <button type="submit" className="auth-link-subtle" style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}>
-              Sign out
-            </button>
-          </form>
+          <Link href="/" className="auth-link-subtle">Back to home</Link>
         </>
       }
     >

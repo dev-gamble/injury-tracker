@@ -80,24 +80,105 @@ export async function POST(request: NextRequest) {
       .limit(1)
       .maybeSingle()
 
-    const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
-      line_items: [{ price: env.STRIPE_PRICE_ID, quantity: 1 }],
-      // Reuse the existing customer when we know one; otherwise let Stripe
-      // create it from the email and we'll capture the id in the webhook.
-      ...(existing?.stripe_customer_id
-        ? { customer: existing.stripe_customer_id }
-        : { customer_email: user.email ?? undefined }),
-      // Carried into the resulting customer/subscription so the webhook can
-      // resolve back to a Supabase user even if email changes later.
-      client_reference_id: user.id,
-      subscription_data: {
-        metadata: { supabase_user_id: user.id },
-      },
-      success_url: `${origin}/subscribe/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/subscribe`,
-      allow_promotion_codes: true,
+    // Resolve a Stripe customer for this user before creating the session.
+    // Reusing a single customer per user is one half of the race fix; the
+    // other half is the idempotency keys below.
+    //
+    // Lookup order:
+    //   1. DB (fast path, works for any user whose webhook has fired once)
+    //   2. customers.list({email}) — strongly consistent unlike customers.search
+    //   3. customers.create with idempotencyKey=customer-<uid>, so two parallel
+    //      requests collapse to a single customer instead of minting two.
+    let customerId = existing?.stripe_customer_id ?? null
+    if (!customerId && user.email) {
+      const list = await stripe.customers.list({ email: user.email, limit: 10 })
+      const matched = list.data.find((c) => c.metadata?.supabase_user_id === user.id)
+        ?? list.data.find((c) => !c.metadata?.supabase_user_id)
+      if (matched) customerId = matched.id
+    }
+    if (!customerId) {
+      const created = await stripe.customers.create(
+        {
+          email: user.email ?? undefined,
+          metadata: { supabase_user_id: user.id },
+        },
+        { idempotencyKey: `customer-${user.id}` },
+      )
+      customerId = created.id
+    }
+
+    // Stripe-authoritative duplicate guard. Even if our DB hasn't been
+    // updated by a webhook yet, this catches an active/trialing sub directly
+    // and prevents a user from completing checkout twice in parallel tabs.
+    const subs = await stripe.subscriptions.list({
+      customer: customerId,
+      status: 'all',
+      limit: 5,
     })
+    const activeSub = subs.data.find(
+      (s) => s.status === 'active' || s.status === 'trialing',
+    )
+    if (activeSub) {
+      log.info('checkout.stripe_active_sub_found', {
+        userId: user.id,
+        subscriptionId: activeSub.id,
+      })
+      return attachRequestIdHeader(
+        NextResponse.json(
+          { error: 'You already have an active subscription.', code: 'already_subscribed' },
+          { status: 409 },
+        ),
+        requestId,
+      )
+    }
+
+    // Reuse an already-open Checkout Session if one exists for this customer
+    // — closes the cross-hour-bucket window where the idempotency key alone
+    // would let a user create two distinct sessions and pay both. Stripe
+    // sessions stay 'open' until paid, expired (24h), or canceled.
+    const openSessions = await stripe.checkout.sessions.list({
+      customer: customerId,
+      status: 'open',
+      limit: 5,
+    })
+    const openMatching = openSessions.data.find(
+      (s) => s.mode === 'subscription' && !!s.url,
+    )
+    if (openMatching?.url) {
+      log.info('checkout.reused_open_session', {
+        userId: user.id,
+        sessionId: openMatching.id,
+      })
+      return attachRequestIdHeader(
+        NextResponse.json({ url: openMatching.url }),
+        requestId,
+      )
+    }
+
+    // Idempotency key bucketed per (user, price, hour). Belt-and-suspenders
+    // alongside the open-session reuse above: two truly simultaneous POSTs
+    // (within the same hour, before either has registered an open session)
+    // collapse to a single Checkout Session URL.
+    const hourBucket = Math.floor(Date.now() / 3_600_000)
+    const sessionIdempotencyKey = `checkout-${user.id}-${env.STRIPE_PRICE_ID}-${hourBucket}`
+
+    const session = await stripe.checkout.sessions.create(
+      {
+        mode: 'subscription',
+        line_items: [{ price: env.STRIPE_PRICE_ID, quantity: 1 }],
+        customer: customerId,
+        // Carried into the resulting subscription so the webhook can resolve
+        // back to a Supabase user even if email changes later.
+        client_reference_id: user.id,
+        subscription_data: {
+          metadata: { supabase_user_id: user.id },
+        },
+        success_url: `${origin}/subscribe/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/subscribe`,
+        allow_promotion_codes: true,
+      },
+      { idempotencyKey: sessionIdempotencyKey },
+    )
 
     if (!session.url) {
       log.error('checkout.no_url', { userId: user.id, sessionId: session.id })

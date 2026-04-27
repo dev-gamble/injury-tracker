@@ -95,6 +95,12 @@ async function upsertSubscription(sub: Stripe.Subscription) {
   const periodEnd = item?.current_period_end ?? null
   const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id
 
+  // Unix-seconds → ISO string. In flexible billing mode `cancel_at` is the
+  // authoritative scheduled-cancellation timestamp; in legacy mode it's null
+  // and `cancel_at_period_end=true` implies the same thing at period end.
+  const toIso = (unix: number | null | undefined) =>
+    unix ? new Date(unix * 1000).toISOString() : null
+
   const admin = createAdminClient()
   const { error } = await admin
     .from('stripe_user_subscriptions')
@@ -105,8 +111,10 @@ async function upsertSubscription(sub: Stripe.Subscription) {
         stripe_subscription_id: sub.id,
         stripe_price_id: item?.price.id ?? '',
         status: sub.status,
-        current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+        current_period_end: toIso(periodEnd),
         cancel_at_period_end: sub.cancel_at_period_end,
+        cancel_at: toIso(sub.cancel_at),
+        canceled_at: toIso(sub.canceled_at),
       },
       { onConflict: 'stripe_subscription_id' },
     )

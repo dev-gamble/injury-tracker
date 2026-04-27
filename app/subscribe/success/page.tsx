@@ -15,13 +15,13 @@ export default async function SubscribeSuccessPage() {
   return (
     <AuthShell
       eyebrow="Subscription"
-      title="You're in"
+      title="Payment received"
       subtitle="Thanks for subscribing to ENDEX."
       footer={<Link href="/" className="auth-link">Continue to ENDEX →</Link>}
     >
       <div className="auth-stripe" role="status">
         <p className="auth-stripe-body">
-          Your subscription is active. If the app still asks you to subscribe, give it a few seconds and refresh — Stripe&apos;s confirmation can take a moment to reach us.
+          We&apos;re finalizing your subscription. Stripe&apos;s confirmation usually reaches us in a few seconds — if the app still asks you to subscribe when you continue, refresh the page and your access will appear.
         </p>
       </div>
     </AuthShell>

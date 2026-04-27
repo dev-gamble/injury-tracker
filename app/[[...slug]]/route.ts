@@ -200,7 +200,16 @@ export async function GET(
             }
           }
         }
-        hasAccess = isAdmin || group !== null
+        // Access can come from either a license-key group OR an active Stripe
+        // subscription. The badge slot still shows the group when present
+        // (subscribers without a key see the "Redeem Key" CTA there), but the
+        // tracker's hasAccess flag must reflect the union of both paths.
+        if (isAdmin || group !== null) {
+          hasAccess = true
+        } else {
+          const { data: rpcAccess } = await supabase.rpc('current_user_has_access')
+          hasAccess = rpcAccess === true
+        }
         replacement = renderSignedInBlock(user.email ?? '', group, isAdmin)
       }
       html = html.replace(AUTH_BUTTON_PATTERN, replacement)

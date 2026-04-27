@@ -19,7 +19,6 @@ export default function SignupPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (channel !== "key") return
     setLoading(true)
     setError(null)
     const redirect = `${window.location.origin}/auth/confirm?next=${encodeURIComponent("/auth/post-confirm")}`
@@ -28,7 +27,7 @@ export default function SignupPage() {
       password,
       options: {
         emailRedirectTo: redirect,
-        data: { access_channel: "key" },
+        data: { access_channel: channel },
       },
     })
     if (error) {
@@ -113,7 +112,7 @@ export default function SignupPage() {
         >
           <span className="auth-channel-head">
             <span className="auth-channel-tag">Channel 02</span>
-            <span className="auth-channel-chip">Soon</span>
+            <span className="auth-channel-dot" aria-hidden="true" />
           </span>
           <span className="auth-channel-label">Subscription</span>
           <span className="auth-channel-sub">Commercial</span>
@@ -121,63 +120,49 @@ export default function SignupPage() {
       </div>
 
       <div className="auth-fork-body" key={channel}>
-        {channel === "key" ? (
-          <form onSubmit={handleSubmit} className="auth-form">
-            <p className="auth-fork-brief">
-              Enter your credentials below. After email verification you&apos;ll be prompted for your access key.
-            </p>
-            <div className="auth-field">
-              <label htmlFor="email" className="auth-label">Email</label>
-              <input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="auth-input"
-              />
-            </div>
-            <div className="auth-field">
-              <label htmlFor="password" className="auth-label">Password</label>
-              <input
-                id="password"
-                type="password"
-                placeholder="At least 8 characters"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={8}
-                className="auth-input"
-              />
-            </div>
-            {error && <p className="auth-error">{error}</p>}
-            <button type="submit" disabled={loading} className="auth-submit">
-              {loading ? (
-                <>
-                  <span className="auth-spinner" aria-hidden="true" />
-                  Creating account...
-                </>
-              ) : (
-                "Continue"
-              )}
-            </button>
-          </form>
-        ) : (
-          <div className="auth-stripe" role="status">
-            <div className="auth-stripe-rule" aria-hidden="true">
-              <span>{'//'}</span> Pending release
-            </div>
-            <h3 className="auth-stripe-title">Subscriptions not yet open</h3>
-            <button
-              type="button"
-              onClick={() => setChannel("key")}
-              className="auth-fork-switch"
-            >
-              Use an access key instead →
-            </button>
+        <form onSubmit={handleSubmit} className="auth-form">
+          <p className="auth-fork-brief">
+            {channel === "key"
+              ? "Enter your credentials below. After email verification you'll be prompted for your access key."
+              : "Enter your credentials below. After email verification you'll be taken to checkout to start your subscription."}
+          </p>
+          <div className="auth-field">
+            <label htmlFor="email" className="auth-label">Email</label>
+            <input
+              id="email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="auth-input"
+            />
           </div>
-        )}
+          <div className="auth-field">
+            <label htmlFor="password" className="auth-label">Password</label>
+            <input
+              id="password"
+              type="password"
+              placeholder="At least 8 characters"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={8}
+              className="auth-input"
+            />
+          </div>
+          {error && <p className="auth-error">{error}</p>}
+          <button type="submit" disabled={loading} className="auth-submit">
+            {loading ? (
+              <>
+                <span className="auth-spinner" aria-hidden="true" />
+                Creating account...
+              </>
+            ) : (
+              "Continue"
+            )}
+          </button>
+        </form>
       </div>
     </AuthShell>
   )

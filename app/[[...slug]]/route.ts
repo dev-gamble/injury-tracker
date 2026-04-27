@@ -68,6 +68,7 @@ function renderSignedInBlock(
   email: string,
   group: { name: string; color: string } | null,
   isAdmin: boolean,
+  accessChannel: 'key' | 'subscription' | null,
 ): string {
   let badge = ''
   if (isAdmin) {
@@ -77,7 +78,11 @@ function renderSignedInBlock(
     // the dot, border, and text shades from a single hex.
     const safeColor = HEX_COLOR_RE.test(group.color) ? group.color : '#0a2357'
     badge = `<span class="header-identity-tier header-identity-tier-custom" style="--g:${safeColor}"><span class="header-identity-tier-dot" aria-hidden="true"></span>${escapeHtml(group.name.toUpperCase())}</span>`
+  } else if (accessChannel === 'subscription') {
+    // Subscription channel users get sent to /subscribe to start checkout.
+    badge = `<a href="/subscribe" class="header-identity-redeem" title="Start your subscription"><span class="header-identity-redeem-dot" aria-hidden="true"></span>Subscribe</a>`
   } else {
+    // Default (key channel or unset) — keep the redeem-key CTA.
     badge = `<a href="/redeem-key" class="header-identity-redeem" title="Redeem your access key"><span class="header-identity-redeem-dot" aria-hidden="true"></span>Redeem Key</a>`
   }
   const identity = `<div class="header-identity" aria-label="Account">
@@ -201,16 +206,24 @@ export async function GET(
           }
         }
         // Access can come from either a license-key group OR an active Stripe
-        // subscription. The badge slot still shows the group when present
-        // (subscribers without a key see the "Redeem Key" CTA there), but the
-        // tracker's hasAccess flag must reflect the union of both paths.
+        // subscription. Admins and key-group holders short-circuit; everyone
+        // else goes through current_user_has_access() which unions both paths.
         if (isAdmin || group !== null) {
           hasAccess = true
         } else {
           const { data: rpcAccess } = await supabase.rpc('current_user_has_access')
           hasAccess = rpcAccess === true
         }
-        replacement = renderSignedInBlock(user.email ?? '', group, isAdmin)
+        // The pill in the header reflects how the user signed up: a "key"
+        // signup (or unset metadata) gets "Redeem Key", a "subscription"
+        // signup gets "Subscribe". Once they have a group/admin role/active
+        // sub the pill is replaced by the proper badge anyway.
+        const channelRaw = (user.user_metadata as { access_channel?: unknown } | null)?.access_channel
+        const accessChannel: 'key' | 'subscription' | null =
+          channelRaw === 'subscription' ? 'subscription'
+          : channelRaw === 'key' ? 'key'
+          : null
+        replacement = renderSignedInBlock(user.email ?? '', group, isAdmin, accessChannel)
       }
       html = html.replace(AUTH_BUTTON_PATTERN, replacement)
       html = html.replace(ACCESS_STATE_PATTERN, renderAccessState(hasAccess))

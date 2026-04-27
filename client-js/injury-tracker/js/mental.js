@@ -49,13 +49,15 @@ function addMentalCondition(name) {
     manualOverride: null,
     effectiveRating: 0
   }, _condInfoDefaults()));
-  renderMentalPanel();
+  renderConditionList();
+  renderMHEvalRegion();
 }
 
 function removeMentalCondition(id) {
   if(typeof _removeCondPinIfExists === 'function') _removeCondPinIfExists(id);
   window._mentalHealthConditions = window._mentalHealthConditions.filter(c => c.id !== id);
-  renderMentalPanel();
+  renderConditionList();
+  renderMHEvalRegion();
   if (typeof renderRating === 'function') renderRating();
 }
 
@@ -73,7 +75,8 @@ function updateMHDomain(condId, domainId, level) {
   cond.domains[domainId].level = level;
   if (level === 'none') cond.domains[domainId].frequency = 'less25';
   recalcMHRating(cond);
-  renderMentalPanel();
+  renderConditionList();
+  renderMHEvalRegion();
   if (typeof renderRating === 'function') renderRating();
 }
 
@@ -82,7 +85,8 @@ function updateMHFrequency(condId, domainId, freq) {
   if (!cond) return;
   cond.domains[domainId].frequency = freq;
   recalcMHRating(cond);
-  renderMentalPanel();
+  renderConditionList();
+  renderMHEvalRegion();
   if (typeof renderRating === 'function') renderRating();
 }
 
@@ -96,7 +100,8 @@ function setMHOverride(condId, value) {
     cond.manualOverride = parseInt(value);
     cond.effectiveRating = cond.manualOverride;
   }
-  renderMentalPanel();
+  renderConditionList();
+  renderMHEvalRegion();
   if (typeof renderRating === 'function') renderRating();
 }
 
@@ -110,7 +115,8 @@ function toggleMHOverride(condId, checked) {
     cond.manualOverride = null;
     cond.effectiveRating = cond.calculatedRating;
   }
-  renderMentalPanel();
+  renderConditionList();
+  renderMHEvalRegion();
   if (typeof renderRating === 'function') renderRating();
 }
 
@@ -169,8 +175,10 @@ function renderConditionList() {
     const badge = cond ? `<span class="mh-cond-badge mh-rate-${cond.effectiveRating}">${cond.effectiveRating}%</span>` : '';
     const examples = (typeof MH_EXAMPLES !== 'undefined' && MH_EXAMPLES[name]) || '';
     const exHtml = examples ? `<span class="mh-cond-examples">e.g. ${examples}</span>` : '';
-    h += `<div class="mh-cond-item${checked ? ' selected' : ''}" onclick="toggleMentalCondition('${name.replace(/'/g, "\\'")}')">
-      <input type="checkbox" ${checked ? 'checked' : ''} onclick="event.stopPropagation();toggleMentalCondition('${name.replace(/'/g, "\\'")}')">
+    const escapedName = name.replace(/"/g, '&quot;').replace(/'/g, "&#39;");
+    const safeName = name.replace(/'/g, "\\'");
+    h += `<div class="mh-cond-item${checked ? ' selected' : ''}" data-cond-name="${escapedName}" onclick="toggleMentalCondition('${safeName}')">
+      <input type="checkbox" ${checked ? 'checked' : ''} onclick="event.stopPropagation();toggleMentalCondition('${safeName}')">
       <span class="mh-cond-label">${name}${exHtml}</span>
       ${badge}
     </div>`;
@@ -185,9 +193,6 @@ function renderConditionList() {
 function renderMentalPanel() {
   const panel = document.getElementById('mental-health-panel');
   if (!panel) return;
-
-  const conds = window._mentalHealthConditions;
-  const highest = getMHHighestCondition();
 
   let h = '';
 
@@ -217,7 +222,27 @@ function renderMentalPanel() {
   // Condition checklist
   h += '<div class="mh-cond-list" id="mh-cond-list"></div>';
 
-  // Selected conditions evaluation
+  // Dynamic eval region — re-rendered on its own without rebuilding the panel
+  // or the cond-list above. Keeps the user's scroll/search state intact.
+  h += '<div id="mh-eval-region">' + _buildMHEvalRegionHTML() + '</div>';
+
+  h += '</div>'; // mh-body
+  const _scrollTop = panel.scrollTop;
+  panel.innerHTML = h;
+  panel.scrollTop = _scrollTop;
+
+  renderConditionList();
+  panel.scrollTop = _scrollTop;
+}
+
+// Build the HTML for the evaluation region (everything below the cond-list).
+// Split out so toggling a condition can update only this region instead of
+// rebuilding the panel — that's what kept the cond-list scroll position alive.
+function _buildMHEvalRegionHTML() {
+  const conds = window._mentalHealthConditions;
+  const highest = getMHHighestCondition();
+  let h = '';
+
   if (conds.length) {
     h += `<div class="mh-section-title">Evaluations (${conds.length} condition${conds.length > 1 ? 's' : ''})</div>`;
 
@@ -227,8 +252,6 @@ function renderMentalPanel() {
       const overrideActive = cond.manualOverride !== null;
 
       h += `<div class="mh-eval-card${isHighest ? ' mh-highest' : ''}">`;
-
-      // Header
       h += `<div class="mh-eval-header" onclick="toggleMHEvalCard(${cond.id})">
         <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
           <span class="mh-eval-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${cond.condition}</span>
@@ -240,14 +263,9 @@ function renderMentalPanel() {
           <button class="mh-remove" onclick="event.stopPropagation();removeMentalCondition(${cond.id})" title="Remove condition">&times;</button>
         </div>
       </div>`;
-
-      // Body (domains)
       h += `<div class="mh-eval-body" id="mh-eval-body-${cond.id}">`;
-
-      // Service info fields
       h += _condInfoHTML('mh', cond);
 
-      // Domain cards
       MH_DOMAINS.forEach(domain => {
         const dv = cond.domains[domain.id];
         const currentLevel = dv.level;
@@ -259,8 +277,6 @@ function renderMentalPanel() {
             <div class="mh-domain-label">${domain.label}</div>
             <div class="mh-domain-desc">${domain.description}</div>
           </div>`;
-
-        // Level buttons
         h += '<div class="mh-levels">';
         MH_IMPAIRMENT_LEVELS.forEach(lv => {
           const isActive = currentLevel === lv;
@@ -268,8 +284,6 @@ function renderMentalPanel() {
             onclick="updateMHDomain(${cond.id},'${domain.id}','${lv}')">${MH_IMPAIRMENT_LABELS[lv]}</button>`;
         });
         h += '</div>';
-
-        // Frequency (only if impairment > none)
         if (currentLevel !== 'none') {
           h += `<div class="mh-freq">
             <span class="mh-freq-label">How often?</span>
@@ -279,21 +293,16 @@ function renderMentalPanel() {
               onclick="updateMHFrequency(${cond.id},'${domain.id}','25plus')">25% or more</button>
           </div>`;
         }
-
-        // Example
         h += `<div class="mh-example">${exampleText}</div>`;
         h += '</div>';
       });
 
-      // Calculated rating display
       h += `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(10,35,87,.04);border-radius:6px;">
         <div>
           <div style="font-size:11px;font-weight:700;color:var(--navy);font-family:var(--fh);text-transform:uppercase;letter-spacing:.5px;">Calculated Rating</div>
           <div style="font-size:24px;font-weight:800;font-family:var(--fm);color:var(--navy);">${cond.calculatedRating}%</div>
         </div>
       </div>`;
-
-      // Manual override
       h += `<div class="mh-override">
         <label>
           <input type="checkbox" ${overrideActive ? 'checked' : ''} onchange="toggleMHOverride(${cond.id},this.checked)">
@@ -307,12 +316,10 @@ function renderMentalPanel() {
         h += '</select>';
       }
       h += '</div>';
-
       h += '</div>'; // eval-body
       h += '</div>'; // eval-card
     });
 
-    // Combined rating display
     const highestRating = getMHHighestRating();
     h += `<div class="mh-combined">
       <div class="mh-combined-label">Your Mental Health Rating</div>
@@ -321,7 +328,6 @@ function renderMentalPanel() {
         ? 'Highest of ' + conds.length + ' evaluated conditions (VA single-rating rule)'
         : 'Based on your evaluation above'}</div>
     </div>`;
-
   } else {
     h += `<div class="mh-empty">
       <div style="font-size:28px;margin-bottom:8px;">&#9881;</div>
@@ -331,9 +337,8 @@ function renderMentalPanel() {
     </div>`;
   }
 
-  // Place Pin / Done buttons
   h += '<div class="mh-done-wrap">';
-  if(conds.length){
+  if (conds.length) {
     h += '<button class="mh-done-btn" onclick="placeMentalHealthPin()">' +
       '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="10" r="3"/><path d="M12 2C7.58 2 4 5.58 4 10c0 5.25 8 13 8 13s8-7.75 8-13c0-4.42-3.58-8-8-8z"/></svg>' +
       ' Place Pin on Map' +
@@ -345,12 +350,13 @@ function renderMentalPanel() {
   '</button>';
   h += '</div>';
 
-  h += '</div>'; // mh-body
-  const _scrollTop = panel.scrollTop;
-  panel.innerHTML = h;
-  panel.scrollTop = _scrollTop;
+  return h;
+}
 
-  // Render condition list separately (preserves search state)
-  renderConditionList();
-  panel.scrollTop = _scrollTop;
+// Render only the section below the cond-list. Falls back to a full panel
+// render if the region doesn't exist yet (e.g., first open).
+function renderMHEvalRegion() {
+  const region = document.getElementById('mh-eval-region');
+  if (!region) { renderMentalPanel(); return; }
+  region.innerHTML = _buildMHEvalRegionHTML();
 }

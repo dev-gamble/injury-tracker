@@ -43,7 +43,10 @@
       <span id="cb-label">B&W Mode</span>
     </button>
     <div style="position:relative;" id="export-wrap">
-    <button id="import-export-btn" class="export-btn" onclick="toggleExportMenu()">
+    <!-- Render locked-by-default to avoid an "active button" flash for users
+         without access. The access-gate IIFE below removes the lock for users
+         that the server-stamped __endexAccess marks as having access. -->
+    <button id="import-export-btn" class="export-btn export-btn-locked" aria-disabled="true" title="Requires key or subscription" onclick="toggleExportMenu()">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 004.561 21h14.878a2 2 0 001.94-1.515L22 17"/></svg>
       Import / Export
       <svg class="export-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg>
@@ -367,13 +370,19 @@
 // swaps the Import/Export button into a disabled state that shows the
 // upgrade toast on click instead of opening the dropdown.
 (function(){
-  if((window.__endexAccess||{}).hasAccess) return;
-  function lockButton(){
+  var hasAccess = (window.__endexAccess||{}).hasAccess;
+  function settleButton(){
     var btn = document.getElementById('import-export-btn');
     if(!btn) return;
-    btn.classList.add('export-btn-locked');
-    btn.setAttribute('title','Requires key or subscription');
-    btn.setAttribute('aria-disabled','true');
+    if(hasAccess){
+      // Server confirms access — drop the locked-by-default chrome.
+      btn.classList.remove('export-btn-locked');
+      btn.removeAttribute('aria-disabled');
+      btn.removeAttribute('title');
+      return;
+    }
+    // No access — keep the lock and route clicks to the upgrade toast
+    // instead of opening the export dropdown.
     btn.removeAttribute('onclick');
     btn.addEventListener('click', function(e){
       e.preventDefault();
@@ -381,8 +390,8 @@
       if(typeof _requireAccess === 'function') _requireAccess();
     });
   }
-  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',lockButton);}
-  else{lockButton();}
+  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',settleButton);}
+  else{settleButton();}
 })();
 </script>
 <script>

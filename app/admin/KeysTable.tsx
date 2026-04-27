@@ -3,11 +3,13 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { revokeKey, unrevokeKey } from './actions'
+import { KeyDetailsModal } from './KeyDetailsModal'
 
 export type KeyRow = {
   id: string
   key_prefix: string
-  tier: 'demo' | 'free' | 'full' | 'partner'
+  group_name: string
+  group_color: string
   status: 'active' | 'revoked' | 'expired'
   max_uses: number
   current_uses: number
@@ -16,18 +18,16 @@ export type KeyRow = {
   created_at: string
 }
 
-type Tier = KeyRow['tier']
 type Status = KeyRow['status']
 type ExpiresFilter = 'any' | 'expires-7d' | 'expires-30d' | 'has-expiry' | 'never' | 'expired'
 type IssuedFilter = 'any' | '24h' | '7d' | '30d' | '90d'
-type FilterColumn = 'tier' | 'status' | 'expires' | 'issued'
+type FilterColumn = 'group' | 'status' | 'expires' | 'issued'
 
-const TIER_OPTS: { value: Tier; label: string }[] = [
-  { value: 'demo',    label: 'Demo' },
-  { value: 'free',    label: 'Free' },
-  { value: 'full',    label: 'Full' },
-  { value: 'partner', label: 'Partner' },
-]
+// Pill style is driven by a CSS custom property `--g` so a single class
+// works for any group color. See `.admin-pill-group` in admin.css.
+function groupPillStyle(color: string): React.CSSProperties {
+  return { ['--g' as never]: color } as React.CSSProperties
+}
 
 const STATUS_OPTS: { value: Status; label: string }[] = [
   { value: 'active',  label: 'Active' },
@@ -98,14 +98,27 @@ function toggleInSet<T>(set: Set<T>, value: T): Set<T> {
 }
 
 export function KeysTable({ rows }: { rows: KeyRow[] }) {
-  const [tierFilter, setTierFilter] = useState<Set<Tier>>(new Set())
+  const [groupFilter, setGroupFilter] = useState<Set<string>>(new Set())
   const [statusFilter, setStatusFilter] = useState<Set<Status>>(new Set())
+
+  // Dropdown options are derived from the data: every distinct group_name
+  // currently in the registry shows up, paired with its representative color.
+  const groupOpts = useMemo(() => {
+    const byName = new Map<string, string>()
+    for (const row of rows) {
+      if (!byName.has(row.group_name)) byName.set(row.group_name, row.group_color)
+    }
+    return [...byName.entries()]
+      .map(([name, color]) => ({ name, color }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+  }, [rows])
   const [expiresFilter, setExpiresFilter] = useState<ExpiresFilter>('any')
   const [issuedFilter, setIssuedFilter] = useState<IssuedFilter>('any')
   const [openCol, setOpenCol] = useState<FilterColumn | null>(null)
   const [openActionId, setOpenActionId] = useState<string | null>(null)
   const [pendingId, setPendingId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [detailRowId, setDetailRowId] = useState<string | null>(null)
   const [, startTransition] = useTransition()
   const router = useRouter()
 
@@ -151,22 +164,22 @@ export function KeysTable({ rows }: { rows: KeyRow[] }) {
 
   const filtered = useMemo(() => {
     return rows.filter((row) => {
-      if (tierFilter.size > 0 && !tierFilter.has(row.tier)) return false
+      if (groupFilter.size > 0 && !groupFilter.has(row.group_name)) return false
       if (statusFilter.size > 0 && !statusFilter.has(row.status)) return false
       if (!matchesExpires(row, expiresFilter)) return false
       if (!matchesIssued(row, issuedFilter)) return false
       return true
     })
-  }, [rows, tierFilter, statusFilter, expiresFilter, issuedFilter])
+  }, [rows, groupFilter, statusFilter, expiresFilter, issuedFilter])
 
   const hasFilters =
-    tierFilter.size > 0 ||
+    groupFilter.size > 0 ||
     statusFilter.size > 0 ||
     expiresFilter !== 'any' ||
     issuedFilter !== 'any'
 
   function clearAll() {
-    setTierFilter(new Set())
+    setGroupFilter(new Set())
     setStatusFilter(new Set())
     setExpiresFilter('any')
     setIssuedFilter('any')
@@ -194,32 +207,38 @@ export function KeysTable({ rows }: { rows: KeyRow[] }) {
           <tr>
             <th>Prefix</th>
             <FilterHeader
-              label="Tier"
-              active={tierFilter.size > 0}
-              open={openCol === 'tier'}
-              onToggle={() => toggleOpen('tier')}
+              label="Group"
+              active={groupFilter.size > 0}
+              open={openCol === 'group'}
+              onToggle={() => toggleOpen('group')}
             >
-              <div className="admin-filter-title">Filter by tier</div>
+              <div className="admin-filter-title">Filter by group</div>
               <div className="admin-filter-list">
-                {TIER_OPTS.map((o) => {
-                  const checked = tierFilter.has(o.value)
-                  return (
-                    <button
-                      key={o.value}
-                      type="button"
-                      onClick={() => setTierFilter(toggleInSet(tierFilter, o.value))}
-                      className={`admin-filter-check${checked ? ' is-checked' : ''}`}
-                      role="checkbox"
-                      aria-checked={checked}
-                    >
-                      <span className="admin-filter-box" aria-hidden="true">{checked ? '✓' : ''}</span>
-                      <span className={`admin-pill admin-pill-tier-${o.value}`}>{o.value}</span>
-                    </button>
-                  )
-                })}
+                {groupOpts.length === 0 ? (
+                  <p className="admin-filter-empty">No groups yet.</p>
+                ) : (
+                  groupOpts.map((o) => {
+                    const checked = groupFilter.has(o.name)
+                    return (
+                      <button
+                        key={o.name}
+                        type="button"
+                        onClick={() => setGroupFilter(toggleInSet(groupFilter, o.name))}
+                        className={`admin-filter-check${checked ? ' is-checked' : ''}`}
+                        role="checkbox"
+                        aria-checked={checked}
+                      >
+                        <span className="admin-filter-box" aria-hidden="true">{checked ? '✓' : ''}</span>
+                        <span className="admin-pill admin-pill-group" style={groupPillStyle(o.color)}>
+                          {o.name}
+                        </span>
+                      </button>
+                    )
+                  })
+                )}
               </div>
-              {tierFilter.size > 0 && (
-                <button type="button" onClick={() => setTierFilter(new Set())} className="admin-filter-clear">
+              {groupFilter.size > 0 && (
+                <button type="button" onClick={() => setGroupFilter(new Set())} className="admin-filter-clear">
                   Clear selection
                 </button>
               )}
@@ -330,12 +349,27 @@ export function KeysTable({ rows }: { rows: KeyRow[] }) {
               const issued = formatDate(row.created_at)
               const exhausted = row.current_uses >= row.max_uses
               return (
-                <tr key={row.id}>
+                <tr
+                  key={row.id}
+                  className="admin-tr-clickable"
+                  onClick={() => setDetailRowId(row.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      setDetailRowId(row.id)
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Open details for ${row.key_prefix}`}
+                >
                   <td>
                     <span className="admin-cell-prefix">{row.key_prefix}</span>
                   </td>
                   <td>
-                    <span className={`admin-pill admin-pill-tier-${row.tier}`}>{row.tier}</span>
+                    <span className="admin-pill admin-pill-group" style={groupPillStyle(row.group_color)}>
+                      {row.group_name}
+                    </span>
                   </td>
                   <td>
                     <span className={`admin-pill admin-pill-status-${row.status}`}>{row.status}</span>
@@ -353,7 +387,7 @@ export function KeysTable({ rows }: { rows: KeyRow[] }) {
                   <td>
                     <span className="admin-cell-date">{issued.label}</span>
                   </td>
-                  <td className="admin-cell-actions">
+                  <td className="admin-cell-actions" onClick={(e) => e.stopPropagation()}>
                     <RowActions
                       row={row}
                       open={openActionId === row.id}
@@ -378,6 +412,16 @@ export function KeysTable({ rows }: { rows: KeyRow[] }) {
           <button type="button" onClick={() => setActionError(null)} aria-label="Dismiss">×</button>
         </div>
       )}
+      {detailRowId && (() => {
+        const detailRow = rows.find((r) => r.id === detailRowId)
+        if (!detailRow) return null
+        return (
+          <KeyDetailsModal
+            row={detailRow}
+            onClose={() => setDetailRowId(null)}
+          />
+        )
+      })()}
     </div>
   )
 }

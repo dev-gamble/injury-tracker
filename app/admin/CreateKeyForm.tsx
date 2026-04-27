@@ -3,14 +3,20 @@
 import { useEffect, useState } from 'react'
 import { createLicenseKey, type CreateKeyResult } from './actions'
 
-const TIERS = [
-  { value: 'demo',    label: 'Demo',    glyph: 'DMO' },
-  { value: 'free',    label: 'Free',    glyph: 'FRE' },
-  { value: 'full',    label: 'Full',    glyph: 'FUL' },
-  { value: 'partner', label: 'Partner', glyph: 'PTR' },
-] as const
+// Curated swatches surface above the native picker. The first six let an admin
+// pick a tasteful color in one click; the picker stays as the escape hatch for
+// anything custom. Order: the four legacy tier colors + two neutrals.
+const SWATCHES: { color: string; label: string }[] = [
+  { color: '#0a2357', label: 'Navy' },
+  { color: '#2a7a4b', label: 'Green' },
+  { color: '#d9a21b', label: 'Amber' },
+  { color: '#c8102e', label: 'Red' },
+  { color: '#5a6782', label: 'Slate' },
+  { color: '#6b46c1', label: 'Violet' },
+]
 
-type Tier = (typeof TIERS)[number]['value']
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
+const DEFAULT_COLOR = '#0a2357'
 
 function formatTime() {
   const d = new Date()
@@ -29,7 +35,8 @@ function formatExpiresDisplay(iso: string | null) {
 }
 
 export function CreateKeyForm() {
-  const [tier, setTier] = useState<Tier>('demo')
+  const [groupName, setGroupName] = useState('')
+  const [groupColor, setGroupColor] = useState<string>(DEFAULT_COLOR)
   const [maxUses, setMaxUses] = useState('1')
   const [expiresAt, setExpiresAt] = useState('')
   const [notes, setNotes] = useState('')
@@ -38,7 +45,8 @@ export function CreateKeyForm() {
   const [copied, setCopied] = useState(false)
   const [issuedAt, setIssuedAt] = useState<string>('')
   const [submittedExpires, setSubmittedExpires] = useState<string | null>(null)
-  const [submittedTier, setSubmittedTier] = useState<Tier>('demo')
+  const [submittedGroupName, setSubmittedGroupName] = useState<string>('')
+  const [submittedGroupColor, setSubmittedGroupColor] = useState<string>(DEFAULT_COLOR)
   const [submittedMaxUses, setSubmittedMaxUses] = useState<number>(1)
 
   useEffect(() => {
@@ -47,6 +55,15 @@ export function CreateKeyForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    const trimmedGroup = groupName.trim()
+    if (trimmedGroup.length < 1 || trimmedGroup.length > 32) {
+      setResult({ ok: false, error: 'Group name must be 1–32 characters.' })
+      return
+    }
+    if (!HEX_COLOR_RE.test(groupColor)) {
+      setResult({ ok: false, error: 'Group color must be a 6-digit hex (e.g. #0a2357).' })
+      return
+    }
     // Strict digit check — <input type="number"> accepts "1e2", and
     // parseInt("1e2", 10) silently returns 1 instead of 100.
     if (!/^\d+$/.test(maxUses) || parseInt(maxUses, 10) < 1) {
@@ -58,14 +75,16 @@ export function CreateKeyForm() {
     const expiresIso = expiresAt ? new Date(expiresAt).toISOString() : null
     const parsedMaxUses = parseInt(maxUses, 10)
     const res = await createLicenseKey({
-      tier,
+      groupName: trimmedGroup,
+      groupColor,
       maxUses: parsedMaxUses,
       expiresAt: expiresIso,
       notes: notes.trim() || null,
     })
     if (res.ok) {
       setSubmittedExpires(expiresIso)
-      setSubmittedTier(tier)
+      setSubmittedGroupName(trimmedGroup)
+      setSubmittedGroupColor(groupColor)
       setSubmittedMaxUses(parsedMaxUses)
     }
     setResult(res)
@@ -88,7 +107,8 @@ export function CreateKeyForm() {
   function handleIssueAnother() {
     setResult(null)
     setCopied(false)
-    setTier('demo')
+    setGroupName('')
+    setGroupColor(DEFAULT_COLOR)
     setMaxUses('1')
     setExpiresAt('')
   }
@@ -123,8 +143,15 @@ export function CreateKeyForm() {
 
           <div className="admin-issued-meta">
             <div className="admin-meta-row">
-              <span className="admin-meta-key">Tier</span>
-              <span className={`admin-meta-val val-tier-${submittedTier}`}>{submittedTier}</span>
+              <span className="admin-meta-key">Group</span>
+              <span className="admin-meta-val">
+                <span
+                  className="admin-pill admin-pill-group"
+                  style={{ ['--g' as never]: submittedGroupColor } as React.CSSProperties}
+                >
+                  {submittedGroupName}
+                </span>
+              </span>
             </div>
             <div className="admin-meta-row">
               <span className="admin-meta-key">Max uses</span>
@@ -178,21 +205,58 @@ export function CreateKeyForm() {
       <div className="admin-card-body">
       <form onSubmit={handleSubmit} className="admin-form">
         <div className="admin-field">
-          <span className="admin-label">Access tier</span>
-          <div className="admin-tier-group" role="radiogroup" aria-label="Access tier">
-            {TIERS.map((t) => (
-              <button
-                key={t.value}
-                type="button"
-                role="radio"
-                aria-checked={tier === t.value}
-                onClick={() => setTier(t.value)}
-                className={`admin-tier-btn${tier === t.value ? ' is-active' : ''}`}
-              >
-                <span>{t.label}</span>
-                <span className="admin-tier-glyph">{t.glyph}</span>
-              </button>
-            ))}
+          <label htmlFor="groupName" className="admin-label">Group</label>
+          <div className="admin-group-row">
+            <input
+              id="groupName"
+              type="text"
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+              required
+              maxLength={32}
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="e.g. Beta Testers"
+              className="admin-input admin-group-input"
+              style={{ ['--g' as never]: HEX_COLOR_RE.test(groupColor) ? groupColor : DEFAULT_COLOR } as React.CSSProperties}
+            />
+            <span
+              className="admin-group-preview"
+              aria-hidden="true"
+              style={{ ['--g' as never]: HEX_COLOR_RE.test(groupColor) ? groupColor : DEFAULT_COLOR } as React.CSSProperties}
+            >
+              <span className="admin-group-preview-dot" />
+              <span className="admin-group-preview-label">
+                {groupName.trim() || 'Preview'}
+              </span>
+            </span>
+          </div>
+          <div className="admin-swatch-row" role="radiogroup" aria-label="Group color">
+            {SWATCHES.map((s) => {
+              const active = groupColor.toLowerCase() === s.color.toLowerCase()
+              return (
+                <button
+                  key={s.color}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  aria-label={s.label}
+                  title={s.label}
+                  onClick={() => setGroupColor(s.color)}
+                  className={`admin-swatch${active ? ' is-active' : ''}`}
+                  style={{ ['--g' as never]: s.color } as React.CSSProperties}
+                />
+              )
+            })}
+            <label className="admin-swatch admin-swatch-custom" title="Custom color">
+              <input
+                type="color"
+                value={HEX_COLOR_RE.test(groupColor) ? groupColor : DEFAULT_COLOR}
+                onChange={(e) => setGroupColor(e.target.value)}
+                aria-label="Custom group color"
+              />
+              <span aria-hidden="true">+</span>
+            </label>
           </div>
         </div>
 

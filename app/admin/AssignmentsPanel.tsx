@@ -1,9 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 import type { KeyRow } from './KeysTable'
 import {
-  listAssignmentUsers,
   assignKeyToUser,
   unassignKey,
   type AssignmentUser,
@@ -11,6 +10,10 @@ import {
 
 type Props = {
   keys: KeyRow[]
+  users: AssignmentUser[]
+  loading: boolean
+  loadError: string | null
+  onReload: () => Promise<void>
 }
 
 function formatDate(iso: string | null) {
@@ -18,30 +21,12 @@ function formatDate(iso: string | null) {
   return new Date(iso).toISOString().slice(0, 10)
 }
 
-export function AssignmentsPanel({ keys }: Props) {
-  const [users, setUsers] = useState<AssignmentUser[]>([])
-  const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState<string | null>(null)
+export function AssignmentsPanel({ keys, users, loading, loadError, onReload }: Props) {
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [pendingKeyId, setPendingKeyId] = useState('')
   const [isPending, startTransition] = useTransition()
-
-  async function reload() {
-    const res = await listAssignmentUsers()
-    if (res.ok) {
-      setUsers(res.users)
-      setLoadError(null)
-    } else {
-      setLoadError(res.error)
-    }
-    setLoading(false)
-  }
-
-  useEffect(() => {
-    reload()
-  }, [])
 
   const filtered = useMemo(() => {
     if (!query) return users
@@ -71,7 +56,7 @@ export function AssignmentsPanel({ keys }: Props) {
         setActionError(res.error)
         return
       }
-      await reload()
+      await onReload()
     })
   }
 
@@ -85,7 +70,7 @@ export function AssignmentsPanel({ keys }: Props) {
         return
       }
       setPendingKeyId('')
-      await reload()
+      await onReload()
     })
   }
 
@@ -99,7 +84,7 @@ export function AssignmentsPanel({ keys }: Props) {
         <h1 id="admin-assignments-title" className="admin-card-title">Manual Assignments</h1>
         <p className="admin-card-subtitle">
           Attach or detach license keys on behalf of a user. Use when someone has lost their key,
-          needs a different tier, or should be switched between seats. Unassigning frees a seat on
+          needs a different group, or should be switched between seats. Unassigning frees a seat on
           the original key immediately.
         </p>
       </div>
@@ -186,8 +171,11 @@ export function AssignmentsPanel({ keys }: Props) {
                         <li key={a.id} className="admin-assign-item">
                           <div className="admin-assign-item-body">
                             <div className="admin-assign-item-main">
-                              <span className={`admin-pill admin-pill-tier-${a.key.tier}`}>
-                                {a.key.tier}
+                              <span
+                                className="admin-pill admin-pill-group"
+                                style={{ ['--g' as never]: a.key.group_color } as React.CSSProperties}
+                              >
+                                {a.key.group_name}
                               </span>
                               <span className="admin-assign-prefix">{a.key.key_prefix}</span>
                               <span className={`admin-pill admin-pill-status-${a.key.status}`}>
@@ -238,7 +226,7 @@ export function AssignmentsPanel({ keys }: Props) {
                         <option value="">Select a key…</option>
                         {eligibleKeys.map((k) => (
                           <option key={k.id} value={k.id}>
-                            {k.key_prefix} · {k.tier.toUpperCase()} · {k.current_uses}/{k.max_uses}
+                            {k.key_prefix} · {k.group_name.toUpperCase()} · {k.current_uses}/{k.max_uses}
                             {' · '}
                             {k.expires_at ? formatDate(k.expires_at) : 'no expiry'}
                           </option>

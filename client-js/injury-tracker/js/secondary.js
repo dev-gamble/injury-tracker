@@ -1604,8 +1604,8 @@ function renderSecondary(){
       html += renderSecondaryAddDropdowns(claim.id, group);
       // Custom text input
       html += '<div class="cr-custom-row">' +
-        '<input type="text" class="cr-custom-input" id="cr-custom-' + claim.id + '" placeholder="Custom secondary...">' +
-        '<button class="cr-custom-btn" onclick="addCustomSecondary(\'' + claim.id + '\')">Add</button>' +
+        '<input type="text" class="cr-custom-input" id="cr-custom-' + claim.id + '" placeholder="Custom secondary..." oninput="_toggleCustomAddBtn(this)">' +
+        '<button class="cr-custom-btn" disabled onclick="addCustomSecondary(\'' + claim.id + '\')">Add</button>' +
       '</div>';
       html += '</div>';
 

@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { RegistryPanel } from './RegistryPanel'
 import { CreateKeyForm } from './CreateKeyForm'
 import { AssignmentsPanel } from './AssignmentsPanel'
+import { listAssignmentUsers, type AssignmentUser } from './actions'
 import type { KeyRow } from './KeysTable'
 
 type Tab = 'registry' | 'issue' | 'assignments'
@@ -21,6 +22,24 @@ type Props = {
 
 export function AdminConsole({ rows, errorMessage }: Props) {
   const [tab, setTab] = useState<Tab>('registry')
+  const [users, setUsers] = useState<AssignmentUser[]>([])
+  const [usersLoading, setUsersLoading] = useState(true)
+  const [usersError, setUsersError] = useState<string | null>(null)
+
+  const reloadUsers = useCallback(async () => {
+    const res = await listAssignmentUsers()
+    if (res.ok) {
+      setUsers(res.users)
+      setUsersError(null)
+    } else {
+      setUsersError(res.error)
+    }
+    setUsersLoading(false)
+  }, [])
+
+  useEffect(() => {
+    reloadUsers()
+  }, [reloadUsers])
 
   return (
     <>
@@ -57,7 +76,15 @@ export function AdminConsole({ rows, errorMessage }: Props) {
               <CreateKeyForm />
             </section>
           )}
-          {tab === 'assignments' && <AssignmentsPanel keys={rows} />}
+          {tab === 'assignments' && (
+            <AssignmentsPanel
+              keys={rows}
+              users={users}
+              loading={usersLoading}
+              loadError={usersError}
+              onReload={reloadUsers}
+            />
+          )}
         </div>
       </main>
     </>

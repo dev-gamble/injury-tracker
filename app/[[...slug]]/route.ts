@@ -26,7 +26,7 @@ const SIGN_OUT_BUTTON = `<button type="button" class="export-btn header-signin-b
     </div>
     <div class="signout-actions">
       <button type="button" class="signout-cancel" onclick="window.__closeSignoutModal&&window.__closeSignoutModal()">Cancel</button>
-      <form action="/signout" method="POST" style="margin:0;">
+      <form id="signout-form" action="/signout" method="POST" style="margin:0;">
         <button type="submit" class="signout-confirm">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
           Sign out
@@ -35,16 +35,15 @@ const SIGN_OUT_BUTTON = `<button type="button" class="export-btn header-signin-b
     </div>
   </div>
 </div>
-<script>(function(){var m=function(){return document.getElementById('signout-modal');};window.__openSignoutModal=function(){var el=m();if(el){el.classList.remove('hidden');document.body.style.overflow='hidden';}};window.__closeSignoutModal=function(){var el=m();if(el){el.classList.add('hidden');document.body.style.overflow='';}};window.__dismissSignoutModal=function(e){if(e&&e.target&&e.target.id==='signout-modal')window.__closeSignoutModal();};document.addEventListener('keydown',function(e){if(e.key==='Escape'){var el=m();if(el&&!el.classList.contains('hidden'))window.__closeSignoutModal();}});})();</script>`
+<script>(function(){var m=function(){return document.getElementById('signout-modal');};window.__openSignoutModal=function(){var el=m();if(el){el.classList.remove('hidden');document.body.style.overflow='hidden';}};window.__closeSignoutModal=function(){var el=m();if(el){el.classList.add('hidden');document.body.style.overflow='';}};window.__dismissSignoutModal=function(e){if(e&&e.target&&e.target.id==='signout-modal')window.__closeSignoutModal();};document.addEventListener('keydown',function(e){if(e.key==='Escape'){var el=m();if(el&&!el.classList.contains('hidden'))window.__closeSignoutModal();}});var f=document.getElementById('signout-form');if(f){f.addEventListener('submit',function(){window.__signingOut=true;});}})();</script>`
 
 const AUTH_BUTTON_PATTERN = /<!--AUTH_BUTTON_START-->[\s\S]*?<!--AUTH_BUTTON_END-->/
 const ACCESS_STATE_PATTERN = /<!--ACCESS_STATE_START-->[\s\S]*?<!--ACCESS_STATE_END-->/
 
 // Stamped alongside the auth button so the tracker JS knows which dropdown
-// features to gate. Any signed-in user with an active grant (tier !== null)
-// or admin role gets full access; everyone else sees locked items with an
-// upgrade tooltip. This is a UX gate, not a security boundary — the tracker
-// is purely client-side.
+// features to gate. Any signed-in user holding an active key gets full access;
+// everyone else sees locked items with an upgrade tooltip. This is a UX gate,
+// not a security boundary — the tracker is purely client-side.
 function renderAccessState(hasAccess: boolean): string {
   return `<!--ACCESS_STATE_START--><script>window.__endexAccess={hasAccess:${hasAccess ? 'true' : 'false'}};</script><!--ACCESS_STATE_END-->`
 }
@@ -58,18 +57,26 @@ function escapeHtml(s: string): string {
 
 // Small identity chip rendered to the left of the sign-out button for
 // authenticated users. Hidden by CSS on narrow viewports. Admins are labeled
-// explicitly; otherwise the tier is derived from current_user_tier(). A signed-
-// in user with no active grant (tier === null) sees a subtle "Redeem Key" CTA
-// where the tier badge would normally sit — middleware no longer bounces them
-// to /redeem-key, so this is how they discover the redemption step.
-function renderSignedInBlock(email: string, tier: string | null, isAdmin: boolean): string {
-  const label = isAdmin ? 'admin' : tier
-  const tierClass = label ? ` header-identity-tier-${label}` : ''
+// explicitly with a fixed white-dot style; everyone else is labeled by their
+// active group (name + color from current_user_group()). A signed-in user with
+// no active grant sees a subtle "Redeem Key" CTA where the badge would normally
+// sit — middleware no longer bounces them to /redeem-key, so this is how they
+// discover the redemption step.
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
+
+function renderSignedInBlock(
+  email: string,
+  group: { name: string; color: string } | null,
+  isAdmin: boolean,
+): string {
   let badge = ''
   if (isAdmin) {
-    badge = `<a href="/admin" class="header-identity-tier header-identity-tier-link${tierClass}" title="Open admin console"><span class="header-identity-tier-dot" aria-hidden="true"></span>ADMIN ACCESS</a>`
-  } else if (label) {
-    badge = `<span class="header-identity-tier${tierClass}"><span class="header-identity-tier-dot" aria-hidden="true"></span>${escapeHtml(label.toUpperCase())} ACCESS</span>`
+    badge = `<a href="/admin" class="header-identity-tier header-identity-tier-link header-identity-tier-admin" title="Open admin console"><span class="header-identity-tier-dot" aria-hidden="true"></span>ADMIN</a>`
+  } else if (group) {
+    // Inline-styled badge driven by --g; styles.css uses color-mix() to derive
+    // the dot, border, and text shades from a single hex.
+    const safeColor = HEX_COLOR_RE.test(group.color) ? group.color : '#0a2357'
+    badge = `<span class="header-identity-tier header-identity-tier-custom" style="--g:${safeColor}"><span class="header-identity-tier-dot" aria-hidden="true"></span>${escapeHtml(group.name.toUpperCase())}</span>`
   } else {
     badge = `<a href="/redeem-key" class="header-identity-redeem" title="Redeem your access key"><span class="header-identity-redeem-dot" aria-hidden="true"></span>Redeem Key</a>`
   }
@@ -178,13 +185,23 @@ export async function GET(
       let hasAccess = false
       if (user) {
         const isAdmin = (user.app_metadata as { role?: unknown })?.role === 'admin'
-        let tier: string | null = null
+        let group: { name: string; color: string } | null = null
         if (!isAdmin) {
-          const { data: tierData } = await supabase.rpc('current_user_tier')
-          tier = typeof tierData === 'string' ? tierData : null
+          const { data: groupData } = await supabase.rpc('current_user_group')
+          if (
+            groupData &&
+            typeof groupData === 'object' &&
+            typeof (groupData as { name?: unknown }).name === 'string' &&
+            typeof (groupData as { color?: unknown }).color === 'string'
+          ) {
+            group = {
+              name: (groupData as { name: string }).name,
+              color: (groupData as { color: string }).color,
+            }
+          }
         }
-        hasAccess = isAdmin || tier !== null
-        replacement = renderSignedInBlock(user.email ?? '', tier, isAdmin)
+        hasAccess = isAdmin || group !== null
+        replacement = renderSignedInBlock(user.email ?? '', group, isAdmin)
       }
       html = html.replace(AUTH_BUTTON_PATTERN, replacement)
       html = html.replace(ACCESS_STATE_PATTERN, renderAccessState(hasAccess))

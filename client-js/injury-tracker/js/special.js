@@ -449,8 +449,8 @@ function _renderMSTSection(){
       h += '</div></div>';
     }
     h += '<div class="cr-custom-row">' +
-      '<input type="text" class="cr-custom-input" id="mst-sec-custom-'+i+'" placeholder="Custom secondary...">' +
-      '<button class="cr-custom-btn" onclick="addCustomMSTSecondary('+i+')">Add</button>' +
+      '<input type="text" class="cr-custom-input" id="mst-sec-custom-'+i+'" placeholder="Custom secondary..." oninput="_toggleCustomAddBtn(this)">' +
+      '<button class="cr-custom-btn" disabled onclick="addCustomMSTSecondary('+i+')">Add</button>' +
     '</div>';
     h += '</div>';
 
@@ -459,8 +459,8 @@ function _renderMSTSection(){
 
   // Custom condition input
   h += '<div class="cr-custom-row" style="margin-top:10px;">' +
-    '<input type="text" class="cr-custom-input" id="mst-custom-cond" placeholder="Other condition not listed...">' +
-    '<button class="cr-custom-btn" onclick="addCustomMSTCondition()">Add</button>' +
+    '<input type="text" class="cr-custom-input" id="mst-custom-cond" placeholder="Other condition not listed..." oninput="_toggleCustomAddBtn(this)">' +
+    '<button class="cr-custom-btn" disabled onclick="addCustomMSTCondition()">Add</button>' +
   '</div>';
   h += '</div>';
 

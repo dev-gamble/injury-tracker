@@ -1,6 +1,6 @@
 // ── ACCESS GATE ──
 // Gate for paid features. Server stamps window.__endexAccess in index.html
-// based on the user's tier + admin role. Restricted features call
+// based on whether the user holds an active key + admin role. Restricted features call
 // _requireAccess() at entry and short-circuit if false.
 //
 // Gating at the function level (not the DOM) means any call path — dropdown

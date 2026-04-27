@@ -6,12 +6,12 @@ import { isAdmin } from '@/lib/auth/admin'
 import { generateRawKey, hashKeyForDb, keyPrefixFor } from '@/lib/keys/generate'
 import { logger } from '@/lib/logging'
 
-type Tier = 'demo' | 'free' | 'full' | 'partner'
-
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
 
 export type CreateKeyInput = {
-  tier: Tier
+  groupName: string
+  groupColor: string
   maxUses: number
   expiresAt: string | null
   notes: string | null
@@ -32,8 +32,12 @@ export async function createLicenseKey(input: CreateKeyInput): Promise<CreateKey
     return { ok: false, error: 'Forbidden' }
   }
 
-  if (!['demo', 'free', 'full', 'partner'].includes(input.tier)) {
-    return { ok: false, error: 'Invalid tier' }
+  const groupName = input.groupName.trim()
+  if (groupName.length < 1 || groupName.length > 32) {
+    return { ok: false, error: 'Group name must be 1–32 characters' }
+  }
+  if (!HEX_COLOR_RE.test(input.groupColor)) {
+    return { ok: false, error: 'Group color must be a 6-digit hex (e.g. #0a2357)' }
   }
   if (!Number.isInteger(input.maxUses) || input.maxUses < 1) {
     return { ok: false, error: 'maxUses must be a positive integer' }
@@ -47,7 +51,8 @@ export async function createLicenseKey(input: CreateKeyInput): Promise<CreateKey
     .insert({
       key_hash: hashKeyForDb(rawKey),
       key_prefix: keyPrefixFor(rawKey),
-      tier: input.tier,
+      group_name: groupName,
+      group_color: input.groupColor,
       max_uses: input.maxUses,
       expires_at: input.expiresAt,
       notes: input.notes,
@@ -61,7 +66,7 @@ export async function createLicenseKey(input: CreateKeyInput): Promise<CreateKey
     return { ok: false, error: 'Failed to create key' }
   }
 
-  log.info('create.success', { id: data.id, tier: input.tier, createdBy: user!.id })
+  log.info('create.success', { id: data.id, group: groupName, createdBy: user!.id })
 
   return {
     ok: true,
@@ -78,7 +83,8 @@ export async function createLicenseKey(input: CreateKeyInput): Promise<CreateKey
 export type AssignmentKey = {
   id: string
   key_prefix: string
-  tier: Tier
+  group_name: string
+  group_color: string
   status: 'active' | 'revoked' | 'expired'
   expires_at: string | null
   max_uses: number
@@ -128,7 +134,8 @@ export async function listAssignmentUsers(): Promise<ListAssignmentsResult> {
         license_keys!inner (
           id,
           key_prefix,
-          tier,
+          group_name,
+          group_color,
           status,
           expires_at,
           max_uses,
@@ -298,6 +305,51 @@ export async function revokeKey(licenseKeyId: string): Promise<KeyStatusResult> 
 
 export async function unrevokeKey(licenseKeyId: string): Promise<KeyStatusResult> {
   return setKeyStatus(licenseKeyId, 'active')
+}
+
+// ---------------------------------------------------------------------------
+// Notes editing — invoked from the row-detail modal.
+// ---------------------------------------------------------------------------
+
+const NOTES_MAX_LENGTH = 1000
+
+export type UpdateNotesResult = { ok: true; notes: string | null } | { ok: false; error: string }
+
+export async function updateKeyNotes(
+  licenseKeyId: string,
+  notes: string,
+): Promise<UpdateNotesResult> {
+  const log = logger('admin.keys.notes_update')
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!isAdmin(user)) {
+    log.warn('forbidden', { userId: user?.id ?? null })
+    return { ok: false, error: 'Forbidden' }
+  }
+  if (!UUID_RE.test(licenseKeyId)) {
+    return { ok: false, error: 'Invalid identifier' }
+  }
+  if (notes.length > NOTES_MAX_LENGTH) {
+    return { ok: false, error: `Notes must be ${NOTES_MAX_LENGTH} characters or fewer` }
+  }
+
+  const trimmed = notes.trim()
+  const value: string | null = trimmed.length === 0 ? null : trimmed
+
+  const admin = createAdminClient()
+  const { error } = await admin
+    .from('license_keys')
+    .update({ notes: value })
+    .eq('id', licenseKeyId)
+
+  if (error) {
+    log.error('failed', { code: error.code, error: error.message })
+    return { ok: false, error: 'Failed to update notes' }
+  }
+
+  log.info('success', { licenseKeyId, by: user!.id })
+  return { ok: true, notes: value }
 }
 
 export async function unassignKey(userLicenseKeyId: string): Promise<AssignmentActionResult> {

@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>VA Rating — Locked Preview</title>
+  <link rel="stylesheet" href="./css/styles.css" />
+  <style>
+    body{padding:32px 16px;}
+    .preview-stage{
+      max-width:760px;
+      margin:0 auto;
+      background:var(--bg);
+    }
+    .preview-stage h1{
+      font-family:var(--fh);
+      font-size:24px;
+      font-weight:600;
+      color:var(--navy);
+      margin:0 0 4px;
+      letter-spacing:.5px;
+    }
+    .preview-stage .preview-sub{
+      font-size:12px;
+      color:var(--muted);
+      margin-bottom:18px;
+    }
+    .stage-card{
+      background:var(--surface);
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:20px;
+      box-shadow:var(--sh);
+    }
+  </style>
+</head>
+<body>
+  <div class="preview-stage">
+    <h1>VA Rating Calculator</h1>
+    <div class="preview-sub">Locked-preview design check (dummy data).</div>
+
+    <div class="stage-card">
+      <div id="rc-list"></div>
+    </div>
+  </div>
+
+  <script>
+    // Minimal harness: handcraft the same DOM `renderRating()` would emit
+    // for a user with a couple of conditions, then run the same preview
+    // transform we ship.
+    const list = document.getElementById('rc-list');
+    list.innerHTML = `
+      <div class="rc-info">
+        <strong>How VA combined ratings work</strong>: Ratings are not added together.
+        Each rating is applied to the remaining "whole person" percentage.
+        Example: 50% + 30% = 50 + (30% × 50 remaining) = 65%, rounded to 70%.
+        Bilateral factor (10%) is auto-applied when paired extremities are both rated.
+      </div>
+
+      <div class="rc-section-title">Primary Conditions</div>
+
+      <div class="rc-card">
+        <div class="rc-card-header">
+          <span class="rc-num" style="background:#c8102e;">1</span>
+          <span class="rc-name">Right Knee — Meniscus Tear, Post-Surgical</span>
+          <span class="rc-ext-tag">RL</span>
+          <span class="rc-suggest">Suggested: 20%</span>
+          <span class="rc-pct-box">
+            <input type="number" min="0" max="100" step="10" value="30" class="rc-pct-input" />
+            <span class="rc-pct-sign">%</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="rc-card">
+        <div class="rc-card-header">
+          <span class="rc-num" style="background:#d97706;">2</span>
+          <span class="rc-name">Left Knee — Chronic Instability</span>
+          <span class="rc-ext-tag">LL</span>
+          <span class="rc-suggest">Suggested: 20%</span>
+          <span class="rc-pct-box">
+            <input type="number" min="0" max="100" step="10" value="20" class="rc-pct-input" />
+            <span class="rc-pct-sign">%</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="rc-card">
+        <div class="rc-card-header">
+          <span class="rc-num" style="background:#16a34a;">3</span>
+          <span class="rc-name">Lumbar Strain — Limited Range of Motion</span>
+          <span class="rc-suggest">Suggested: 10%</span>
+          <span class="rc-pct-box">
+            <input type="number" min="0" max="100" step="10" value="10" class="rc-pct-input" />
+            <span class="rc-pct-sign">%</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="rc-card">
+        <div class="rc-card-header">
+          <span class="rc-num" style="background:#7c3aed;">4</span>
+          <span class="rc-name">Tinnitus — Bilateral, Constant</span>
+          <span class="rc-suggest">Suggested: 10%</span>
+          <span class="rc-pct-box">
+            <input type="number" min="0" max="100" step="10" value="10" class="rc-pct-input" />
+            <span class="rc-pct-sign">%</span>
+          </span>
+        </div>
+      </div>
+
+      <div class="rc-results">
+        <div class="rc-results-header">Combined VA Disability Rating</div>
+        <div class="rc-results-big">60%</div>
+        <div class="rc-results-exact">Exact: 56.91%</div>
+        <div class="rc-results-bil">
+          <strong>Bilateral factor applied (+1.91%)</strong>
+        </div>
+      </div>
+    `;
+
+    // Inline copy of the preview transform from rating.js
+    function _applyRatingPreview(container){
+      if(!container || !container.children.length) return;
+      const VISIBLE_CARDS = 1;
+      const visible = document.createElement('div');
+      visible.className = 'rc-preview-visible';
+      const fade = document.createElement('div');
+      fade.className = 'rc-preview-fade';
+      fade.setAttribute('aria-hidden', 'true');
+
+      let cardsShown = 0;
+      let switched = false;
+      Array.from(container.children).forEach(function(child){
+        if(switched){ fade.appendChild(child); return; }
+        visible.appendChild(child);
+        if(child.classList && child.classList.contains('rc-card')){
+          cardsShown++;
+          if(cardsShown >= VISIBLE_CARDS) switched = true;
+        }
+      });
+
+      fade.querySelectorAll('input,button,select,textarea').forEach(function(el){
+        el.setAttribute('disabled','disabled'); el.tabIndex = -1;
+      });
+      fade.querySelectorAll('a').forEach(function(a){
+        a.removeAttribute('href'); a.tabIndex = -1;
+      });
+
+      for(var i=1; i<=3; i++){
+        var blur = document.createElement('div');
+        blur.className = 'rc-preview-blur rc-preview-blur-' + i;
+        blur.setAttribute('aria-hidden','true');
+        fade.appendChild(blur);
+      }
+
+      var veil = document.createElement('div');
+      veil.className = 'rc-preview-veil';
+      veil.setAttribute('aria-hidden','true');
+      fade.appendChild(veil);
+
+      var wrap = document.createElement('div');
+      wrap.className = 'rc-preview-wrap';
+      wrap.appendChild(fade);
+
+      var cta = document.createElement('div');
+      cta.className = 'rc-preview-cta';
+      cta.innerHTML = ''
+        + '<div class="rc-preview-cta-inner">'
+        +   '<div class="rc-preview-cta-eyebrow">Continue your calculation</div>'
+        +   '<h3 class="rc-preview-cta-title">Sign in to use the VA calculator</h3>'
+        +   '<p class="rc-preview-cta-copy">See your full combined rating and the step-by-step math behind your number.</p>'
+        +   '<div class="rc-preview-cta-actions">'
+        +     '<a href="/login" class="rc-preview-cta-btn">Sign in</a>'
+        +   '</div>'
+        + '</div>';
+      wrap.appendChild(cta);
+
+      container.innerHTML = '';
+      container.appendChild(visible);
+      container.appendChild(wrap);
+    }
+
+    _applyRatingPreview(list);
+  </script>
+</body>
+</html>

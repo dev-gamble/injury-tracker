@@ -17,13 +17,6 @@ COMMENT ON SCHEMA "public" IS 'standard public schema';
 
 
 
-CREATE EXTENSION IF NOT EXISTS "pg_graphql" WITH SCHEMA "graphql";
-
-
-
-
-
-
 CREATE EXTENSION IF NOT EXISTS "pg_stat_statements" WITH SCHEMA "extensions";
 
 
@@ -62,15 +55,22 @@ CREATE TYPE "public"."license_status" AS ENUM (
 ALTER TYPE "public"."license_status" OWNER TO "postgres";
 
 
-CREATE TYPE "public"."license_tier" AS ENUM (
-    'demo',
-    'free',
-    'full',
-    'partner'
-);
+CREATE OR REPLACE FUNCTION "public"."current_user_group"() RETURNS "jsonb"
+    LANGUAGE "sql" STABLE SECURITY DEFINER
+    SET "search_path" TO 'public', 'pg_temp'
+    AS $$
+  select jsonb_build_object('name', lk.group_name, 'color', lk.group_color)
+  from public.user_license_keys ulk
+  join public.license_keys lk on lk.id = ulk.license_key_id
+  where ulk.user_id = (select auth.uid())
+    and lk.status = 'active'
+    and (lk.expires_at is null or lk.expires_at > now())
+  order by lk.expires_at desc nulls first
+  limit 1;
+$$;
 
 
-ALTER TYPE "public"."license_tier" OWNER TO "postgres";
+ALTER FUNCTION "public"."current_user_group"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."current_user_has_access"() RETURNS boolean
@@ -84,36 +84,18 @@ CREATE OR REPLACE FUNCTION "public"."current_user_has_access"() RETURNS boolean
     where ulk.user_id = (select auth.uid())
       and lk.status = 'active'
       and (lk.expires_at is null or lk.expires_at > now())
+  )
+  or exists (
+    select 1
+    from public.stripe_user_subscriptions s
+    where s.user_id = (select auth.uid())
+      and s.status in ('active', 'trialing', 'past_due')
+      and (s.current_period_end is null or s.current_period_end > now())
   );
 $$;
 
 
 ALTER FUNCTION "public"."current_user_has_access"() OWNER TO "postgres";
-
-
-CREATE OR REPLACE FUNCTION "public"."current_user_tier"() RETURNS "text"
-    LANGUAGE "sql" STABLE SECURITY DEFINER
-    SET "search_path" TO 'public', 'pg_temp'
-    AS $$
-  select lk.tier::text
-  from public.user_license_keys ulk
-  join public.license_keys lk on lk.id = ulk.license_key_id
-  where ulk.user_id = (select auth.uid())
-    and lk.status = 'active'
-    and (lk.expires_at is null or lk.expires_at > now())
-  order by
-    case lk.tier
-      when 'partner' then 1
-      when 'full'    then 2
-      when 'free'    then 3
-      when 'demo'    then 4
-    end,
-    lk.expires_at desc nulls first
-  limit 1;
-$$;
-
-
-ALTER FUNCTION "public"."current_user_tier"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."redeem_license_key"("raw_key" "text") RETURNS "uuid"
@@ -170,6 +152,19 @@ $$;
 ALTER FUNCTION "public"."redeem_license_key"("raw_key" "text") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."set_updated_at"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."set_updated_at"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."sync_license_key_uses"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public', 'pg_temp'
@@ -202,7 +197,7 @@ CREATE TABLE IF NOT EXISTS "public"."license_keys" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "key_hash" "bytea" NOT NULL,
     "key_prefix" "text" NOT NULL,
-    "tier" "public"."license_tier" NOT NULL,
+    "group_name" "text" NOT NULL,
     "status" "public"."license_status" DEFAULT 'active'::"public"."license_status" NOT NULL,
     "max_uses" integer DEFAULT 1 NOT NULL,
     "current_uses" integer DEFAULT 0 NOT NULL,
@@ -210,13 +205,46 @@ CREATE TABLE IF NOT EXISTS "public"."license_keys" (
     "notes" "text",
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "created_by" "uuid",
+    "group_color" "text" NOT NULL,
     CONSTRAINT "license_keys_current_uses_check" CHECK (("current_uses" >= 0)),
+    CONSTRAINT "license_keys_group_color_hex" CHECK (("group_color" ~ '^#[0-9a-fA-F]{6}$'::"text")),
+    CONSTRAINT "license_keys_group_name_nonempty" CHECK ((("length"("btrim"("group_name")) >= 1) AND ("length"("btrim"("group_name")) <= 32))),
     CONSTRAINT "license_keys_max_uses_check" CHECK (("max_uses" >= 1)),
     CONSTRAINT "license_keys_uses_within_max" CHECK (("current_uses" <= "max_uses"))
 );
 
 
 ALTER TABLE "public"."license_keys" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."stripe_user_subscriptions" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "user_id" "uuid" NOT NULL,
+    "stripe_customer_id" "text" NOT NULL,
+    "stripe_subscription_id" "text" NOT NULL,
+    "stripe_price_id" "text" NOT NULL,
+    "status" "text" NOT NULL,
+    "current_period_end" timestamp with time zone,
+    "cancel_at_period_end" boolean DEFAULT false NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "cancel_at" timestamp with time zone,
+    "canceled_at" timestamp with time zone,
+    "unit_amount" integer,
+    "currency" "text",
+    "recurring_interval" "text",
+    "recurring_interval_count" integer,
+    "discount_amount_off" integer,
+    "discount_percent_off" numeric(5,2),
+    "discount_promotion_code" "text",
+    "discount_duration" "text",
+    "discount_duration_in_months" integer,
+    "discount_end" timestamp with time zone,
+    "livemode" boolean
+);
+
+
+ALTER TABLE "public"."stripe_user_subscriptions" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."user_license_keys" (
@@ -233,7 +261,8 @@ ALTER TABLE "public"."user_license_keys" OWNER TO "postgres";
 CREATE OR REPLACE VIEW "public"."user_access" WITH ("security_invoker"='true') AS
  SELECT "ulk"."user_id",
     "lk"."id" AS "license_key_id",
-    "lk"."tier",
+    "lk"."group_name",
+    "lk"."group_color",
     "lk"."expires_at"
    FROM ("public"."user_license_keys" "ulk"
      JOIN "public"."license_keys" "lk" ON (("lk"."id" = "ulk"."license_key_id")))
@@ -250,6 +279,16 @@ ALTER TABLE ONLY "public"."license_keys"
 
 ALTER TABLE ONLY "public"."license_keys"
     ADD CONSTRAINT "license_keys_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."stripe_user_subscriptions"
+    ADD CONSTRAINT "stripe_user_subscriptions_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."stripe_user_subscriptions"
+    ADD CONSTRAINT "stripe_user_subscriptions_stripe_subscription_id_key" UNIQUE ("stripe_subscription_id");
 
 
 
@@ -271,11 +310,27 @@ CREATE INDEX "license_keys_status_idx" ON "public"."license_keys" USING "btree" 
 
 
 
+CREATE INDEX "stripe_user_subscriptions_customer_id_idx" ON "public"."stripe_user_subscriptions" USING "btree" ("stripe_customer_id");
+
+
+
+CREATE INDEX "stripe_user_subscriptions_status_idx" ON "public"."stripe_user_subscriptions" USING "btree" ("status");
+
+
+
+CREATE INDEX "stripe_user_subscriptions_user_id_idx" ON "public"."stripe_user_subscriptions" USING "btree" ("user_id");
+
+
+
 CREATE INDEX "user_license_keys_license_key_id_idx" ON "public"."user_license_keys" USING "btree" ("license_key_id");
 
 
 
 CREATE INDEX "user_license_keys_user_id_idx" ON "public"."user_license_keys" USING "btree" ("user_id");
+
+
+
+CREATE OR REPLACE TRIGGER "stripe_user_subscriptions_set_updated_at" BEFORE UPDATE ON "public"."stripe_user_subscriptions" FOR EACH ROW EXECUTE FUNCTION "public"."set_updated_at"();
 
 
 
@@ -285,6 +340,11 @@ CREATE OR REPLACE TRIGGER "user_license_keys_sync_count" AFTER INSERT OR DELETE 
 
 ALTER TABLE ONLY "public"."license_keys"
     ADD CONSTRAINT "license_keys_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."stripe_user_subscriptions"
+    ADD CONSTRAINT "stripe_user_subscriptions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
 
 
 
@@ -299,6 +359,13 @@ ALTER TABLE ONLY "public"."user_license_keys"
 
 
 ALTER TABLE "public"."license_keys" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."stripe_user_subscriptions" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "stripe_user_subscriptions_self_select" ON "public"."stripe_user_subscriptions" FOR SELECT TO "authenticated" USING ((( SELECT "auth"."uid"() AS "uid") = "user_id"));
+
 
 
 ALTER TABLE "public"."user_license_keys" ENABLE ROW LEVEL SECURITY;
@@ -467,6 +534,10 @@ GRANT USAGE ON SCHEMA "public" TO "service_role";
 
 
 
+REVOKE ALL ON FUNCTION "public"."current_user_group"() FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."current_user_group"() TO "anon";
+GRANT ALL ON FUNCTION "public"."current_user_group"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."current_user_group"() TO "service_role";
 
 
 
@@ -477,16 +548,15 @@ GRANT ALL ON FUNCTION "public"."current_user_has_access"() TO "service_role";
 
 
 
-REVOKE ALL ON FUNCTION "public"."current_user_tier"() FROM PUBLIC;
-GRANT ALL ON FUNCTION "public"."current_user_tier"() TO "anon";
-GRANT ALL ON FUNCTION "public"."current_user_tier"() TO "authenticated";
-GRANT ALL ON FUNCTION "public"."current_user_tier"() TO "service_role";
-
-
-
 REVOKE ALL ON FUNCTION "public"."redeem_license_key"("raw_key" "text") FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."redeem_license_key"("raw_key" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."redeem_license_key"("raw_key" "text") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."set_updated_at"() TO "anon";
+GRANT ALL ON FUNCTION "public"."set_updated_at"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."set_updated_at"() TO "service_role";
 
 
 
@@ -512,7 +582,12 @@ GRANT ALL ON FUNCTION "public"."sync_license_key_uses"() TO "service_role";
 
 
 GRANT ALL ON TABLE "public"."license_keys" TO "service_role";
-GRANT SELECT ON TABLE "public"."license_keys" TO "authenticated";
+
+
+
+GRANT ALL ON TABLE "public"."stripe_user_subscriptions" TO "anon";
+GRANT ALL ON TABLE "public"."stripe_user_subscriptions" TO "authenticated";
+GRANT ALL ON TABLE "public"."stripe_user_subscriptions" TO "service_role";
 
 
 

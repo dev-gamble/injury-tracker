@@ -41,6 +41,7 @@ export function AuthShell({ eyebrow, title, subtitle, children, footer }: AuthSh
 
       <div className="auth-footer">
         ENDEX is a tracking, education, and organizational tool. Not an official VA product.
+        <div className="auth-footer-copy">&copy; 2026 CG Web Lab, LLC. All rights reserved.</div>
       </div>
     </div>
   )

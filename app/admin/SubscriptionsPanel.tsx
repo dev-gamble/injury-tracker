@@ -247,7 +247,7 @@ export function SubscriptionsPanel({ rows, errorMessage }: Props) {
           <div className="admin-empty-glyph">— $ —</div>
           <h2 className="admin-empty-title">No subscriptions yet</h2>
           <p className="admin-empty-body">
-            The ledger is empty. As soon as a user completes Stripe checkout,their
+            The ledger is empty. As soon as a user completes Stripe checkout, their
             subscription will appear here.
           </p>
         </div>

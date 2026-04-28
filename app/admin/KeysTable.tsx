@@ -29,6 +29,12 @@ function groupPillStyle(color: string): React.CSSProperties {
   return { ['--g' as never]: color } as React.CSSProperties
 }
 
+// Hard cap at 9 chars + ellipsis so the table column never expands beyond a
+// predictable width regardless of how long an admin makes the group name.
+function truncateGroupName(name: string): string {
+  return name.length > 9 ? name.slice(0, 9) + '…' : name
+}
+
 const STATUS_OPTS: { value: Status; label: string }[] = [
   { value: 'active',  label: 'Active' },
   { value: 'revoked', label: 'Revoked' },
@@ -229,8 +235,8 @@ export function KeysTable({ rows }: { rows: KeyRow[] }) {
                         aria-checked={checked}
                       >
                         <span className="admin-filter-box" aria-hidden="true">{checked ? '✓' : ''}</span>
-                        <span className="admin-pill admin-pill-group" style={groupPillStyle(o.color)}>
-                          {o.name}
+                        <span className="admin-pill admin-pill-group" style={groupPillStyle(o.color)} title={o.name}>
+                          {truncateGroupName(o.name)}
                         </span>
                       </button>
                     )
@@ -367,8 +373,8 @@ export function KeysTable({ rows }: { rows: KeyRow[] }) {
                     <span className="admin-cell-prefix">{row.key_prefix}</span>
                   </td>
                   <td>
-                    <span className="admin-pill admin-pill-group" style={groupPillStyle(row.group_color)}>
-                      {row.group_name}
+                    <span className="admin-pill admin-pill-group" style={groupPillStyle(row.group_color)} title={row.group_name}>
+                      {truncateGroupName(row.group_name)}
                     </span>
                   </td>
                   <td>

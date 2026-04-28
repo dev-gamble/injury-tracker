@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { SubscriptionRow } from './actions'
+import { discountSummary, effectiveUnitAmount, isDiscountActiveNow } from './subscriptionMath'
 
 type StatusClass = 'active' | 'canceling' | 'canceled'
 type FilterColumn = 'status' | 'started'
@@ -48,10 +49,10 @@ function formatDate(iso: string | null): { label: string; never: boolean } {
   }
 }
 
-function formatPrice(r: SubscriptionRow): string {
-  if (!r.unit_amount || !r.recurring_interval) return '—'
-  const amount = (r.unit_amount / 100).toLocaleString('en-US', {
-    minimumFractionDigits: r.unit_amount % 100 === 0 ? 0 : 2,
+function formatCycleAmount(r: SubscriptionRow, cents: number): string {
+  if (!cents || !r.recurring_interval) return '—'
+  const amount = (cents / 100).toLocaleString('en-US', {
+    minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
     maximumFractionDigits: 2,
   })
   const sym = (r.currency ?? 'usd').toLowerCase() === 'usd' ? '$' : ''
@@ -256,7 +257,21 @@ export function SubscriptionsTable({ rows }: { rows: SubscriptionRow[] }) {
                     <span className={`admin-pill subs-pill-${cls}`}>{cls}</span>
                   </td>
                   <td>
-                    <span className="subs-cell-price">{formatPrice(row)}</span>
+                    <div className="subs-cell-price-wrap">
+                      <span className="subs-cell-price">
+                        {formatCycleAmount(row, effectiveUnitAmount(row))}
+                      </span>
+                      {isDiscountActiveNow(row) && row.unit_amount && row.unit_amount !== effectiveUnitAmount(row) && (
+                        <span className="subs-cell-price-original" title="List price before discount">
+                          was {formatCycleAmount(row, row.unit_amount)}
+                        </span>
+                      )}
+                      {discountSummary(row) && (
+                        <span className="subs-cell-promo" title="Active discount">
+                          {discountSummary(row)}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td>
                     <span className={`admin-cell-date subs-cell-renews subs-cell-renews-${renewLabel.tone}`}>

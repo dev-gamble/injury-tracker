@@ -94,11 +94,15 @@ export async function POST(request: NextRequest) {
     //   3. customers.create with idempotencyKey=customer-<uid>, so two parallel
     //      requests collapse to a single customer instead of minting two.
     let customerId = existing?.stripe_customer_id ?? null
+    let customerNeedsMetadata = false
     if (!customerId && user.email) {
       const list = await stripe.customers.list({ email: user.email, limit: 10 })
       const matched = list.data.find((c) => c.metadata?.supabase_user_id === user.id)
         ?? list.data.find((c) => !c.metadata?.supabase_user_id)
-      if (matched) customerId = matched.id
+      if (matched) {
+        customerId = matched.id
+        customerNeedsMetadata = matched.metadata?.supabase_user_id !== user.id
+      }
     }
     if (!customerId) {
       const created = await stripe.customers.create(
@@ -109,6 +113,10 @@ export async function POST(request: NextRequest) {
         { idempotencyKey: `customer-${user.id}` },
       )
       customerId = created.id
+    } else if (customerNeedsMetadata) {
+      await stripe.customers.update(customerId, {
+        metadata: { supabase_user_id: user.id },
+      })
     }
 
     // Stripe-authoritative duplicate guard. Even if our DB hasn't been
@@ -146,7 +154,7 @@ export async function POST(request: NextRequest) {
       limit: 5,
     })
     const openMatching = openSessions.data.find(
-      (s) => s.mode === 'subscription' && !!s.url,
+      (s) => s.mode === 'subscription' && s.client_reference_id === user.id && !!s.url,
     )
     if (openMatching?.url) {
       log.info('checkout.reused_open_session', {

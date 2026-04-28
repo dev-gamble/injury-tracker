@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import type { SubscriptionRow } from './actions'
 import { RevenueChart } from './RevenueChart'
 import { SubscriptionsTable } from './SubscriptionsTable'
+import { normalizedRevenue } from './subscriptionMath'
 
 type Props = {
   rows: SubscriptionRow[]
@@ -28,31 +29,6 @@ function classifyRow(r: SubscriptionRow): SubscriptionClass {
   const scheduledToEnd = r.cancel_at !== null || r.cancel_at_period_end === true
   if (scheduledToEnd) return 'canceling'
   return 'active'
-}
-
-// Convert a sub's price + interval into normalized recurring revenue rates so
-// we can sum across plans on different cadences. Stripe stores unit_amount in
-// the price's smallest unit (cents for USD); we keep that and convert to a
-// dollar figure at render time. interval_count handles "every N months" plans.
-function normalizedRevenue(r: SubscriptionRow): { perDay: number; perWeek: number; perMonth: number; perYear: number } {
-  if (!r.unit_amount || !r.recurring_interval) {
-    return { perDay: 0, perWeek: 0, perMonth: 0, perYear: 0 }
-  }
-  const intervalCount = Math.max(1, r.recurring_interval_count ?? 1)
-  // Days in each native interval (rough, but stable enough for pacing).
-  const daysPerInterval =
-    r.recurring_interval === 'day'   ? 1 :
-    r.recurring_interval === 'week'  ? 7 :
-    r.recurring_interval === 'month' ? 30.4375 :
-    r.recurring_interval === 'year'  ? 365.25 :
-    /* unknown */ 30.4375
-  const perDay = r.unit_amount / (intervalCount * daysPerInterval)
-  return {
-    perDay,
-    perWeek: perDay * 7,
-    perMonth: perDay * 30.4375,
-    perYear: perDay * 365.25,
-  }
 }
 
 export type RevenuePeriod = 'day' | 'week' | 'month'

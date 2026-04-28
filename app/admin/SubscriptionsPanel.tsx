@@ -10,19 +10,24 @@ type Props = {
   errorMessage: string | null
 }
 
-// Cancellation state derives entirely from Stripe-mirrored fields:
-//   * status='canceled'  → terminal, no access
-//   * cancel_at!=null OR cancel_at_period_end=true → scheduled to end while
-//     still active (covers both flexible + legacy billing modes)
-//   * status='trialing'  → trial period, treated as active for revenue
-//   * status='active' otherwise → vanilla active sub
-function classifyRow(r: SubscriptionRow): 'active' | 'trialing' | 'canceling' | 'canceled' | 'other' {
-  if (r.status === 'canceled' || r.status === 'incomplete_expired' || r.status === 'unpaid') return 'canceled'
-  if (r.status === 'trialing') return 'trialing'
+// Three-state taxonomy used across the admin UI:
+//   * canceled  → terminal, no access (covers Stripe canceled / unpaid /
+//                 incomplete_expired / incomplete / paused)
+//   * canceling → still entitled to access until the period ends, but a
+//                 cancellation is scheduled (cancel_at set or
+//                 cancel_at_period_end=true). Covers both flexible + legacy
+//                 billing modes.
+//   * active    → currently entitled with no cancellation scheduled. Trialing
+//                 subs and past_due subs (Stripe still retries) are folded in
+//                 here since both have working access.
+export type SubscriptionClass = 'active' | 'canceling' | 'canceled'
+
+function classifyRow(r: SubscriptionRow): SubscriptionClass {
+  const terminal = ['canceled', 'incomplete_expired', 'unpaid', 'incomplete', 'paused']
+  if (terminal.includes(r.status)) return 'canceled'
   const scheduledToEnd = r.cancel_at !== null || r.cancel_at_period_end === true
-  if (scheduledToEnd && r.status === 'active') return 'canceling'
-  if (r.status === 'active') return 'active'
-  return 'other'
+  if (scheduledToEnd) return 'canceling'
+  return 'active'
 }
 
 // Convert a sub's price + interval into normalized recurring revenue rates so
@@ -83,7 +88,7 @@ function buildRevenueSeries(
 
   for (const r of rows) {
     const cls = classifyRow(r)
-    if (cls === 'canceled' || cls === 'other') continue
+    if (cls === 'canceled') continue
     const { perDay } = normalizedRevenue(r)
     if (perDay <= 0) continue
 
@@ -111,21 +116,16 @@ export function SubscriptionsPanel({ rows, errorMessage }: Props) {
   const [period, setPeriod] = useState<RevenuePeriod>('month')
 
   const stats = useMemo(() => {
-    const counts = { active: 0, trialing: 0, canceling: 0, canceled: 0 }
+    const counts = { active: 0, canceling: 0, canceled: 0 }
     let mrrCents = 0
     let arrCents = 0
     for (const r of rows) {
       const cls = classifyRow(r)
-      if (cls === 'active') counts.active++
-      else if (cls === 'trialing') counts.trialing++
-      else if (cls === 'canceling') counts.canceling++
-      else if (cls === 'canceled') counts.canceled++
-
-      // Recognized recurring revenue includes everything currently entitled —
-      // active, trialing (typically $0 unit_amount during trial), and
-      // canceling (still paying through the end of period). canceled subs
-      // contribute nothing.
-      if (cls === 'active' || cls === 'trialing' || cls === 'canceling') {
+      counts[cls]++
+      // Recognized recurring revenue: anything currently entitled (active or
+      // canceling — both still pay through the end of the period). Canceled
+      // subs contribute nothing.
+      if (cls !== 'canceled') {
         const n = normalizedRevenue(r)
         mrrCents += n.perMonth
         arrCents += n.perYear
@@ -143,7 +143,7 @@ export function SubscriptionsPanel({ rows, errorMessage }: Props) {
       <section className="admin-card admin-card-wide" aria-labelledby="subs-card-title">
         <div className="admin-card-head">
           <div className="admin-form-id">
-            <span>Ledger · Stripe Subscriptions</span>
+            <span>Stripe Ledger</span>
             <span className="admin-form-id-right">— —</span>
           </div>
           <div className="admin-card-head-row">
@@ -166,16 +166,12 @@ export function SubscriptionsPanel({ rows, errorMessage }: Props) {
     <section className="admin-card admin-card-wide subs-card" aria-labelledby="subs-card-title">
       <div className="admin-card-head">
         <div className="admin-form-id">
-          <span>Ledger · Stripe Subscriptions</span>
+          <span>Stripe Ledger</span>
           <span className="admin-form-id-right">{rows.length} record{rows.length === 1 ? '' : 's'}</span>
         </div>
         <div className="admin-card-head-row">
           <div>
             <h1 id="subs-card-title" className="admin-card-title">Subscriptions</h1>
-            <p className="admin-card-subtitle">
-              Mirror of <code className="subs-code">stripe_user_subscriptions</code>. Webhook-synchronized;
-              revenue figures derive locally from stored price metadata. Showing the most recent 500 records.
-            </p>
           </div>
         </div>
       </div>
@@ -183,14 +179,10 @@ export function SubscriptionsPanel({ rows, errorMessage }: Props) {
       {rows.length > 0 && (
         <>
           {/* Status tiles — same chrome as the registry's stats bar. */}
-          <div className="admin-stats" role="group" aria-label="Subscription summary">
+          <div className="admin-stats subs-stats-3" role="group" aria-label="Subscription summary">
             <div className="admin-stat">
               <span className="admin-stat-label">Active</span>
               <span className="admin-stat-val is-good">{stats.counts.active}</span>
-            </div>
-            <div className="admin-stat">
-              <span className="admin-stat-label">Trialing</span>
-              <span className="admin-stat-val subs-stat-trial">{stats.counts.trialing}</span>
             </div>
             <div className="admin-stat">
               <span className="admin-stat-label">Canceling</span>
@@ -206,7 +198,6 @@ export function SubscriptionsPanel({ rows, errorMessage }: Props) {
           <div className="subs-revenue">
             <div className="subs-revenue-head">
               <div className="subs-revenue-eyebrow">
-                <span className="subs-revenue-tag">REV</span>
                 <span>Revenue Pace · {periodOpt.label}</span>
               </div>
               <div className="subs-period-toggle" role="radiogroup" aria-label="Revenue period">
@@ -237,7 +228,7 @@ export function SubscriptionsPanel({ rows, errorMessage }: Props) {
                   {formatMoney(stats.mrrCents)}
                 </div>
                 <div className="subs-revenue-figure-meta">
-                  Monthly · {stats.counts.active + stats.counts.trialing + stats.counts.canceling} entitled
+                  Monthly · {stats.counts.active + stats.counts.canceling} entitled
                 </div>
               </div>
               <div className="subs-revenue-figure">

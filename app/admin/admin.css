@@ -1109,8 +1109,19 @@
   color: var(--navy);
 }
 
-.admin-stat-val.subs-stat-trial  { color: #1e4d8b; }
 .admin-stat-val.subs-stat-cancel { color: var(--amber); }
+
+/* Subscription stats bar uses a 3-column layout; on smaller widths the
+   shared 4-col responsive rules apply via inheritance. */
+.admin-stats.subs-stats-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+@media (max-width: 900px) {
+  .admin-stats.subs-stats-3 { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 640px) {
+  .admin-stats.subs-stats-3 { grid-template-columns: 1fr; }
+}
 
 /* ---- Revenue dashboard ---------------------------------------------------- */
 
@@ -1121,7 +1132,6 @@
   background:
     linear-gradient(180deg, var(--surface) 0%, var(--surface2) 100%);
   position: relative;
-  overflow: hidden;
 }
 .subs-revenue::before {
   content: '';
@@ -1379,14 +1389,10 @@
 
 .admin-pill.subs-pill-active   { color: #1a5a36; background: rgba(42,122,75,.10);  border-color: rgba(42,122,75,.32); }
 .admin-pill.subs-pill-active::before   { background: var(--green); box-shadow: 0 0 6px rgba(42,122,75,.55); }
-.admin-pill.subs-pill-trialing { color: #1e4d8b; background: rgba(30,77,139,.10);  border-color: rgba(30,77,139,.32); }
-.admin-pill.subs-pill-trialing::before { background: #1e4d8b; box-shadow: 0 0 6px rgba(30,77,139,.5); }
 .admin-pill.subs-pill-canceling { color: #8a6512; background: rgba(217,162,27,.12); border-color: rgba(217,162,27,.42); }
 .admin-pill.subs-pill-canceling::before { background: var(--amber); box-shadow: 0 0 6px rgba(217,162,27,.55); }
 .admin-pill.subs-pill-canceled { color: var(--muted); background: rgba(90,103,130,.10); border-color: rgba(90,103,130,.3); }
 .admin-pill.subs-pill-canceled::before { background: var(--muted); }
-.admin-pill.subs-pill-other    { color: var(--muted2); background: var(--surface2); border-color: var(--border2); }
-.admin-pill.subs-pill-other::before    { background: var(--muted2); }
 
 /* ---- Subscription table customizations ---- */
 

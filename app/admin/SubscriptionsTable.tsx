@@ -3,27 +3,28 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { SubscriptionRow } from './actions'
 
-type StatusClass = 'active' | 'trialing' | 'canceling' | 'canceled' | 'other'
+type StatusClass = 'active' | 'canceling' | 'canceled'
 type FilterColumn = 'status' | 'started'
 type StartedFilter = 'any' | '24h' | '7d' | '30d' | '90d'
 
 const DAY_MS = 86_400_000
 
+// Three-state taxonomy (mirrors classifyRow in SubscriptionsPanel):
+//   canceled  — terminal, no access
+//   canceling — entitled until current_period_end, but cancellation scheduled
+//   active    — entitled with no cancellation scheduled
 function classify(r: SubscriptionRow): StatusClass {
-  if (r.status === 'canceled' || r.status === 'incomplete_expired' || r.status === 'unpaid') return 'canceled'
-  if (r.status === 'trialing') return 'trialing'
+  const terminal = ['canceled', 'incomplete_expired', 'unpaid', 'incomplete', 'paused']
+  if (terminal.includes(r.status)) return 'canceled'
   const scheduledToEnd = r.cancel_at !== null || r.cancel_at_period_end === true
-  if (scheduledToEnd && r.status === 'active') return 'canceling'
-  if (r.status === 'active') return 'active'
-  return 'other'
+  if (scheduledToEnd) return 'canceling'
+  return 'active'
 }
 
 const STATUS_OPTS: { value: StatusClass; label: string }[] = [
   { value: 'active',    label: 'Active' },
-  { value: 'trialing',  label: 'Trialing' },
   { value: 'canceling', label: 'Canceling' },
   { value: 'canceled',  label: 'Canceled' },
-  { value: 'other',     label: 'Other' },
 ]
 
 const STARTED_OPTS: { value: StartedFilter; label: string }[] = [

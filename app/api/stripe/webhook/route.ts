@@ -92,6 +92,7 @@ async function upsertSubscription(sub: Stripe.Subscription) {
   }
 
   const item = sub.items.data[0]
+  const price = item?.price
   const periodEnd = item?.current_period_end ?? null
   const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id
 
@@ -109,12 +110,16 @@ async function upsertSubscription(sub: Stripe.Subscription) {
         user_id: userId,
         stripe_customer_id: customerId,
         stripe_subscription_id: sub.id,
-        stripe_price_id: item?.price.id ?? '',
+        stripe_price_id: price?.id ?? '',
         status: sub.status,
         current_period_end: toIso(periodEnd),
         cancel_at_period_end: sub.cancel_at_period_end,
         cancel_at: toIso(sub.cancel_at),
         canceled_at: toIso(sub.canceled_at),
+        unit_amount: price?.unit_amount ?? null,
+        currency: price?.currency ?? null,
+        recurring_interval: price?.recurring?.interval ?? null,
+        recurring_interval_count: price?.recurring?.interval_count ?? null,
       },
       { onConflict: 'stripe_subscription_id' },
     )

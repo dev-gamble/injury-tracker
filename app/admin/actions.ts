@@ -382,3 +382,91 @@ export async function unassignKey(userLicenseKeyId: string): Promise<AssignmentA
   log.info('unassign.success', { userLicenseKeyId, by: user!.id })
   return { ok: true }
 }
+
+// ---------------------------------------------------------------------------
+// Subscriptions panel — read-only views on the stripe_user_subscriptions
+// mirror. All writes still happen through the Stripe webhook (so this surface
+// is purely observational; nothing here mutates billing state).
+// ---------------------------------------------------------------------------
+
+export type SubscriptionRow = {
+  id: string
+  user_id: string
+  email: string | null
+  stripe_customer_id: string
+  stripe_subscription_id: string
+  stripe_price_id: string
+  status: string
+  current_period_end: string | null
+  cancel_at_period_end: boolean
+  cancel_at: string | null
+  canceled_at: string | null
+  unit_amount: number | null
+  currency: string | null
+  recurring_interval: string | null
+  recurring_interval_count: number | null
+  created_at: string
+  updated_at: string
+}
+
+export type ListSubscriptionsResult =
+  | { ok: true; rows: SubscriptionRow[] }
+  | { ok: false; error: string }
+
+export async function listSubscriptions(): Promise<ListSubscriptionsResult> {
+  const log = logger('admin.subscriptions.list')
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!isAdmin(user)) {
+    log.warn('list.forbidden', { userId: user?.id ?? null })
+    return { ok: false, error: 'Forbidden' }
+  }
+
+  const admin = createAdminClient()
+
+  const [subsResult, usersResult] = await Promise.all([
+    admin
+      .from('stripe_user_subscriptions')
+      .select(
+        'id, user_id, stripe_customer_id, stripe_subscription_id, stripe_price_id, status, current_period_end, cancel_at_period_end, cancel_at, canceled_at, unit_amount, currency, recurring_interval, recurring_interval_count, created_at, updated_at',
+      )
+      .order('created_at', { ascending: false })
+      .limit(500),
+    admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+  ])
+
+  if (subsResult.error) {
+    log.error('list.subs_failed', { error: subsResult.error.message })
+    return { ok: false, error: 'Failed to load subscriptions' }
+  }
+  if (usersResult.error) {
+    log.error('list.users_failed', { error: usersResult.error.message })
+    return { ok: false, error: 'Failed to load users' }
+  }
+
+  const emailById = new Map<string, string | null>()
+  for (const u of usersResult.data.users) emailById.set(u.id, u.email ?? null)
+
+  const rows: SubscriptionRow[] = (subsResult.data ?? []).map((r) => ({
+    id: r.id,
+    user_id: r.user_id,
+    email: emailById.get(r.user_id) ?? null,
+    stripe_customer_id: r.stripe_customer_id,
+    stripe_subscription_id: r.stripe_subscription_id,
+    stripe_price_id: r.stripe_price_id,
+    status: r.status,
+    current_period_end: r.current_period_end,
+    cancel_at_period_end: r.cancel_at_period_end,
+    cancel_at: r.cancel_at,
+    canceled_at: r.canceled_at,
+    unit_amount: r.unit_amount,
+    currency: r.currency,
+    recurring_interval: r.recurring_interval,
+    recurring_interval_count: r.recurring_interval_count,
+    created_at: r.created_at,
+    updated_at: r.updated_at,
+  }))
+
+  return { ok: true, rows }
+}

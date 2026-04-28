@@ -811,8 +811,7 @@ body.pin-placing .body-panel{position:relative;z-index:95;}
 /* ── MENTAL HEALTH PANEL ─────────────────────────────────────────────────── */
 .mental-panel{
   grid-column:1/-1;background:var(--surface);border:1px solid var(--border);border-radius:8px;
-  box-shadow:var(--sh);border-top:3px solid var(--navy);padding:0;overflow-y:auto;
-  max-height:calc(100vh - 160px);
+  box-shadow:var(--sh);border-top:3px solid var(--navy);padding:0;
 }
 @media(max-width:900px){.mental-panel{grid-column:1/-1;}}
 .mh-header{
@@ -1259,7 +1258,6 @@ body.pin-placing .body-panel{position:relative;z-index:95;}
   .tgrp{padding:1px;}
   .tog{padding:4px 10px;font-size:10px;}
   .tb-lbl{font-size:9px;}
-  .mental-panel{max-height:calc(100vh - 100px);}
   .mh-header{padding:12px 14px;}
   .mh-title{font-size:14px;}
   .mh-body{padding:12px;}

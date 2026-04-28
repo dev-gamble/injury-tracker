@@ -200,6 +200,7 @@ async function upsertSubscription(
     currency: price?.currency ?? null,
     recurring_interval: price?.recurring?.interval ?? null,
     recurring_interval_count: price?.recurring?.interval_count ?? null,
+    livemode: sub.livemode,
   }
 
   if (discount || options.clearDiscount) {
@@ -247,7 +248,11 @@ async function getSubscriptionDiscountSnapshot(
         : null,
     duration: coupon.duration ?? null,
     durationInMonths: coupon.duration_in_months ?? null,
-    end: first.end ?? null,
+    // Stripe leaves Discount.end null for 'once' and 'forever' coupons (see
+    // https://docs.stripe.com/api/discounts/object). For 'once' that would let
+    // isDiscountActiveNow keep the discount active forever — synthesize an end
+    // at the first period end instead.
+    end: first.end ?? computeDiscountEnd(coupon, expanded),
   }
 }
 
@@ -280,11 +285,14 @@ async function getCheckoutDiscountSnapshot(
     promotionCode: promotionCode?.code ?? null,
     duration: couponRef.duration ?? null,
     durationInMonths: couponRef.duration_in_months ?? null,
-    end: checkoutDiscountEnd(couponRef, sub),
+    end: computeDiscountEnd(couponRef, sub),
   }
 }
 
-function checkoutDiscountEnd(coupon: Stripe.Coupon, sub: Stripe.Subscription): number | null {
+// Synthesize a discount-end timestamp from coupon shape + subscription clock.
+// Used as a fallback whenever Stripe's Discount.end is null (true for 'once'
+// and 'forever' coupons by API design).
+function computeDiscountEnd(coupon: Stripe.Coupon, sub: Stripe.Subscription): number | null {
   if (coupon.duration === 'forever') return null
   if (coupon.duration === 'repeating' && coupon.duration_in_months) {
     const start = new Date(sub.created * 1000)

@@ -405,6 +405,7 @@ export type SubscriptionRow = {
   currency: string | null
   recurring_interval: string | null
   recurring_interval_count: number | null
+  livemode: boolean | null
   // Discount snapshot (mirrored from sub.discounts[0].source.coupon).
   discount_amount_off: number | null
   discount_percent_off: number | null
@@ -436,7 +437,7 @@ export async function listSubscriptions(): Promise<ListSubscriptionsResult> {
     admin
       .from('stripe_user_subscriptions')
       .select(
-        'id, user_id, stripe_customer_id, stripe_subscription_id, stripe_price_id, status, current_period_end, cancel_at_period_end, cancel_at, canceled_at, unit_amount, currency, recurring_interval, recurring_interval_count, discount_amount_off, discount_percent_off, discount_promotion_code, discount_duration, discount_duration_in_months, discount_end, created_at, updated_at',
+        'id, user_id, stripe_customer_id, stripe_subscription_id, stripe_price_id, status, current_period_end, cancel_at_period_end, cancel_at, canceled_at, unit_amount, currency, recurring_interval, recurring_interval_count, livemode, discount_amount_off, discount_percent_off, discount_promotion_code, discount_duration, discount_duration_in_months, discount_end, created_at, updated_at',
       )
       .order('created_at', { ascending: false })
       .limit(500),
@@ -471,6 +472,7 @@ export async function listSubscriptions(): Promise<ListSubscriptionsResult> {
     currency: r.currency,
     recurring_interval: r.recurring_interval,
     recurring_interval_count: r.recurring_interval_count,
+    livemode: r.livemode,
     discount_amount_off: r.discount_amount_off,
     discount_percent_off: r.discount_percent_off ? Number(r.discount_percent_off) : null,
     discount_promotion_code: r.discount_promotion_code,

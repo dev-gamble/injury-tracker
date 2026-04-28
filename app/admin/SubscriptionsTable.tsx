@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { SubscriptionRow } from './actions'
-import { discountSummary, effectiveUnitAmount, isDiscountActiveNow } from './subscriptionMath'
+import { effectiveUnitAmount, isDiscountActiveNow } from './subscriptionMath'
 
 type StatusClass = 'active' | 'canceling' | 'canceled'
 type FilterColumn = 'status' | 'started'
@@ -51,15 +51,18 @@ function formatDate(iso: string | null): { label: string; never: boolean } {
 
 function formatCycleAmount(r: SubscriptionRow, cents: number): string {
   if (!cents || !r.recurring_interval) return '—'
-  const amount = (cents / 100).toLocaleString('en-US', {
-    minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
-    maximumFractionDigits: 2,
-  })
   const sym = (r.currency ?? 'usd').toLowerCase() === 'usd' ? '$' : ''
   const cur = !sym ? ` ${(r.currency ?? '').toUpperCase()}` : ''
   const count = r.recurring_interval_count ?? 1
   const intervalLabel = count === 1 ? r.recurring_interval : `${count} ${r.recurring_interval}s`
-  return `${sym}${amount}${cur} / ${intervalLabel}`
+  return `${sym}${formatDollars(cents)}${cur} / ${intervalLabel}`
+}
+
+function formatDollars(cents: number): string {
+  return (cents / 100).toLocaleString('en-US', {
+    minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  })
 }
 
 function formatRenewsOrEnds(r: SubscriptionRow): { label: string; tone: 'normal' | 'warn' | 'mute' } {
@@ -244,7 +247,10 @@ export function SubscriptionsTable({ rows }: { rows: SubscriptionRow[] }) {
               const cls = classify(row)
               const renewLabel = formatRenewsOrEnds(row)
               const started = formatDate(row.created_at)
-              const stripeUrl = `https://dashboard.stripe.com/${row.stripe_subscription_id.startsWith('sub_test') ? 'test/' : ''}subscriptions/${row.stripe_subscription_id}`
+              // Stripe test/live subscription IDs share the same `sub_...`
+              // prefix; only `livemode` from the webhook is authoritative. Treat
+              // null (unbackfilled rows) as live to match historical behavior.
+              const stripeUrl = `https://dashboard.stripe.com/${row.livemode === false ? 'test/' : ''}subscriptions/${row.stripe_subscription_id}`
               return (
                 <tr key={row.id}>
                   <td>
@@ -258,17 +264,30 @@ export function SubscriptionsTable({ rows }: { rows: SubscriptionRow[] }) {
                   </td>
                   <td>
                     <div className="subs-cell-price-wrap">
-                      <span className="subs-cell-price">
-                        {formatCycleAmount(row, effectiveUnitAmount(row))}
-                      </span>
-                      {isDiscountActiveNow(row) && row.unit_amount && row.unit_amount !== effectiveUnitAmount(row) && (
-                        <span className="subs-cell-price-original" title="List price before discount">
-                          was {formatCycleAmount(row, row.unit_amount)}
-                        </span>
-                      )}
-                      {discountSummary(row) && (
-                        <span className="subs-cell-promo" title="Active discount">
-                          {discountSummary(row)}
+                      {(() => {
+                        const eff = effectiveUnitAmount(row)
+                        const list = row.unit_amount
+                        const discountLive = isDiscountActiveNow(row) && list && eff !== list
+                        // 'once' coupons only apply to the first invoice — show
+                        // the list price as the recurring rate so the row doesn't
+                        // imply the discount recurs every cycle.
+                        if (discountLive && row.discount_duration === 'once') {
+                          return <span className="subs-cell-price">{formatCycleAmount(row, list!)}</span>
+                        }
+                        return (
+                          <>
+                            <span className="subs-cell-price">{formatCycleAmount(row, eff)}</span>
+                            {discountLive && (
+                              <span className="subs-cell-price-original" title="List price before discount">
+                                was {formatCycleAmount(row, list!)}
+                              </span>
+                            )}
+                          </>
+                        )
+                      })()}
+                      {isDiscountActiveNow(row) && row.discount_promotion_code && (
+                        <span className="subs-cell-promo">
+                          Promo code: {row.discount_promotion_code}
                         </span>
                       )}
                     </div>

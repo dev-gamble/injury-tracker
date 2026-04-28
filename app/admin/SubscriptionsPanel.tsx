@@ -95,6 +95,7 @@ export function SubscriptionsPanel({ rows, errorMessage }: Props) {
     const counts = { active: 0, canceling: 0, canceled: 0 }
     let mrrCents = 0
     let arrCents = 0
+    let promosUsed = 0
     for (const r of rows) {
       const cls = classifyRow(r)
       counts[cls]++
@@ -106,8 +107,11 @@ export function SubscriptionsPanel({ rows, errorMessage }: Props) {
         mrrCents += n.perMonth
         arrCents += n.perYear
       }
+      // Lifetime promo usage: any sub the webhook attached a code to, even if
+      // the discount has since expired or the sub has canceled.
+      if (r.discount_promotion_code) promosUsed++
     }
-    return { counts, mrrCents, arrCents }
+    return { counts, mrrCents, arrCents, promosUsed }
   }, [rows])
 
   const series = useMemo(() => buildRevenueSeries(rows, period), [rows, period])
@@ -155,7 +159,7 @@ export function SubscriptionsPanel({ rows, errorMessage }: Props) {
       {rows.length > 0 && (
         <>
           {/* Status tiles — same chrome as the registry's stats bar. */}
-          <div className="admin-stats subs-stats-3" role="group" aria-label="Subscription summary">
+          <div className="admin-stats subs-stats-4" role="group" aria-label="Subscription summary">
             <div className="admin-stat">
               <span className="admin-stat-label">Active</span>
               <span className="admin-stat-val is-good">{stats.counts.active}</span>
@@ -167,6 +171,10 @@ export function SubscriptionsPanel({ rows, errorMessage }: Props) {
             <div className="admin-stat">
               <span className="admin-stat-label">Canceled</span>
               <span className="admin-stat-val">{stats.counts.canceled}</span>
+            </div>
+            <div className="admin-stat">
+              <span className="admin-stat-label">Promo Code Uses</span>
+              <span className="admin-stat-val">{stats.promosUsed}</span>
             </div>
           </div>
 

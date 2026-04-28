@@ -47,12 +47,15 @@ export async function POST(request: NextRequest) {
       // For active subscribers, surface the portal URL so the client can
       // redirect there instead of stacking another sub. License-key holders
       // get a generic conflict response (no portal).
+      // Mirror the access RPC's status set — `past_due` keeps access during
+      // dunning, so it should also count as "already subscribed" for the
+      // duplicate-checkout guard.
       const adminClient = createAdminClient()
       const { data: row } = await adminClient
         .from('stripe_user_subscriptions')
         .select('stripe_customer_id, status')
         .eq('user_id', user.id)
-        .in('status', ['active', 'trialing'])
+        .in('status', ['active', 'trialing', 'past_due'])
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle()
@@ -128,7 +131,7 @@ export async function POST(request: NextRequest) {
       limit: 5,
     })
     const activeSub = subs.data.find(
-      (s) => s.status === 'active' || s.status === 'trialing',
+      (s) => s.status === 'active' || s.status === 'trialing' || s.status === 'past_due',
     )
     if (activeSub) {
       log.info('checkout.stripe_active_sub_found', {

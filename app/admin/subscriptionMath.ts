@@ -3,21 +3,18 @@ import type { SubscriptionRow } from './actions'
 // Whether the discount on this row is currently in effect for revenue
 // purposes. A 'forever' discount applies as long as the sub is active; a
 // 'repeating' discount applies until discount_end; a 'once' discount applies
-// only on the first invoice (after that, full price).
+// only on the first invoice — for which the webhook seeds discount_end at
+// the first period_end (see checkoutDiscountEnd in the webhook).
 export function isDiscountActiveNow(r: SubscriptionRow, now = Date.now()): boolean {
   if (!hasAnyDiscount(r)) return false
   if (r.discount_duration === 'forever') return true
-  if (r.discount_duration === 'repeating') {
+  if (r.discount_duration === 'repeating' || r.discount_duration === 'once') {
+    // Use discount_end (frozen at checkout) rather than current_period_end —
+    // the latter advances on renewal and would keep a one-time promo looking
+    // active forever.
     const end = r.discount_end ? new Date(r.discount_end).getTime() : null
     if (end === null) return true
     return now < end
-  }
-  if (r.discount_duration === 'once') {
-    // Applies only to the first invoice — heuristic: still active until the
-    // first period_end passes. After that the customer pays list price.
-    const firstPeriodEnd = r.current_period_end ? new Date(r.current_period_end).getTime() : null
-    if (firstPeriodEnd === null) return true
-    return now < firstPeriodEnd
   }
   return false
 }
@@ -45,7 +42,10 @@ export function effectiveUnitAmount(r: SubscriptionRow, now = Date.now()): numbe
 }
 
 // Per-day / per-week / per-month / per-year recurring-revenue rates,
-// computed against the effective (discount-aware) per-cycle amount.
+// computed against the effective (discount-aware) per-cycle amount. This is
+// "realized recurring revenue right now," not pure run rate — during a 'once'
+// or 'repeating' discount window the figures reflect what's actually billed,
+// then snap up to list price once discount_end passes.
 export function normalizedRevenue(
   r: SubscriptionRow,
   now = Date.now(),
@@ -73,23 +73,3 @@ export function normalizedRevenue(
   }
 }
 
-// Human-readable summary of the active discount, e.g. "CLAIMS40 · 40% off"
-// or "WELCOME · $10 off". Returns null when no discount is currently active.
-export function discountSummary(r: SubscriptionRow, now = Date.now()): string | null {
-  if (!isDiscountActiveNow(r, now)) return null
-  const code = r.discount_promotion_code ?? 'PROMO'
-  if (r.discount_percent_off && r.discount_percent_off > 0) {
-    const pct = r.discount_percent_off
-    const trimmed = pct % 1 === 0 ? pct.toFixed(0) : pct.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
-    return `${code} · ${trimmed}% off`
-  }
-  if (r.discount_amount_off && r.discount_amount_off > 0) {
-    const sym = (r.currency ?? 'usd').toLowerCase() === 'usd' ? '$' : ''
-    const dollars = (r.discount_amount_off / 100).toLocaleString('en-US', {
-      minimumFractionDigits: r.discount_amount_off % 100 === 0 ? 0 : 2,
-      maximumFractionDigits: 2,
-    })
-    return `${code} · ${sym}${dollars} off`
-  }
-  return code
-}

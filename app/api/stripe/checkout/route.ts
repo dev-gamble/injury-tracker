@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getStripe } from '@/lib/stripe/server'
 import { getServerEnv } from '@/lib/env'
+import { getPublicOrigin } from '@/lib/http/public-origin'
 import { errorToFields, logger, safeFlush } from '@/lib/logging'
 import { attachRequestIdHeader, getOrCreateRequestId } from '@/lib/logging/request-id'
 
@@ -31,7 +32,10 @@ export async function POST(request: NextRequest) {
 
     const env = getServerEnv()
     const stripe = getStripe()
-    const origin = request.nextUrl.origin
+    // Public-facing origin — required because Stripe redirects the user's
+    // browser back here, and request.nextUrl.origin returns the internal
+    // proxy address (e.g. 127.0.0.1:8080) on DO App Platform.
+    const origin = getPublicOrigin(request)
 
     // Block direct re-checkout if the caller already has an active or trialing
     // subscription, or any active license key. The /subscribe page bounces

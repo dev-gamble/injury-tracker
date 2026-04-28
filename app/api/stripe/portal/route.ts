@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getStripe } from '@/lib/stripe/server'
+import { getPublicOrigin } from '@/lib/http/public-origin'
 import { errorToFields, logger, safeFlush } from '@/lib/logging'
 import { attachRequestIdHeader, getOrCreateRequestId } from '@/lib/logging/request-id'
 
@@ -43,7 +44,8 @@ export async function POST(request: NextRequest) {
     const stripe = getStripe()
     const session = await stripe.billingPortal.sessions.create({
       customer: row.stripe_customer_id,
-      return_url: `${request.nextUrl.origin}/`,
+      // Public-facing origin — same proxy concern as the checkout route.
+      return_url: `${getPublicOrigin(request)}/`,
     })
 
     log.info('portal.created', { userId: user.id })

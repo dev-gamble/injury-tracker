@@ -3,6 +3,7 @@ import { errorToFields, logger, safeFlush } from "@/lib/logging"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { AuthShell } from "@/components/auth/AuthShell"
+import { SubscribeButton } from "./SubscribeButton"
 
 export default async function SubscribePage() {
   const log = logger("app.subscribe")
@@ -26,33 +27,21 @@ export default async function SubscribePage() {
   return (
     <AuthShell
       eyebrow="Subscription"
-      title="Choose your plan"
-      subtitle="Commercial enrollment is in final integration. A recurring subscription will be offered here soon."
+      title="Activate ENDEX"
       footer={
         <>
           Have an access key? <Link href="/redeem-key" className="auth-link">Redeem it here</Link>
           <br />
           <br />
-          <form action="/signout" method="post">
-            <button type="submit" className="auth-link-subtle" style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}>
-              Sign out
-            </button>
-          </form>
+          <Link href="/" className="auth-link-subtle">Back to home</Link>
         </>
       }
     >
-      <div className="auth-stripe" role="status">
-        <div className="auth-stripe-rule" aria-hidden="true">
-          <span>{'//'}</span> Pending release
-        </div>
-        <h3 className="auth-stripe-title">Subscriptions not yet open</h3>
+      <div className="auth-stripe">
         <p className="auth-stripe-body">
-          You&apos;re signed in as {user.email}. We&apos;ll email you the moment subscriptions open.
-          If an administrator issued you an access key, redeem it to enter ENDEX now.
+          Signed in as {user.email}. You&apos;ll be taken to Stripe&apos;s secure checkout to complete your subscription.
         </p>
-        <button type="button" disabled className="auth-submit is-ghost" aria-disabled="true">
-          Subscribe · unavailable
-        </button>
+        <SubscribeButton />
       </div>
     </AuthShell>
   )

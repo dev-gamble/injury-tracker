@@ -55,6 +55,24 @@ const serverEnvSchema = z.object({
     clean,
     z.string().min(1, "SUPABASE_SECRET_KEY is required")
   ),
+  // Used for every transactional Stripe API call (checkout, portal, customer
+  // and subscription reads). Restricted in the Stripe dashboard so a leaked
+  // key can't be used to refund charges or pull all customer data.
+  STRIPE_RESTRICTED_KEY: z.preprocess(
+    clean,
+    z.string().min(1, "STRIPE_RESTRICTED_KEY is required")
+  ),
+  // Webhook endpoint signing secret — used to verify event authenticity. Not
+  // an API key; rotates independently of the restricted/secret keys.
+  STRIPE_WEBHOOK_SECRET: z.preprocess(
+    clean,
+    z.string().min(1, "STRIPE_WEBHOOK_SECRET is required")
+  ),
+  // The recurring Price ID that Checkout enrolls users into.
+  STRIPE_PRICE_ID: z.preprocess(
+    clean,
+    z.string().min(1, "STRIPE_PRICE_ID is required")
+  ),
 })
 
 type PublicEnv = z.infer<typeof publicEnvSchema>
@@ -101,6 +119,9 @@ export function getServerEnv(): ServerEnv {
 
   const parsed = serverEnvSchema.safeParse({
     SUPABASE_SECRET_KEY: process.env.SUPABASE_SECRET_KEY,
+    STRIPE_RESTRICTED_KEY: process.env.STRIPE_RESTRICTED_KEY,
+    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+    STRIPE_PRICE_ID: process.env.STRIPE_PRICE_ID,
   })
 
   if (!parsed.success) {

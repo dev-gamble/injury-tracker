@@ -64,10 +64,22 @@ function escapeHtml(s: string): string {
 // discover the redemption step.
 const HEX_COLOR_RE = /^#[0-9a-fA-F]{6}$/
 
+// Distinct color for the SUBSCRIBED badge — visually separates Stripe
+// subscribers from any license-key group. Reuses the same custom-tier shell
+// (--g drives dot/border/text shades via color-mix in styles.css).
+const SUBSCRIBED_BADGE_COLOR = '#2a7a4b'
+
+// Inline script paired with the SUBSCRIBED button. Clicking the badge POSTs
+// to /api/stripe/portal and follows the returned URL into Stripe's hosted
+// billing portal where the user can update payment method or cancel.
+const BILLING_PORTAL_SCRIPT = `<script>(function(){window.__openBillingPortal=async function(btn){if(btn)btn.disabled=true;try{var res=await fetch('/api/stripe/portal',{method:'POST'});var body={};try{body=await res.json()}catch(_){}if(res.ok&&body.url){window.location.href=body.url;return}alert((body&&body.error)||'Could not open billing portal');if(btn)btn.disabled=false}catch(_){alert('Network error — try again');if(btn)btn.disabled=false}};})();</script>`
+
 function renderSignedInBlock(
   email: string,
   group: { name: string; color: string } | null,
   isAdmin: boolean,
+  accessChannel: 'key' | 'subscription' | null,
+  isSubscribed: boolean,
 ): string {
   let badge = ''
   if (isAdmin) {
@@ -77,7 +89,19 @@ function renderSignedInBlock(
     // the dot, border, and text shades from a single hex.
     const safeColor = HEX_COLOR_RE.test(group.color) ? group.color : '#0a2357'
     badge = `<span class="header-identity-tier header-identity-tier-custom" style="--g:${safeColor}"><span class="header-identity-tier-dot" aria-hidden="true"></span>${escapeHtml(group.name.toUpperCase())}</span>`
+  } else if (isSubscribed) {
+    // Active Stripe sub, no license-key group. Rendered as a button so the
+    // user can click into the Stripe billing portal to update payment or
+    // cancel. Combines -tier-link (pill chrome: padding, border, hover) with
+    // -tier-custom (dot color via --g) so it matches the ADMIN pill style
+    // but with the subscription green. `appearance:none` strips the browser
+    // default button look so the CSS class can paint the pill cleanly.
+    badge = `<button type="button" class="header-identity-tier header-identity-tier-link header-identity-tier-custom" title="Manage your subscription" style="--g:${SUBSCRIBED_BADGE_COLOR};appearance:none;-webkit-appearance:none;" onclick="window.__openBillingPortal&&window.__openBillingPortal(this)"><span class="header-identity-tier-dot" aria-hidden="true"></span>SUBSCRIBED</button>${BILLING_PORTAL_SCRIPT}`
+  } else if (accessChannel === 'subscription') {
+    // Subscription channel users without an active sub yet — point them at checkout.
+    badge = `<a href="/subscribe" class="header-identity-redeem" title="Start your subscription"><span class="header-identity-redeem-dot" aria-hidden="true"></span>Subscribe</a>`
   } else {
+    // Default (key channel or unset) — keep the redeem-key CTA.
     badge = `<a href="/redeem-key" class="header-identity-redeem" title="Redeem your access key"><span class="header-identity-redeem-dot" aria-hidden="true"></span>Redeem Key</a>`
   }
   const identity = `<div class="header-identity" aria-label="Account">
@@ -200,8 +224,28 @@ export async function GET(
             }
           }
         }
-        hasAccess = isAdmin || group !== null
-        replacement = renderSignedInBlock(user.email ?? '', group, isAdmin)
+        // Access can come from either a license-key group OR an active Stripe
+        // subscription. Admins and key-group holders short-circuit; everyone
+        // else goes through current_user_has_access() which unions both paths.
+        if (isAdmin || group !== null) {
+          hasAccess = true
+        } else {
+          const { data: rpcAccess } = await supabase.rpc('current_user_has_access')
+          hasAccess = rpcAccess === true
+        }
+        // The pill in the header reflects how the user signed up: a "key"
+        // signup (or unset metadata) gets "Redeem Key", a "subscription"
+        // signup gets "Subscribe". Once they have a group/admin role/active
+        // sub the pill is replaced by the proper badge anyway.
+        const channelRaw = (user.user_metadata as { access_channel?: unknown } | null)?.access_channel
+        const accessChannel: 'key' | 'subscription' | null =
+          channelRaw === 'subscription' ? 'subscription'
+          : channelRaw === 'key' ? 'key'
+          : null
+        // hasAccess without a group means an active Stripe sub (admins are
+        // already handled above and key holders always have a group).
+        const isSubscribed = hasAccess && !isAdmin && group === null
+        replacement = renderSignedInBlock(user.email ?? '', group, isAdmin, accessChannel, isSubscribed)
       }
       html = html.replace(AUTH_BUTTON_PATTERN, replacement)
       html = html.replace(ACCESS_STATE_PATTERN, renderAccessState(hasAccess))

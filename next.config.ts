@@ -9,13 +9,16 @@ const devConnectSources = isProd
 
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"}`,
+  `script-src 'self' 'unsafe-inline' https://js.stripe.com${isProd ? "" : " 'unsafe-eval'"}`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data: https://fonts.gstatic.com",
-  `connect-src 'self' https://*.supabase.co https://api.supabase.com https://api.axiom.co${devConnectSources}`,
+  `connect-src 'self' https://*.supabase.co https://api.supabase.com https://api.axiom.co https://api.stripe.com${devConnectSources}`,
+  // Stripe.js renders payment elements inside iframes from these origins.
+  "frame-src https://js.stripe.com https://hooks.stripe.com https://checkout.stripe.com",
+  // Form posts to Stripe hosted checkout.
+  "form-action 'self' https://checkout.stripe.com",
   "object-src 'none'",
-  "form-action 'self'",
   "base-uri 'self'",
   "frame-ancestors 'none'",
 ].join("; ")

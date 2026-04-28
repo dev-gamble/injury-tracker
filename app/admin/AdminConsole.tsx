@@ -4,23 +4,27 @@ import { useCallback, useEffect, useState } from 'react'
 import { RegistryPanel } from './RegistryPanel'
 import { CreateKeyForm } from './CreateKeyForm'
 import { AssignmentsPanel } from './AssignmentsPanel'
-import { listAssignmentUsers, type AssignmentUser } from './actions'
+import { SubscriptionsPanel } from './SubscriptionsPanel'
+import { listAssignmentUsers, type AssignmentUser, type SubscriptionRow } from './actions'
 import type { KeyRow } from './KeysTable'
 
-type Tab = 'registry' | 'issue' | 'assignments'
+type Tab = 'registry' | 'issue' | 'assignments' | 'subscriptions'
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'registry',    label: 'Key Registry' },
-  { id: 'issue',       label: 'Issue Key'    },
-  { id: 'assignments', label: 'Assignments'  },
+  { id: 'registry',      label: 'Key Registry' },
+  { id: 'issue',         label: 'Issue Key'    },
+  { id: 'assignments',   label: 'Assignments'  },
+  { id: 'subscriptions', label: 'Subscriptions' },
 ]
 
 type Props = {
   rows: KeyRow[]
   errorMessage: string | null
+  subscriptions: SubscriptionRow[]
+  subsErrorMessage: string | null
 }
 
-export function AdminConsole({ rows, errorMessage }: Props) {
+export function AdminConsole({ rows, errorMessage, subscriptions, subsErrorMessage }: Props) {
   const [tab, setTab] = useState<Tab>('registry')
   const [users, setUsers] = useState<AssignmentUser[]>([])
   const [usersLoading, setUsersLoading] = useState(true)
@@ -84,6 +88,9 @@ export function AdminConsole({ rows, errorMessage }: Props) {
               loadError={usersError}
               onReload={reloadUsers}
             />
+          )}
+          {tab === 'subscriptions' && (
+            <SubscriptionsPanel rows={subscriptions} errorMessage={subsErrorMessage} />
           )}
         </div>
       </main>

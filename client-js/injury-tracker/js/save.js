@@ -198,13 +198,133 @@ function _restorePins(){
 }
 
 // ── TOAST HELPER ──
+// Success toast: bottom-right card matching the access-gate upgrade-toast
+// layout, but in a green "success" tone with a checkmark icon and a green
+// countdown bar. Accepts either a plain string (legacy) or { title, copy,
+// eyebrow } for richer messages.
 
-function _showToast(message, color){
-  const toast = document.createElement('div');
-  toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:'+(color||'#059669')+';color:#fff;padding:12px 24px;border-radius:8px;font-family:var(--fh);font-size:14px;font-weight:700;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.2);';
-  toast.textContent = message;
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 4000);
+function _showToast(input){
+  var opts = (typeof input === 'string') ? { title: input } : (input || {});
+  var title = opts.title || '';
+  var copy = opts.copy || '';
+  var eyebrow = opts.eyebrow || 'Success';
+
+  var existing = document.getElementById('endex-success-toast');
+  if(existing) existing.remove();
+
+  _ensureSuccessToastStyles();
+
+  var t = document.createElement('div');
+  t.id = 'endex-success-toast';
+  t.className = 'endex-success-toast';
+  t.setAttribute('role', 'status');
+  t.setAttribute('aria-live', 'polite');
+
+  var inner = document.createElement('div');
+  inner.className = 'endex-success-toast__inner';
+
+  inner.innerHTML = ''
+    + '<svg class="endex-success-toast__icon" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">'
+    +   '<circle cx="7" cy="7" r="5.6" stroke="currentColor" stroke-width="1.3"/>'
+    +   '<path d="M4.6 7.2l1.7 1.7 3.1-3.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '</svg>';
+
+  var body = document.createElement('div');
+  body.className = 'endex-success-toast__body';
+
+  var eb = document.createElement('div');
+  eb.className = 'endex-success-toast__eyebrow';
+  eb.textContent = eyebrow;
+  body.appendChild(eb);
+
+  var ti = document.createElement('div');
+  ti.className = 'endex-success-toast__title';
+  ti.textContent = title;
+  body.appendChild(ti);
+
+  if(copy){
+    var co = document.createElement('div');
+    co.className = 'endex-success-toast__copy';
+    co.textContent = copy;
+    body.appendChild(co);
+  }
+
+  inner.appendChild(body);
+  t.appendChild(inner);
+
+  var timer = document.createElement('div');
+  timer.className = 'endex-success-toast__timer';
+  timer.setAttribute('aria-hidden', 'true');
+  t.appendChild(timer);
+
+  document.body.appendChild(t);
+  requestAnimationFrame(function(){ t.classList.add('is-in'); });
+
+  setTimeout(function(){
+    if(!t.parentNode) return;
+    t.classList.remove('is-in');
+    t.classList.add('is-out');
+    setTimeout(function(){ if(t.parentNode) t.parentNode.removeChild(t); }, 240);
+  }, 3500);
+}
+
+function _ensureSuccessToastStyles(){
+  if(document.getElementById('endex-success-toast-styles')) return;
+  var s = document.createElement('style');
+  s.id = 'endex-success-toast-styles';
+  s.textContent = [
+    '.endex-success-toast{',
+    '  position:fixed; right:24px; bottom:24px; z-index:9999;',
+    '  width:320px; background:#ffffff;',
+    '  border:1px solid #d8dde8; border-top:3px solid #0a2357; border-left:2px solid #2d7a4f;',
+    '  border-radius:4px; overflow:hidden;',
+    '  box-shadow:0 8px 24px rgba(10,35,87,.14), 0 2px 6px rgba(10,35,87,.08);',
+    '  font-family:"Open Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;',
+    '  color:#0a1628;',
+    '  opacity:0; transform:translateY(12px);',
+    '  transition:opacity 280ms cubic-bezier(.2,.8,.2,1), transform 280ms cubic-bezier(.2,.8,.2,1);',
+    '}',
+    '.endex-success-toast.is-in{ opacity:1; transform:translateY(0); }',
+    '.endex-success-toast.is-out{ opacity:0; transform:translateY(6px); transition-duration:240ms; }',
+    '.endex-success-toast__inner{',
+    '  display:flex; gap:11px; align-items:flex-start;',
+    '  padding:13px 16px 12px 14px;',
+    '}',
+    '.endex-success-toast__icon{',
+    '  flex:0 0 auto; margin-top:3px; color:#2d7a4f;',
+    '}',
+    '.endex-success-toast__body{ min-width:0; }',
+    '.endex-success-toast__eyebrow{',
+    '  font-family:"Oswald","Open Sans",Arial,sans-serif;',
+    '  font-size:9.5px; font-weight:700; letter-spacing:2.5px;',
+    '  text-transform:uppercase; color:#2d7a4f; line-height:1;',
+    '  margin-bottom:6px;',
+    '}',
+    '.endex-success-toast__title{',
+    '  font-family:"Oswald","Open Sans",Arial,sans-serif;',
+    '  font-size:14px; font-weight:600; letter-spacing:.4px;',
+    '  text-transform:uppercase; color:#0a2357; line-height:1.2;',
+    '  margin-bottom:4px;',
+    '}',
+    '.endex-success-toast__copy{',
+    '  font-size:12px; line-height:1.45; color:#5a6782;',
+    '}',
+    '.endex-success-toast__timer{',
+    '  height:1px; background:#2d7a4f; transform-origin:left center;',
+    '  animation:endex-success-toast-timer 3500ms linear forwards;',
+    '}',
+    '@keyframes endex-success-toast-timer{',
+    '  from{ transform:scaleX(1); }',
+    '  to{ transform:scaleX(0); }',
+    '}',
+    '@media (prefers-reduced-motion: reduce){',
+    '  .endex-success-toast{ transition:opacity 120ms linear; transform:none; }',
+    '  .endex-success-toast.is-in{ transform:none; }',
+    '  .endex-success-toast.is-out{ transform:none; }',
+    '  .endex-success-toast__timer{ animation:none; background:transparent; }',
+    '}'
+  ].join('\n');
+  document.head.appendChild(s);
 }
 
 // ── SAVE PROJECT UI ──
@@ -350,7 +470,7 @@ async function _doSave(){
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     closeSaveModal();
-    _showToast('Project saved. Keep the file and password safe.');
+    _showToast({ title: 'Project saved', copy: 'Keep the file and password safe.' });
   } catch(e){
     errEl.textContent = 'Encryption failed: ' + e.message;
     errEl.style.display = 'block';
@@ -465,7 +585,7 @@ async function _doLoad(){
 
     _restoreAllState(state);
     closeLoadModal();
-    _showToast('Project loaded successfully');
+    _showToast({ title: 'Project loaded', copy: 'Your saved entries are ready to edit.' });
 
   } catch(e){
     errEl.textContent = 'Failed to load: ' + e.message;

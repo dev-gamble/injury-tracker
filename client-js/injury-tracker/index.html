@@ -307,7 +307,7 @@
     <div style="font-size:20px;font-weight:700;font-family:var(--fh);text-transform:uppercase;letter-spacing:.5px;color:var(--navy);">Claim Map — Secondary</div>
   </div>
   <div class="tab-instructions">
-    Rate how bad each condition is and add any secondary issues it has caused. Click <strong>"Rate"</strong> to answer questions about your condition. Under each claim, use <strong>"Add Secondary"</strong> to list problems caused by that condition (for example: a knee injury that caused back pain, or PTSD that caused insomnia). Secondary conditions can increase your overall rating.
+    Rate how bad each condition is and add any secondary issues it has caused. Click <strong>"Rate"</strong> to answer questions about your condition. Under each claim, use <strong>"Add Secondary"</strong> to list problems caused by that condition (for example: a knee injury that caused back pain, or PTSD that caused insomnia). Secondary conditions may be relevant to a VA claim when supported by medical evidence. ENDEX helps you organize them for discussion with accredited support.
   </div>
   <div id="sc-list"></div>
 </div>
@@ -318,7 +318,7 @@
     <div style="font-size:20px;font-weight:700;font-family:var(--fh);text-transform:uppercase;letter-spacing:.5px;color:var(--navy);">War-Related & Special Claims</div>
   </div>
   <div class="tab-instructions">
-    Add claims related to your job, combat service, or special circumstances. This includes things like <strong>combat-related conditions</strong>, <strong>Military Sexual Trauma (MST)</strong>, Agent Orange exposure, burn pit exposure, and Gulf War illness. These claims have special rules that can help your case.
+    Add claims related to your job, combat service, or special circumstances. This includes things like <strong>combat-related conditions</strong>, <strong>Military Sexual Trauma (MST)</strong>, Agent Orange exposure, burn pit exposure, and Gulf War illness. These categories may involve special VA rules or evidence requirements. ENDEX helps you track related information for review with accredited support.
   </div>
   <div id="sp-list"></div>
 </div>
@@ -329,7 +329,7 @@
     <div style="font-size:20px;font-weight:700;font-family:var(--fh);text-transform:uppercase;letter-spacing:.5px;color:var(--navy);">VA Rating Calculator</div>
   </div>
   <div class="tab-instructions">
-    Your estimated combined VA disability rating based on all conditions you've entered. The VA uses <strong>"VA Math"</strong> — each rating is applied to the remaining healthy percentage, not simply added together. Conditions affecting both sides of your body (left and right knee, for example) get a 10% bilateral bonus. This is an estimate only — your actual rating may differ.
+    Your estimated combined VA disability rating based on all conditions you've entered. The VA uses <strong>"VA Math"</strong> — each rating is applied to the remaining healthy percentage, not simply added together. Conditions affecting both sides of your body (left and right knee, for example) get a 10% bilateral bonus. Ratings are estimates for education and planning only. ENDEX does not predict, guarantee, or influence VA decisions. Final ratings are determined only by VA based on law, medical evidence, service records, and claim review.
   </div>
   <div id="rc-list"></div>
 </div>
@@ -340,7 +340,7 @@
     <div style="font-size:20px;font-weight:700;font-family:var(--fh);text-transform:uppercase;letter-spacing:.5px;color:var(--navy);">Notes &amp; Statement</div>
   </div>
   <div class="tab-instructions">
-    Use this space however works for you — a VA personal statement, notes from doctor visits, questions for your VSO, reminders, or context about specific conditions. Write for whoever reads this next (VSO, attorney, family, or yourself later). Your logged conditions are listed on the right for easy reference — click one to drop its name into your notes.
+    Use this space however works for you — a VA personal statement, notes from doctor visits, questions for your VSO, reminders, or context about specific conditions. Write for whoever reads this next (VSO, attorney, family, or yourself later). Your logged conditions are listed on the right for easy reference — click one to drop its name into your notes. Use this section to organize accurate, truthful information from your own records and experiences. Do not exaggerate, fabricate, or submit information you cannot support.
   </div>
   <div id="ps-content"></div>
 </div>
@@ -459,7 +459,8 @@ const _wtSteps = [
     title: 'Step 5: Rating Calculator',
     icon: '&#128200;',
     body: 'The <strong>Rating</strong> tab shows your estimated combined VA rating using actual VA math.<br><br>' +
-      'VA ratings don\'t add up normally — they use "combined bilateral" math. A 50% + 30% = 65%, not 80%.',
+      'VA ratings don\'t add up normally — they use "combined bilateral" math. A 50% + 30% = 65%, not 80%.<br><br>' +
+      'Ratings shown here are estimates for education and planning only — VA makes the final decision.',
     tip: 'VA math works on remaining disability. After a 50% rating, you have 50% left. A 30% on that 50% is 15%. So 50 + 15 = 65%, rounded to 70%.'
   },
   {
@@ -557,7 +558,7 @@ if(!(window.__endexAccess && window.__endexAccess.isLoggedIn)){
 
 <footer style="background:#1a2332;color:rgba(255,255,255,.55);padding:16px 24px;font-size:10px;font-family:var(--fm);line-height:1.7;text-align:center;margin-top:20px;border-top:3px solid var(--red);">
   <div style="max-width:800px;margin:0 auto;">
-    <strong style="color:rgba(255,255,255,.85);">Documentation &amp; organization tool — not a VA decision engine.</strong> Not an official VA product. Not affiliated with or endorsed by the U.S. Department of Veterans Affairs. This app helps you organize your injury records and prepare for the claims process. It does not file claims, make official decisions, or guarantee any rating or outcome. Ratings shown are estimates based on general VA criteria. No data is stored — export before closing. Talk to a VSO, VA-accredited claims agent, or disability attorney before filing.
+    <strong style="color:rgba(255,255,255,.85);">Documentation &amp; organization tool — not a VA decision engine.</strong> Not an official VA product. Not affiliated with or endorsed by the U.S. Department of Veterans Affairs. This app helps you organize your injury records and prepare for the claims process. It does not file claims, make official decisions, or guarantee any rating or outcome. Ratings shown are estimates based on general VA criteria. ENDEX does not create, complete, alter, review, or submit Disability Benefit Questionnaires (DBQs). DBQs should be completed only by qualified medical professionals using accurate medical information. ENDEX does not diagnose conditions or provide medical advice — rely on qualified medical professionals for diagnosis, treatment, and medical documentation. Talk to a VSO, VA-accredited claims agent, or disability attorney before filing.
     <style>
       .endex-footer-mail{color:rgba(255,255,255,.82);text-decoration:none;font-family:var(--fm);letter-spacing:.5px;border-bottom:1px dotted rgba(200,16,46,.55);padding-bottom:1px;transition:color .15s ease,border-color .15s ease;}
       .endex-footer-mail:hover,.endex-footer-mail:focus-visible{color:#fff;border-bottom-color:#c8102e;outline:none;}

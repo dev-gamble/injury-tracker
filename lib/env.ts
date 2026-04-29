@@ -68,10 +68,15 @@ const serverEnvSchema = z.object({
     clean,
     z.string().min(1, "STRIPE_WEBHOOK_SECRET is required")
   ),
-  // The recurring Price ID that Checkout enrolls users into.
+  // Recurring Price IDs that Checkout enrolls users into. The user picks one
+  // on the /subscribe page; the API maps `plan` → price id from these.
   STRIPE_PRICE_ID: z.preprocess(
     clean,
     z.string().min(1, "STRIPE_PRICE_ID is required")
+  ),
+  STRIPE_PRICE_ID_MONTHLY: z.preprocess(
+    clean,
+    z.string().min(1, "STRIPE_PRICE_ID_MONTHLY is required")
   ),
 })
 
@@ -122,6 +127,7 @@ export function getServerEnv(): ServerEnv {
     STRIPE_RESTRICTED_KEY: process.env.STRIPE_RESTRICTED_KEY,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
     STRIPE_PRICE_ID: process.env.STRIPE_PRICE_ID,
+    STRIPE_PRICE_ID_MONTHLY: process.env.STRIPE_PRICE_ID_MONTHLY,
   })
 
   if (!parsed.success) {

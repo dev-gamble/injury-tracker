@@ -2,7 +2,14 @@
 
 import { useState } from "react"
 
-export function SubscribeButton() {
+type Plan = "monthly" | "yearly"
+
+type SubscribeButtonProps = {
+  plan: Plan
+  label: string
+}
+
+export function SubscribeButton({ plan, label }: SubscribeButtonProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -10,7 +17,11 @@ export function SubscribeButton() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch("/api/stripe/checkout", { method: "POST" })
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ plan }),
+      })
       const body = await res.json().catch(() => ({}))
       if (!res.ok || !body?.url) {
         setError(body?.error ?? "Could not start checkout")
@@ -38,7 +49,7 @@ export function SubscribeButton() {
             Opening checkout...
           </>
         ) : (
-          "Subscribe"
+          label
         )}
       </button>
       {error && <p className="auth-error" style={{ marginTop: 12 }}>{error}</p>}

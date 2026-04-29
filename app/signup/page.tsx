@@ -124,7 +124,7 @@ export default function SignupPage() {
           <p className="auth-fork-brief">
             {channel === "key"
               ? "Enter your credentials below. After email verification you'll be prompted for your access key."
-              : "Enter your credentials below. We'll verify your email, then send you to secure checkout — $50/year, cancel anytime."}
+              : "Enter your credentials below. We'll verify your email, then send you to secure checkout — $7/month, cancel anytime."}
           </p>
           <div className="auth-field">
             <label htmlFor="email" className="auth-label">Email</label>

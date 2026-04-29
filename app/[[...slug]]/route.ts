@@ -43,9 +43,10 @@ const ACCESS_STATE_PATTERN = /<!--ACCESS_STATE_START-->[\s\S]*?<!--ACCESS_STATE_
 // Stamped alongside the auth button so the tracker JS knows which dropdown
 // features to gate. Any signed-in user holding an active key gets full access;
 // everyone else sees locked items with an upgrade tooltip. This is a UX gate,
-// not a security boundary — the tracker is purely client-side.
-function renderAccessState(hasAccess: boolean): string {
-  return `<!--ACCESS_STATE_START--><script>window.__endexAccess={hasAccess:${hasAccess ? 'true' : 'false'}};</script><!--ACCESS_STATE_END-->`
+// not a security boundary — the tracker is purely client-side. isLoggedIn is
+// exposed so the walkthrough can auto-open for unauthenticated visitors only.
+function renderAccessState(hasAccess: boolean, isLoggedIn: boolean): string {
+  return `<!--ACCESS_STATE_START--><script>window.__endexAccess={hasAccess:${hasAccess ? 'true' : 'false'},isLoggedIn:${isLoggedIn ? 'true' : 'false'}};</script><!--ACCESS_STATE_END-->`
 }
 
 const HTML_ESCAPE_MAP: Record<string, string> = {
@@ -246,7 +247,7 @@ export async function GET(
         replacement = renderSignedInBlock(user.email ?? '', group, isAdmin, accessChannel, isSubscribed)
       }
       html = html.replace(AUTH_BUTTON_PATTERN, replacement)
-      html = html.replace(ACCESS_STATE_PATTERN, renderAccessState(hasAccess))
+      html = html.replace(ACCESS_STATE_PATTERN, renderAccessState(hasAccess, !!user))
       responseBody = html
     } else {
       responseBody = new Uint8Array(fileBuffer)

@@ -32,6 +32,12 @@ export async function POST(request: NextRequest) {
 
     const env = getServerEnv()
     const stripe = getStripe()
+
+    // Plan selection. Anything other than 'monthly' resolves to yearly so a
+    // missing or malformed body falls back to the original $50/year price.
+    const body = await request.json().catch(() => ({})) as { plan?: unknown }
+    const plan = body?.plan === 'monthly' ? 'monthly' : 'yearly'
+    const priceId = plan === 'monthly' ? env.STRIPE_PRICE_ID_MONTHLY : env.STRIPE_PRICE_ID_ANNUAL
     // Public-facing origin — required because Stripe redirects the user's
     // browser back here, and request.nextUrl.origin returns the internal
     // proxy address (e.g. 127.0.0.1:8080) on DO App Platform.
@@ -157,7 +163,11 @@ export async function POST(request: NextRequest) {
       limit: 5,
     })
     const openMatching = openSessions.data.find(
-      (s) => s.mode === 'subscription' && s.client_reference_id === user.id && !!s.url,
+      (s) =>
+        s.mode === 'subscription' &&
+        s.client_reference_id === user.id &&
+        s.metadata?.plan === plan &&
+        !!s.url,
     )
     if (openMatching?.url) {
       log.info('checkout.reused_open_session', {
@@ -175,16 +185,19 @@ export async function POST(request: NextRequest) {
     // (within the same hour, before either has registered an open session)
     // collapse to a single Checkout Session URL.
     const hourBucket = Math.floor(Date.now() / 3_600_000)
-    const sessionIdempotencyKey = `checkout-${user.id}-${env.STRIPE_PRICE_ID}-${hourBucket}`
+    const sessionIdempotencyKey = `checkout-${user.id}-${priceId}-${hourBucket}`
 
     const session = await stripe.checkout.sessions.create(
       {
         mode: 'subscription',
-        line_items: [{ price: env.STRIPE_PRICE_ID, quantity: 1 }],
+        line_items: [{ price: priceId, quantity: 1 }],
         customer: customerId,
         // Carried into the resulting subscription so the webhook can resolve
         // back to a Supabase user even if email changes later.
         client_reference_id: user.id,
+        // Tagged so the open-session reuse check above can tell a still-open
+        // monthly session apart from a fresh yearly request (and vice versa).
+        metadata: { plan },
         subscription_data: {
           metadata: { supabase_user_id: user.id },
         },

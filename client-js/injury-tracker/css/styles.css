@@ -46,7 +46,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--fd);min-height:100
 header{
   background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 60%,var(--navy3) 100%);
   border-bottom:3px solid var(--red);
-  padding:0 28px;display:flex;align-items:center;justify-content:space-between;height:66px;
+  padding:14px 28px;display:flex;align-items:center;justify-content:space-between;min-height:84px;
   box-shadow:0 4px 16px rgba(10,35,87,.35);
 }
 .logo{display:flex;align-items:center;gap:14px;}
@@ -811,8 +811,7 @@ body.pin-placing .body-panel{position:relative;z-index:95;}
 /* ── MENTAL HEALTH PANEL ─────────────────────────────────────────────────── */
 .mental-panel{
   grid-column:1/-1;background:var(--surface);border:1px solid var(--border);border-radius:8px;
-  box-shadow:var(--sh);border-top:3px solid var(--navy);padding:0;overflow-y:auto;
-  max-height:calc(100vh - 160px);
+  box-shadow:var(--sh);border-top:3px solid var(--navy);padding:0;
 }
 @media(max-width:900px){.mental-panel{grid-column:1/-1;}}
 .mh-header{
@@ -1259,7 +1258,6 @@ body.pin-placing .body-panel{position:relative;z-index:95;}
   .tgrp{padding:1px;}
   .tog{padding:4px 10px;font-size:10px;}
   .tb-lbl{font-size:9px;}
-  .mental-panel{max-height:calc(100vh - 100px);}
   .mh-header{padding:12px 14px;}
   .mh-title{font-size:14px;}
   .mh-body{padding:12px;}
@@ -1290,11 +1288,20 @@ body.color-blind-mode .b-severe{background:#000 !important;}
 body.color-blind-mode .stag{background:#eee !important;color:#000 !important;border-color:#999 !important;}
 body.color-blind-mode .tab.active{border-color:#fff !important;color:#fff !important;}
 body.color-blind-mode .mh-combined{background:linear-gradient(135deg,#222 0%,#555 100%) !important;}
+body.color-blind-mode .mh-combined .mh-combined-label,
+body.color-blind-mode .mh-combined .mh-combined-value,
+body.color-blind-mode .mh-combined .mh-combined-tile-val{color:#fff !important;}
+body.color-blind-mode .mh-combined .mh-combined-note,
+body.color-blind-mode .mh-combined .mh-combined-tile-name{color:rgba(255,255,255,.75) !important;}
+body.color-blind-mode .mh-combined .mh-combined-tile{background:rgba(255,255,255,.08) !important;border-color:rgba(255,255,255,.25) !important;}
 body.color-blind-mode .cr-suggest{background:#f5f5f5 !important;border-color:#999 !important;}
 body.color-blind-mode .cr-suggest-chip{border-color:#666 !important;color:#000 !important;}
 body.color-blind-mode .cr-suggest-chip:hover{background:#333 !important;color:#fff !important;border-color:#333 !important;}
 body.color-blind-mode header{background:linear-gradient(135deg,#222 0%,#444 100%) !important;}
 body.color-blind-mode .mh-header{background:linear-gradient(135deg,#222 0%,#444 100%) !important;}
+body.color-blind-mode .mh-header .mh-title{color:#fff !important;}
+body.color-blind-mode .mh-header .mh-back{background:#fff !important;color:#000 !important;}
+body.color-blind-mode .mh-header .mh-back:hover{background:#e5e5e5 !important;}
 body.color-blind-mode .mh-done-btn{background:#000 !important;border-color:#000 !important;}
 
 /* ============================================================

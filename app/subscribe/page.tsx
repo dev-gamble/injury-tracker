@@ -39,9 +39,10 @@ export default async function SubscribePage() {
     >
       <div className="auth-stripe">
         <p className="auth-stripe-body">
-          Signed in as {user.email}. You&apos;ll be taken to Stripe&apos;s secure checkout to complete your subscription.
+          Signed in as {user.email}. Choose a plan and you&apos;ll be taken to Stripe&apos;s secure checkout.
         </p>
-        <SubscribeButton />
+        <SubscribeButton plan="monthly" label="$7/month" />
+        <SubscribeButton plan="yearly" label="$50/year (save $34)" />
       </div>
     </AuthShell>
   )

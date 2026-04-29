@@ -126,10 +126,8 @@ const MIME_TYPES: Record<string, string> = {
 
 const ALLOWED_EXTENSIONS = new Set(Object.keys(MIME_TYPES))
 
-// HTML files served by this route. The tracker directory contains alternate
-// standalone HTML bundles (e.g. ENDEX (Standalone).html) that ship the same
-// app *without* the access-gate injection — serving them would let a user
-// bypass the gate by visiting an alternate URL. Keep this list explicit.
+// HTML files served by this route. Allowlisted explicitly so any future
+// non-gated HTML dropped into the tracker dir can't be served by accident.
 const ALLOWED_HTML_FILES = new Set([
   "index.html",
   "how-to-use-infographic.html",

@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     // missing or malformed body falls back to the original $50/year price.
     const body = await request.json().catch(() => ({})) as { plan?: unknown }
     const plan = body?.plan === 'monthly' ? 'monthly' : 'yearly'
-    const priceId = plan === 'monthly' ? env.STRIPE_PRICE_ID_MONTHLY : env.STRIPE_PRICE_ID
+    const priceId = plan === 'monthly' ? env.STRIPE_PRICE_ID_MONTHLY : env.STRIPE_PRICE_ID_ANNUAL
     // Public-facing origin — required because Stripe redirects the user's
     // browser back here, and request.nextUrl.origin returns the internal
     // proxy address (e.g. 127.0.0.1:8080) on DO App Platform.

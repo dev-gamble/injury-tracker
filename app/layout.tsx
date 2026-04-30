@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { Providers } from "@/components/providers"
+import { VisitTracker } from "@/components/analytics/VisitTracker"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -16,6 +17,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="bg-white text-gray-900 antialiased">
         <Providers>{children}</Providers>
+        <VisitTracker />
       </body>
     </html>
   )

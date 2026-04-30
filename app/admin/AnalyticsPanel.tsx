@@ -1,59 +1,18 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import {
-  listVisitAnalytics,
-  type AnalyticsPayload,
-} from './analyticsActions'
+import type { AnalyticsPayload } from './analyticsActions'
 import { VisitsChart } from './VisitsChart'
 import { flagFor } from '@/lib/analytics/countries'
 
 const DAY_MS = 86_400_000
 
-type LoadState =
-  | { kind: 'loading' }
-  | { kind: 'error'; message: string }
-  | { kind: 'ready'; payload: AnalyticsPayload }
+type Props = {
+  payload: AnalyticsPayload | null
+  errorMessage: string | null
+}
 
-export function AnalyticsPanel() {
-  const [state, setState] = useState<LoadState>({ kind: 'loading' })
-
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      const res = await listVisitAnalytics()
-      if (cancelled) return
-      if (res.ok) setState({ kind: 'ready', payload: res.payload })
-      else setState({ kind: 'error', message: res.error })
-    })()
-    return () => { cancelled = true }
-  }, [])
-
-  if (state.kind === 'loading') {
-    return (
-      <section className="admin-card admin-card-wide" aria-labelledby="analytics-card-title">
-        <div className="admin-card-head">
-          <div className="admin-form-id">
-            <span>Telemetry · Visits</span>
-            <span className="admin-form-id-right">Loading…</span>
-          </div>
-          <div className="admin-card-head-row">
-            <div>
-              <h1 id="analytics-card-title" className="admin-card-title">Analytics</h1>
-              <p className="admin-card-subtitle">Visitor and geo intelligence — last 30 days.</p>
-            </div>
-          </div>
-        </div>
-        <div className="vt-loading">
-          <div className="vt-loading-bar" />
-          <div className="vt-loading-bar" style={{ animationDelay: '.15s' }} />
-          <div className="vt-loading-bar" style={{ animationDelay: '.3s' }} />
-        </div>
-      </section>
-    )
-  }
-
-  if (state.kind === 'error') {
+export function AnalyticsPanel({ payload, errorMessage }: Props) {
+  if (errorMessage || !payload) {
     return (
       <section className="admin-card admin-card-wide" aria-labelledby="analytics-card-title">
         <div className="admin-card-head">
@@ -71,13 +30,13 @@ export function AnalyticsPanel() {
         <div className="admin-empty">
           <div className="admin-empty-glyph">!</div>
           <h2 className="admin-empty-title">Unable to load telemetry</h2>
-          <p className="admin-empty-body">{state.message}</p>
+          <p className="admin-empty-body">{errorMessage ?? 'No analytics data available.'}</p>
         </div>
       </section>
     )
   }
 
-  return <AnalyticsBody payload={state.payload} />
+  return <AnalyticsBody payload={payload} />
 }
 
 function AnalyticsBody({ payload }: { payload: AnalyticsPayload }) {

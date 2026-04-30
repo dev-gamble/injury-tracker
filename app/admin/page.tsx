@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { AdminConsole } from './AdminConsole'
 import type { KeyRow } from './KeysTable'
 import type { SubscriptionRow } from './actions'
+import { listVisitAnalytics, type AnalyticsPayload } from './analyticsActions'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,7 +33,7 @@ export default async function AdminPage() {
 
   const admin = createAdminClient()
 
-  const [keysResult, subsResult, usersResult] = await Promise.all([
+  const [keysResult, subsResult, usersResult, analyticsResult] = await Promise.all([
     admin
       .from('license_keys')
       .select('id, key_prefix, group_name, group_color, status, max_uses, current_uses, expires_at, notes, created_at')
@@ -46,7 +47,13 @@ export default async function AdminPage() {
       .order('created_at', { ascending: false })
       .limit(500),
     admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+    listVisitAnalytics(),
   ])
+
+  const analyticsPayload: AnalyticsPayload | null =
+    analyticsResult.ok ? analyticsResult.payload : null
+  const analyticsErrorMessage: string | null =
+    analyticsResult.ok ? null : analyticsResult.error
 
   const rows: KeyRow[] = (keysResult.data ?? []).map((r: RawRow) => {
     const expired = r.expires_at !== null && new Date(r.expires_at).getTime() <= Date.now()
@@ -92,6 +99,8 @@ export default async function AdminPage() {
       errorMessage={keysResult.error?.message ?? null}
       subscriptions={subscriptions}
       subsErrorMessage={subsResult.error?.message ?? null}
+      analyticsPayload={analyticsPayload}
+      analyticsErrorMessage={analyticsErrorMessage}
     />
   )
 }

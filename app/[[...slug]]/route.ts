@@ -40,6 +40,13 @@ const SIGN_OUT_BUTTON = `<button type="button" class="export-btn header-signin-b
 const AUTH_BUTTON_PATTERN = /<!--AUTH_BUTTON_START-->[\s\S]*?<!--AUTH_BUTTON_END-->/
 const ACCESS_STATE_PATTERN = /<!--ACCESS_STATE_START-->[\s\S]*?<!--ACCESS_STATE_END-->/
 
+// Minimal visit-tracking pixel injected into the served HTML. The React
+// VisitTracker only sees pages rendered through the app router — the static
+// tracker app at "/" and "/how-to-use-infographic.html" never mounts that
+// component, so we inline the same dedupe-and-fire behavior here. Body kept
+// terse on purpose: it ships in every HTML response.
+const VISIT_TRACKER_SCRIPT = `<script>(function(){try{var p=window.location.pathname+window.location.search;var k='vt:'+p;try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,'1')}catch(_){}fetch('/api/analytics/track',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({path:p,referrer:document.referrer||null}),keepalive:true,cache:'no-store'}).catch(function(){})}catch(_){}})();</script>`
+
 // Stamped alongside the auth button so the tracker JS knows which dropdown
 // features to gate. Any signed-in user holding an active key gets full access;
 // everyone else sees locked items with an upgrade tooltip. This is a UX gate,
@@ -248,6 +255,13 @@ export async function GET(
       }
       html = html.replace(AUTH_BUTTON_PATTERN, replacement)
       html = html.replace(ACCESS_STATE_PATTERN, renderAccessState(hasAccess, !!user))
+      // Inject the visit tracker once, just before </body>. The static tracker
+      // pages aren't part of the React tree so VisitTracker never mounts here.
+      if (html.includes('</body>')) {
+        html = html.replace('</body>', `${VISIT_TRACKER_SCRIPT}\n</body>`)
+      } else {
+        html = html + VISIT_TRACKER_SCRIPT
+      }
       responseBody = html
     } else {
       responseBody = new Uint8Array(fileBuffer)

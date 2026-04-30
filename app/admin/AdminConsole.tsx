@@ -5,16 +5,19 @@ import { RegistryPanel } from './RegistryPanel'
 import { CreateKeyForm } from './CreateKeyForm'
 import { AssignmentsPanel } from './AssignmentsPanel'
 import { SubscriptionsPanel } from './SubscriptionsPanel'
+import { AnalyticsPanel } from './AnalyticsPanel'
 import { listAssignmentUsers, type AssignmentUser, type SubscriptionRow } from './actions'
+import type { AnalyticsPayload } from './analyticsActions'
 import type { KeyRow } from './KeysTable'
 
-type Tab = 'registry' | 'issue' | 'assignments' | 'subscriptions'
+type Tab = 'registry' | 'issue' | 'assignments' | 'subscriptions' | 'analytics'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'registry',      label: 'Key Registry' },
   { id: 'issue',         label: 'Issue Key'    },
-  { id: 'assignments',   label: 'Assignments'  },
+  { id: 'assignments',   label: 'Key Assignments'  },
   { id: 'subscriptions', label: 'Subscriptions' },
+  { id: 'analytics',     label: 'Analytics'    },
 ]
 
 type Props = {
@@ -22,9 +25,18 @@ type Props = {
   errorMessage: string | null
   subscriptions: SubscriptionRow[]
   subsErrorMessage: string | null
+  analyticsPayload: AnalyticsPayload | null
+  analyticsErrorMessage: string | null
 }
 
-export function AdminConsole({ rows, errorMessage, subscriptions, subsErrorMessage }: Props) {
+export function AdminConsole({
+  rows,
+  errorMessage,
+  subscriptions,
+  subsErrorMessage,
+  analyticsPayload,
+  analyticsErrorMessage,
+}: Props) {
   const [tab, setTab] = useState<Tab>('registry')
   const [users, setUsers] = useState<AssignmentUser[]>([])
   const [usersLoading, setUsersLoading] = useState(true)
@@ -91,6 +103,9 @@ export function AdminConsole({ rows, errorMessage, subscriptions, subsErrorMessa
           )}
           {tab === 'subscriptions' && (
             <SubscriptionsPanel rows={subscriptions} errorMessage={subsErrorMessage} />
+          )}
+          {tab === 'analytics' && (
+            <AnalyticsPanel payload={analyticsPayload} errorMessage={analyticsErrorMessage} />
           )}
         </div>
       </main>

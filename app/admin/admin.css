@@ -2804,6 +2804,11 @@
   border-radius: 50%;
   box-shadow: 0 0 0 3px rgba(200, 16, 46, .12);
 }
+/* Recent Activity already paints its own pulsing red dot via .vt-pulse — drop
+   the static ::before here so the eyebrow doesn't end up with two side-by-side
+   dots. */
+.vt-section-eyebrow:has(.vt-pulse)::before { content: none; }
+.vt-section-eyebrow:has(.vt-pulse) { padding-left: 0; }
 
 .vt-section-meta {
   display: inline-flex;

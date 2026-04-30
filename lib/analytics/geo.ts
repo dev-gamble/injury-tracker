@@ -75,6 +75,36 @@ function parseFloatOrNull(raw: string | null): number | null {
   return Number.isFinite(n) ? n : null
 }
 
+// Per-process in-memory cache. ip-api.com is rate-limited at 45 req/min from
+// any single requester IP (our server). Caching repeat visitors for a window
+// roughly an order of magnitude longer than the rate-limit period means a
+// busy hour of traffic from familiar IPs costs us almost no quota. The TTL is
+// short enough that a visitor who genuinely moves networks gets re-enriched
+// within ~15 minutes.
+const GEO_CACHE_TTL_MS = 15 * 60_000
+const GEO_CACHE_MAX = 1000
+const geoCache = new Map<string, { geo: GeoLookup; expiresAt: number }>()
+
+function cachedGeo(ip: string): GeoLookup | null {
+  const hit = geoCache.get(ip)
+  if (!hit) return null
+  if (hit.expiresAt <= Date.now()) {
+    geoCache.delete(ip)
+    return null
+  }
+  return hit.geo
+}
+
+function rememberGeo(ip: string, geo: GeoLookup): void {
+  // Cheap LRU-ish: when the cache fills, drop the oldest entry. Map preserves
+  // insertion order so `keys().next().value` is the oldest key.
+  if (geoCache.size >= GEO_CACHE_MAX) {
+    const oldest = geoCache.keys().next().value
+    if (oldest !== undefined) geoCache.delete(oldest)
+  }
+  geoCache.set(ip, { geo, expiresAt: Date.now() + GEO_CACHE_TTL_MS })
+}
+
 // Free public lookup, no API key. Returns null on any error (timeout, rate
 // limit, malformed payload) — recording falls through to "no geo" gracefully.
 async function lookupGeoExternal(ip: string): Promise<GeoLookup | null> {
@@ -118,17 +148,25 @@ export function geoFromHeadersOnly(ip: string, headers: Headers): GeoLookup {
 }
 
 // Async part: external lookup. Called from the after-task so the request
-// path doesn't pay for it.
+// path doesn't pay for it. Cache-checks first so a repeat visitor doesn't
+// burn ip-api.com quota.
 export async function geoForIp(ip: string): Promise<GeoLookup | null> {
   if (isLocalIp(ip)) return null
-  return lookupGeoExternal(ip)
+  const cached = cachedGeo(ip)
+  if (cached) return cached
+  const fresh = await lookupGeoExternal(ip)
+  if (fresh) rememberGeo(ip, fresh)
+  return fresh
 }
 
 export async function geoForRequest(ip: string, headers: Headers): Promise<GeoLookup> {
   if (isLocalIp(ip)) return EMPTY_GEO
   const fromHeaders = geoFromHeaders(headers)
   if (fromHeaders) return fromHeaders
+  const cached = cachedGeo(ip)
+  if (cached) return cached
   const external = await lookupGeoExternal(ip)
+  if (external) rememberGeo(ip, external)
   return external ?? EMPTY_GEO
 }
 

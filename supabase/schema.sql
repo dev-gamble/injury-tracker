@@ -13,6 +13,13 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 
+CREATE EXTENSION IF NOT EXISTS "pg_cron" WITH SCHEMA "pg_catalog";
+
+
+
+
+
+
 COMMENT ON SCHEMA "public" IS 'standard public schema';
 
 
@@ -53,6 +60,40 @@ CREATE TYPE "public"."license_status" AS ENUM (
 
 
 ALTER TYPE "public"."license_status" OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."anonymize_visit_events"("anonymize_after_days" integer DEFAULT 14) RETURNS integer
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'pg_temp'
+    AS $$
+declare
+  affected integer;
+begin
+  -- Anonymization intent: an old row should not be linkable back to a person.
+  -- That means we strip *every* identifier — IP truncated, UA dropped, and
+  -- user_id nulled. Aggregation fields (path, country, timestamps) stay so
+  -- the dashboard's window-spanning charts remain accurate after the cutoff.
+  update public.visit_events
+     set ip_address = case
+                        when family(ip_address) = 4 then set_masklen(ip_address, 24)::cidr::inet
+                        else set_masklen(ip_address, 48)::cidr::inet
+                      end,
+         user_agent = null,
+         user_id    = null
+   where created_at < now() - make_interval(days => anonymize_after_days)
+     and (
+       (family(ip_address) = 4 and masklen(ip_address) = 32) or
+       (family(ip_address) = 6 and masklen(ip_address) = 128) or
+       user_agent is not null or
+       user_id is not null
+     );
+  get diagnostics affected = row_count;
+  return affected;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."anonymize_visit_events"("anonymize_after_days" integer) OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."current_user_group"() RETURNS "jsonb"
@@ -96,6 +137,161 @@ $$;
 
 
 ALTER FUNCTION "public"."current_user_has_access"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."get_visit_daily_series"("window_days" integer DEFAULT 30) RETURNS TABLE("bucket_start" timestamp with time zone, "visits" bigint, "uniques" bigint)
+    LANGUAGE "sql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'pg_temp'
+    AS $$
+  with axis as (
+    select generate_series(
+      date_trunc('day', now()) - make_interval(days => window_days - 1),
+      date_trunc('day', now()),
+      interval '1 day'
+    ) as day
+  ),
+  buckets as (
+    select
+      date_trunc('day', created_at)            as day,
+      count(*)::bigint                         as visits,
+      count(distinct ip_address)::bigint       as uniques
+    from public.visit_events
+    where created_at >= date_trunc('day', now()) - make_interval(days => window_days - 1)
+    group by 1
+  )
+  select
+    a.day                            as bucket_start,
+    coalesce(b.visits, 0)::bigint    as visits,
+    coalesce(b.uniques, 0)::bigint   as uniques
+  from axis a
+  left join buckets b on b.day = a.day
+  order by a.day;
+$$;
+
+
+ALTER FUNCTION "public"."get_visit_daily_series"("window_days" integer) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."get_visit_summary"("window_days" integer DEFAULT 30) RETURNS TABLE("total_count" bigint, "window_count" bigint, "unique_ips" bigint, "last_24h" bigint, "prev_24h" bigint, "top_country_code" "text", "top_country_count" bigint)
+    LANGUAGE "sql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'pg_temp'
+    AS $$
+  with windowed as (
+    select * from public.visit_events
+    where created_at >= date_trunc('day', now()) - make_interval(days => window_days - 1)
+  ),
+  top_country as (
+    select country_code, count(*)::bigint as c
+    from windowed
+    where country_code is not null
+    group by country_code
+    order by c desc
+    limit 1
+  )
+  select
+    (select count(*)::bigint from public.visit_events) as total_count,
+    (select count(*)::bigint from windowed) as window_count,
+    (select count(distinct ip_address)::bigint from windowed) as unique_ips,
+    (select count(*)::bigint from public.visit_events where created_at >= now() - interval '1 day') as last_24h,
+    (select count(*)::bigint from public.visit_events where created_at >= now() - interval '2 days' and created_at < now() - interval '1 day') as prev_24h,
+    (select country_code from top_country) as top_country_code,
+    coalesce((select c from top_country), 0)::bigint as top_country_count;
+$$;
+
+
+ALTER FUNCTION "public"."get_visit_summary"("window_days" integer) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."get_visit_top_countries"("window_days" integer DEFAULT 30, "row_limit" integer DEFAULT 12) RETURNS TABLE("country_code" "text", "country_name" "text", "count" bigint)
+    LANGUAGE "sql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'pg_temp'
+    AS $$
+  select
+    coalesce(country_code, '—') as country_code,
+    coalesce(max(country_name), '—') as country_name,
+    count(*)::bigint as count
+  from public.visit_events
+  where created_at >= date_trunc('day', now()) - make_interval(days => window_days - 1)
+  group by 1
+  order by count desc
+  limit greatest(1, row_limit);
+$$;
+
+
+ALTER FUNCTION "public"."get_visit_top_countries"("window_days" integer, "row_limit" integer) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."get_visit_top_ips"("window_days" integer DEFAULT 30, "row_limit" integer DEFAULT 25) RETURNS TABLE("ip_address" "inet", "count" bigint, "last_seen" timestamp with time zone, "country_code" "text", "city" "text")
+    LANGUAGE "sql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'pg_temp'
+    AS $$
+  with by_ip as (
+    select
+      ip_address,
+      count(*)::bigint as count,
+      max(created_at)  as last_seen
+    from public.visit_events
+    where created_at >= date_trunc('day', now()) - make_interval(days => window_days - 1)
+    group by ip_address
+    order by count desc
+    limit greatest(1, row_limit)
+  )
+  select
+    b.ip_address,
+    b.count,
+    b.last_seen,
+    -- Pick the most recent geo we observed for this IP — the lookup may have
+    -- been NULL on early hits and resolved later by the after-task.
+    (
+      select country_code from public.visit_events ve
+      where ve.ip_address = b.ip_address and ve.country_code is not null
+      order by ve.created_at desc limit 1
+    ) as country_code,
+    (
+      select city from public.visit_events ve
+      where ve.ip_address = b.ip_address and ve.city is not null
+      order by ve.created_at desc limit 1
+    ) as city
+  from by_ip b
+  order by b.count desc;
+$$;
+
+
+ALTER FUNCTION "public"."get_visit_top_ips"("window_days" integer, "row_limit" integer) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."get_visit_top_paths"("window_days" integer DEFAULT 30, "row_limit" integer DEFAULT 12) RETURNS TABLE("path" "text", "count" bigint)
+    LANGUAGE "sql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'pg_temp'
+    AS $$
+  select path, count(*)::bigint as count
+  from public.visit_events
+  where created_at >= date_trunc('day', now()) - make_interval(days => window_days - 1)
+  group by path
+  order by count desc
+  limit greatest(1, row_limit);
+$$;
+
+
+ALTER FUNCTION "public"."get_visit_top_paths"("window_days" integer, "row_limit" integer) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."prune_visit_events"("retain_days" integer DEFAULT 180) RETURNS integer
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'pg_temp'
+    AS $$
+declare
+  affected integer;
+begin
+  delete from public.visit_events
+   where created_at < now() - make_interval(days => retain_days);
+  get diagnostics affected = row_count;
+  return affected;
+end;
+$$;
+
+
+ALTER FUNCTION "public"."prune_visit_events"("retain_days" integer) OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."redeem_license_key"("raw_key" "text") RETURNS "uuid"
@@ -272,6 +468,26 @@ CREATE OR REPLACE VIEW "public"."user_access" WITH ("security_invoker"='true') A
 ALTER VIEW "public"."user_access" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."visit_events" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "ip_address" "inet" NOT NULL,
+    "user_agent" "text",
+    "path" "text" NOT NULL,
+    "referrer" "text",
+    "country_code" "text",
+    "country_name" "text",
+    "region" "text",
+    "city" "text",
+    "latitude" double precision,
+    "longitude" double precision,
+    "user_id" "uuid",
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."visit_events" OWNER TO "postgres";
+
+
 ALTER TABLE ONLY "public"."license_keys"
     ADD CONSTRAINT "license_keys_key_hash_key" UNIQUE ("key_hash");
 
@@ -299,6 +515,11 @@ ALTER TABLE ONLY "public"."user_license_keys"
 
 ALTER TABLE ONLY "public"."user_license_keys"
     ADD CONSTRAINT "user_license_keys_user_id_license_key_id_key" UNIQUE ("user_id", "license_key_id");
+
+
+
+ALTER TABLE ONLY "public"."visit_events"
+    ADD CONSTRAINT "visit_events_pkey" PRIMARY KEY ("id");
 
 
 
@@ -330,6 +551,22 @@ CREATE INDEX "user_license_keys_user_id_idx" ON "public"."user_license_keys" USI
 
 
 
+CREATE INDEX "visit_events_country_idx" ON "public"."visit_events" USING "btree" ("country_code");
+
+
+
+CREATE INDEX "visit_events_created_at_idx" ON "public"."visit_events" USING "btree" ("created_at" DESC);
+
+
+
+CREATE INDEX "visit_events_ip_idx" ON "public"."visit_events" USING "btree" ("ip_address");
+
+
+
+CREATE INDEX "visit_events_path_idx" ON "public"."visit_events" USING "btree" ("path");
+
+
+
 CREATE OR REPLACE TRIGGER "stripe_user_subscriptions_set_updated_at" BEFORE UPDATE ON "public"."stripe_user_subscriptions" FOR EACH ROW EXECUTE FUNCTION "public"."set_updated_at"();
 
 
@@ -358,6 +595,11 @@ ALTER TABLE ONLY "public"."user_license_keys"
 
 
 
+ALTER TABLE ONLY "public"."visit_events"
+    ADD CONSTRAINT "visit_events_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
 ALTER TABLE "public"."license_keys" ENABLE ROW LEVEL SECURITY;
 
 
@@ -375,9 +617,15 @@ CREATE POLICY "users can view their own redemptions" ON "public"."user_license_k
 
 
 
+ALTER TABLE "public"."visit_events" ENABLE ROW LEVEL SECURITY;
+
+
 
 
 ALTER PUBLICATION "supabase_realtime" OWNER TO "postgres";
+
+
+
 
 
 GRANT USAGE ON SCHEMA "public" TO "postgres";
@@ -534,6 +782,32 @@ GRANT USAGE ON SCHEMA "public" TO "service_role";
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+REVOKE ALL ON FUNCTION "public"."anonymize_visit_events"("anonymize_after_days" integer) FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."anonymize_visit_events"("anonymize_after_days" integer) TO "service_role";
+
+
+
 REVOKE ALL ON FUNCTION "public"."current_user_group"() FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."current_user_group"() TO "anon";
 GRANT ALL ON FUNCTION "public"."current_user_group"() TO "authenticated";
@@ -545,6 +819,36 @@ REVOKE ALL ON FUNCTION "public"."current_user_has_access"() FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."current_user_has_access"() TO "anon";
 GRANT ALL ON FUNCTION "public"."current_user_has_access"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."current_user_has_access"() TO "service_role";
+
+
+
+REVOKE ALL ON FUNCTION "public"."get_visit_daily_series"("window_days" integer) FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."get_visit_daily_series"("window_days" integer) TO "service_role";
+
+
+
+REVOKE ALL ON FUNCTION "public"."get_visit_summary"("window_days" integer) FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."get_visit_summary"("window_days" integer) TO "service_role";
+
+
+
+REVOKE ALL ON FUNCTION "public"."get_visit_top_countries"("window_days" integer, "row_limit" integer) FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."get_visit_top_countries"("window_days" integer, "row_limit" integer) TO "service_role";
+
+
+
+REVOKE ALL ON FUNCTION "public"."get_visit_top_ips"("window_days" integer, "row_limit" integer) FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."get_visit_top_ips"("window_days" integer, "row_limit" integer) TO "service_role";
+
+
+
+REVOKE ALL ON FUNCTION "public"."get_visit_top_paths"("window_days" integer, "row_limit" integer) FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."get_visit_top_paths"("window_days" integer, "row_limit" integer) TO "service_role";
+
+
+
+REVOKE ALL ON FUNCTION "public"."prune_visit_events"("retain_days" integer) FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."prune_visit_events"("retain_days" integer) TO "service_role";
 
 
 
@@ -563,6 +867,12 @@ GRANT ALL ON FUNCTION "public"."set_updated_at"() TO "service_role";
 GRANT ALL ON FUNCTION "public"."sync_license_key_uses"() TO "anon";
 GRANT ALL ON FUNCTION "public"."sync_license_key_uses"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."sync_license_key_uses"() TO "service_role";
+
+
+
+
+
+
 
 
 
@@ -600,6 +910,10 @@ GRANT ALL ON TABLE "public"."user_license_keys" TO "service_role";
 GRANT ALL ON TABLE "public"."user_access" TO "anon";
 GRANT ALL ON TABLE "public"."user_access" TO "authenticated";
 GRANT ALL ON TABLE "public"."user_access" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."visit_events" TO "service_role";
 
 
 

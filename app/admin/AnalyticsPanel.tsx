@@ -1,10 +1,12 @@
 'use client'
 
+import { useEffect, useMemo, useState } from 'react'
 import type { AnalyticsPayload } from './analyticsActions'
 import { VisitsChart } from './VisitsChart'
 import { flagFor } from '@/lib/analytics/countries'
 
 const DAY_MS = 86_400_000
+const RECENT_PAGE_SIZE = 10
 
 type Props = {
   payload: AnalyticsPayload | null
@@ -256,19 +258,85 @@ function AnalyticsBody({ payload }: { payload: AnalyticsPayload }) {
       </div>
 
       {/* Live activity feed */}
-      <div className="vt-section vt-section-feed">
-        <div className="vt-section-head">
-          <div className="vt-section-eyebrow">
-            <span className="vt-pulse" aria-hidden="true" />
-            Recent Activity
-          </div>
-          <div className="vt-section-meta">
-            <span className="vt-meta-key">Latest</span>
-            <span className="vt-meta-val">{recent.length} events</span>
-          </div>
+      <RecentActivityFeed recent={recent} />
+    </section>
+  )
+}
+
+function RecentActivityFeed({ recent }: { recent: AnalyticsPayload['recent'] }) {
+  const [query, setQuery] = useState('')
+  const [page, setPage] = useState(1)
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return recent
+    return recent.filter((r) => {
+      const city = (r.city ?? '').toLowerCase()
+      const country = (r.country_code ?? '').toLowerCase()
+      const combined = `${city}${city && country ? ', ' : ''}${country}`
+      return city.includes(q) || country.includes(q) || combined.includes(q)
+    })
+  }, [recent, query])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / RECENT_PAGE_SIZE))
+
+  useEffect(() => {
+    if (page > totalPages) setPage(1)
+  }, [page, totalPages])
+
+  const safePage = Math.min(page, totalPages)
+  const startIdx = (safePage - 1) * RECENT_PAGE_SIZE
+  const pageRows = filtered.slice(startIdx, startIdx + RECENT_PAGE_SIZE)
+
+  const showingFrom = filtered.length === 0 ? 0 : startIdx + 1
+  const showingTo = Math.min(filtered.length, startIdx + RECENT_PAGE_SIZE)
+
+  return (
+    <div className="vt-section vt-section-feed">
+      <div className="vt-section-head">
+        <div className="vt-section-eyebrow">
+          <span className="vt-pulse" aria-hidden="true" />
+          Recent Activity
         </div>
-        <ul className="vt-feed" role="list">
-          {recent.map((r) => (
+        <div className="vt-section-meta">
+          <span className="vt-meta-key">Showing</span>
+          <span className="vt-meta-val">
+            {showingFrom}–{showingTo} of {filtered.length.toLocaleString()}
+            {query.trim() ? ` · filtered from ${recent.length.toLocaleString()}` : ''}
+          </span>
+        </div>
+      </div>
+
+      <div className="vt-feed-controls">
+        <div className="vt-feed-search" role="search">
+          <input
+            type="search"
+            className="vt-feed-search-input"
+            placeholder="Filter by city or country code…"
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setPage(1) }}
+            aria-label="Filter recent activity by location"
+          />
+          {query && (
+            <button
+              type="button"
+              className="vt-feed-search-clear"
+              onClick={() => { setQuery(''); setPage(1) }}
+              aria-label="Clear filter"
+            >
+              ×
+            </button>
+          )}
+        </div>
+      </div>
+
+      <ul className="vt-feed" role="list">
+        {pageRows.length === 0 ? (
+          <li className="vt-feed-empty">
+            {query.trim() ? 'No activity matches that location.' : 'No recent activity.'}
+          </li>
+        ) : (
+          pageRows.map((r) => (
             <li className="vt-feed-row" key={r.id}>
               <span className="vt-feed-time">{shortTime(r.created_at)}</span>
               <span className="vt-feed-flag" aria-hidden="true">
@@ -281,10 +349,34 @@ function AnalyticsBody({ payload }: { payload: AnalyticsPayload }) {
               <span className="vt-feed-ip">{r.ip_address}</span>
               <span className="vt-feed-path" title={r.path}>{r.path}</span>
             </li>
-          ))}
-        </ul>
-      </div>
-    </section>
+          ))
+        )}
+      </ul>
+
+      {totalPages > 1 && (
+        <div className="vt-feed-pager">
+          <span className="vt-feed-pager-status">
+            Page {safePage} of {totalPages}
+          </span>
+          <button
+            type="button"
+            className="vt-feed-pager-btn"
+            disabled={safePage <= 1}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            ‹ Prev
+          </button>
+          <button
+            type="button"
+            className="vt-feed-pager-btn"
+            disabled={safePage >= totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          >
+            Next ›
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
 

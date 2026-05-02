@@ -50,3 +50,5 @@ supabase/.temp/
 .tunnel.pid
 .tunnel.log
 .tunnel.url
+
+/keys

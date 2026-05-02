@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase/client"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { AuthShell } from "@/components/auth/AuthShell"
+import { OAuthButtons } from "@/components/auth/OAuthButtons"
 
 type ResendState =
   | { kind: "idle" }
@@ -194,6 +195,7 @@ function LoginInner() {
           )}
         </button>
       </form>
+      <OAuthButtons mode="signin" onError={setError} />
     </AuthShell>
   )
 }

@@ -43,10 +43,28 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Channel is captured in user_metadata at signup. It's user-writable, but
-    // the only impact is which waiting-room page they land on — neither
-    // grants access on its own.
-    const channel = (user.user_metadata as { access_channel?: unknown } | null)?.access_channel
+    // Channel is captured in user_metadata at email signup. OAuth signups
+    // don't pass through signUp(), so the channel piggybacks on the
+    // post-confirm redirect (?channel=key|subscription) and we persist it
+    // here on first arrival. It's user-writable, but the only impact is
+    // which waiting-room page they land on — neither grants access on its own.
+    let channel = (user.user_metadata as { access_channel?: unknown } | null)?.access_channel
+    if (channel !== "key" && channel !== "subscription") {
+      const queryChannel = request.nextUrl.searchParams.get("channel")
+      if (queryChannel === "key" || queryChannel === "subscription") {
+        const { error: updateError } = await supabase.auth.updateUser({
+          data: { access_channel: queryChannel },
+        })
+        if (updateError) {
+          routeLog.warn("post_confirm.channel_persist_failed", {
+            userId: user.id,
+            error: errorToFields(updateError),
+          })
+        }
+        channel = queryChannel
+      }
+    }
+
     if (channel === "key") {
       routeLog.info("post_confirm.route_redeem_key", { userId: user.id })
       return attachRequestIdHeader(relativeRedirect("/redeem-key"), requestId)

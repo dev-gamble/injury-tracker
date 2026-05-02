@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { AuthShell } from "@/components/auth/AuthShell"
+import { OAuthButtons } from "@/components/auth/OAuthButtons"
 
 type Channel = "key" | "subscription"
 
@@ -163,6 +164,7 @@ export default function SignupPage() {
             )}
           </button>
         </form>
+        <OAuthButtons mode="signup" channel={channel} onError={setError} />
       </div>
     </AuthShell>
   )

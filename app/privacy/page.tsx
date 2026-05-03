@@ -149,8 +149,7 @@ export default function PrivacyPage() {
           <li><strong>Withdraw consent:</strong> stop using the service and clear your local browser storage.</li>
         </ul>
         <p>
-          To exercise any of these, email{" "}
-          <a href="mailto:veterans@endexclaims.com">veterans@endexclaims.com</a>.
+          To exercise any of these, email <strong>veterans@endexclaims.com</strong>.
           Residents of California, the EU/UK, and other jurisdictions with
           stronger privacy rights have the additional rights afforded by their
           local laws and may exercise them via the same address.
@@ -181,8 +180,7 @@ export default function PrivacyPage() {
 
         <h2>10. Contact</h2>
         <p>
-          Questions about this policy? Email{" "}
-          <a href="mailto:veterans@endexclaims.com">veterans@endexclaims.com</a>.
+          Questions about this policy? Email <strong>veterans@endexclaims.com</strong>.
         </p>
       </div>
     </AuthShell>

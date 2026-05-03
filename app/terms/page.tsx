@@ -240,8 +240,7 @@ export default function TermsPage() {
 
         <h2>15. Contact</h2>
         <p>
-          Questions about these Terms? Email{" "}
-          <a href="mailto:veterans@endexclaims.com">veterans@endexclaims.com</a>.
+          Questions about these Terms? Email <strong>veterans@endexclaims.com</strong>.
         </p>
       </div>
     </AuthShell>

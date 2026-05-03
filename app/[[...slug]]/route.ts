@@ -86,8 +86,9 @@ function renderSignedInBlock(
   email: string,
   group: { name: string; color: string } | null,
   isAdmin: boolean,
-  accessChannel: 'key' | 'subscription' | null,
+  accessChannel: 'key' | 'subscription' | 'free' | null,
   isSubscribed: boolean,
+  hasAccess: boolean,
 ): string {
   let badge = ''
   if (isAdmin) {
@@ -105,6 +106,12 @@ function renderSignedInBlock(
     // but with the subscription green. `appearance:none` strips the browser
     // default button look so the CSS class can paint the pill cleanly.
     badge = `<button type="button" class="header-identity-tier header-identity-tier-link header-identity-tier-custom" title="Manage your subscription" style="--g:${SUBSCRIBED_BADGE_COLOR};appearance:none;-webkit-appearance:none;" onclick="window.__openBillingPortal&&window.__openBillingPortal(this)"><span class="header-identity-tier-dot" aria-hidden="true"></span>SUBSCRIBED</button>${BILLING_PORTAL_SCRIPT}`
+  } else if (hasAccess) {
+    // Has access but no specific entitlement (admin/group/Stripe sub). This
+    // is the early-launch free-tier case — and also the safety net for
+    // legacy accounts whose access_channel metadata never got set. Muted
+    // grey pill so it doesn't compete with paid badges.
+    badge = `<span class="header-identity-tier header-identity-tier-custom" style="--g:#5a6782"><span class="header-identity-tier-dot" aria-hidden="true"></span>EARLY ACCESS</span>`
   } else if (accessChannel === 'subscription') {
     // Subscription channel users without an active sub yet — point them at checkout.
     badge = `<a href="/subscribe" class="header-identity-redeem" title="Start your subscription"><span class="header-identity-redeem-dot" aria-hidden="true"></span>Subscribe</a>`
@@ -244,14 +251,26 @@ export async function GET(
         // signup gets "Subscribe". Once they have a group/admin role/active
         // sub the pill is replaced by the proper badge anyway.
         const channelRaw = (user.user_metadata as { access_channel?: unknown } | null)?.access_channel
-        const accessChannel: 'key' | 'subscription' | null =
+        const accessChannel: 'key' | 'subscription' | 'free' | null =
           channelRaw === 'subscription' ? 'subscription'
           : channelRaw === 'key' ? 'key'
+          : channelRaw === 'free' ? 'free'
           : null
-        // hasAccess without a group means an active Stripe sub (admins are
-        // already handled above and key holders always have a group).
-        const isSubscribed = hasAccess && !isAdmin && group === null
-        replacement = renderSignedInBlock(user.email ?? '', group, isAdmin, accessChannel, isSubscribed)
+        // Verify subscription against the actual stripe_user_subscriptions
+        // table rather than inferring from has-access. The early-launch
+        // free-tier override makes has-access true for every signed-in user
+        // — without this query we'd render a SUBSCRIBED billing pill that
+        // links into a Stripe portal with no customer of record.
+        let isSubscribed = false
+        if (!isAdmin && group === null) {
+          const { data: subData, error: subError } = await supabase.rpc('current_user_is_subscribed')
+          if (subError) {
+            routeLog.warn('tracker.is_subscribed_rpc_error', { userId: user.id, error: errorToFields(subError) })
+          } else {
+            isSubscribed = subData === true
+          }
+        }
+        replacement = renderSignedInBlock(user.email ?? '', group, isAdmin, accessChannel, isSubscribed, hasAccess)
       }
       html = html.replace(AUTH_BUTTON_PATTERN, replacement)
       html = html.replace(ACCESS_STATE_PATTERN, renderAccessState(hasAccess, !!user))

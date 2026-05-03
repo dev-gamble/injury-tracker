@@ -7,11 +7,16 @@ import Link from "next/link"
 import { AuthShell } from "@/components/auth/AuthShell"
 import { OAuthButtons } from "@/components/auth/OAuthButtons"
 
-type Channel = "key" | "subscription"
+type Channel = "key" | "subscription" | "free"
 
 export default function SignupPage() {
   const router = useRouter()
-  const [channel, setChannel] = useState<Channel>("subscription")
+  // Early-launch: every signup is on the free channel. The two original
+  // channels (subscription, access key) are kept in the type and the JSX
+  // below as commented-out blocks so they can be re-enabled when paid tiers
+  // launch — restore the JSX, change this default, and revert
+  // supabase/migrations/20260503000000_free_tier_early_access.sql.
+  const [channel, setChannel] = useState<Channel>("free")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
@@ -89,6 +94,11 @@ export default function SignupPage() {
         </>
       }
     >
+      {/*
+        EARLY-LAUNCH: paid channels are commented out. Restore this block (and
+        flip the default channel state at the top of the file) when paid tiers
+        re-launch.
+
       <div className="auth-fork" role="radiogroup" aria-label="Access channel">
         <button
           type="button"
@@ -119,13 +129,33 @@ export default function SignupPage() {
           <span className="auth-channel-sub">Issued</span>
         </button>
       </div>
+      */}
+
+      <div className="auth-fork" role="radiogroup" aria-label="Access channel">
+        <button
+          type="button"
+          role="radio"
+          aria-checked={channel === "free"}
+          onClick={() => { setChannel("free"); setError(null) }}
+          className={`auth-channel auth-channel-free${channel === "free" ? " is-active" : ""}`}
+        >
+          <span className="auth-channel-head">
+            <span className="auth-channel-tag">Early Access</span>
+            <span className="auth-channel-dot" aria-hidden="true" />
+          </span>
+          <span className="auth-channel-label">Free</span>
+          <span className="auth-channel-sub">Full access while we&rsquo;re in early launch</span>
+        </button>
+      </div>
 
       <div className="auth-fork-body" key={channel}>
         <form onSubmit={handleSubmit} className="auth-form">
           <p className="auth-fork-brief">
             {channel === "key"
               ? "Enter your credentials below. After email verification you'll be prompted for your access key."
-              : "Enter your credentials below. We'll verify your email, then send you to secure checkout — $7/month, cancel anytime."}
+              : channel === "subscription"
+              ? "Enter your credentials below. We'll verify your email, then send you to secure checkout — $7/month, cancel anytime."
+              : "Start exporting your ENDEX records after email verification."}
           </p>
           <div className="auth-field">
             <label htmlFor="email" className="auth-label">Email</label>

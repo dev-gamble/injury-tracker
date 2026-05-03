@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { supabase } from "@/lib/supabase/client"
 
-type Channel = "key" | "subscription"
+type Channel = "key" | "subscription" | "free"
 type Provider = "google" | "apple"
 
 type OAuthButtonsProps = {

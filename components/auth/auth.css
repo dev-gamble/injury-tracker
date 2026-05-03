@@ -430,6 +430,10 @@
   grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
+/* When only the early-launch Free channel is rendered, span full width. */
+.auth-fork:has(> .auth-channel:only-child) {
+  grid-template-columns: 1fr;
+}
 
 .auth-channel {
   position: relative;

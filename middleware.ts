@@ -20,6 +20,8 @@ const APP_ROUTE_PREFIXES = [
   "/auth",
   "/dashboard",
   "/signout",
+  "/privacy",
+  "/terms",
 ]
 
 function isAppRoute(pathname: string): boolean {

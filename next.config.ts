@@ -7,13 +7,20 @@ const devConnectSources = isProd
   ? ""
   : " http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*"
 
+// Allow connections to the configured Supabase hostname (covers both the
+// raw <project-ref>.supabase.co URL and any custom auth domain like
+// auth.endexclaims.com). The wildcard *.supabase.co handles the legacy
+// project-URL case; the explicit hostname is required when the host is on
+// a non-supabase.co domain.
+const supabaseConnectSrc = supabaseHostname ? ` https://${supabaseHostname}` : ""
+
 const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline' https://js.stripe.com${isProd ? "" : " 'unsafe-eval'"}`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data: https://fonts.gstatic.com",
-  `connect-src 'self' https://*.supabase.co https://api.supabase.com https://api.axiom.co https://api.stripe.com${devConnectSources}`,
+  `connect-src 'self' https://*.supabase.co https://api.supabase.com https://api.axiom.co https://api.stripe.com${supabaseConnectSrc}${devConnectSources}`,
   // Stripe.js renders payment elements inside iframes from these origins.
   "frame-src https://js.stripe.com https://hooks.stripe.com https://checkout.stripe.com",
   // Form posts to Stripe hosted checkout.

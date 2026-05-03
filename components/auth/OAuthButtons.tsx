@@ -51,28 +51,34 @@ export function OAuthButtons({ mode, channel, onError }: OAuthButtonsProps) {
           className="auth-oauth-btn auth-oauth-google"
           onClick={() => handleOAuth("google")}
           disabled={pending !== null}
+          aria-busy={pending === "google"}
           aria-label={`${verb} with Google`}
         >
           {pending === "google" ? (
-            <span className="auth-spinner auth-spinner-dark" aria-hidden="true" />
+            <span className="auth-oauth-spinner auth-oauth-spinner-dark" aria-hidden="true" />
           ) : (
-            <GoogleIcon />
+            <>
+              <GoogleIcon />
+              <span>{verb} with Google</span>
+            </>
           )}
-          <span>{verb} with Google</span>
         </button>
         <button
           type="button"
           className="auth-oauth-btn auth-oauth-apple"
           onClick={() => handleOAuth("apple")}
           disabled={pending !== null}
+          aria-busy={pending === "apple"}
           aria-label={`${verb} with Apple`}
         >
           {pending === "apple" ? (
-            <span className="auth-spinner" aria-hidden="true" />
+            <span className="auth-oauth-spinner auth-oauth-spinner-light" aria-hidden="true" />
           ) : (
-            <AppleIcon />
+            <>
+              <AppleIcon />
+              <span>{verb} with Apple</span>
+            </>
           )}
-          <span>{verb} with Apple</span>
         </button>
       </div>
     </div>

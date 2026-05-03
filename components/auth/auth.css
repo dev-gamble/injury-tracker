@@ -796,6 +796,23 @@
   flex-shrink: 0;
 }
 
+.auth-oauth-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  animation: auth-spin .7s linear infinite;
+}
+.auth-oauth-spinner-dark {
+  border-color: rgba(31, 31, 31, .2);
+  border-top-color: #1f1f1f;
+}
+.auth-oauth-spinner-light {
+  border-color: rgba(255, 255, 255, .25);
+  border-top-color: #fff;
+}
+
 /* Google guideline: Roboto Medium, fallback to system sans-serif. */
 .auth-oauth-google {
   background: #fff;

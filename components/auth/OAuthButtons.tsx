@@ -43,7 +43,7 @@ export function OAuthButtons({ mode, channel, onError }: OAuthButtonsProps) {
   return (
     <div className="auth-oauth">
       <div className="auth-oauth-divider" role="separator">
-        <span>or continue with</span>
+        <span>or</span>
       </div>
       <div className="auth-oauth-grid">
         <button
@@ -82,8 +82,8 @@ export function OAuthButtons({ mode, channel, onError }: OAuthButtonsProps) {
 function GoogleIcon() {
   return (
     <svg
-      width="16"
-      height="16"
+      width="18"
+      height="18"
       viewBox="0 0 18 18"
       aria-hidden="true"
       focusable="false"
@@ -111,8 +111,8 @@ function GoogleIcon() {
 function AppleIcon() {
   return (
     <svg
-      width="16"
-      height="16"
+      width="17"
+      height="17"
       viewBox="0 0 16 16"
       aria-hidden="true"
       focusable="false"

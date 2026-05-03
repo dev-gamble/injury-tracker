@@ -765,19 +765,23 @@
   gap: 8px;
 }
 
+/* Per Google "Sign In With Google" and Apple "Sign in with Apple" branding
+   guidelines, these buttons must use the providers' prescribed fonts and
+   sentence-case labels — not our app's Oswald uppercase treatment. Keep
+   these styles isolated from .auth-submit / .auth-fork-switch. */
 .auth-oauth-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
   width: 100%;
-  padding: 11px 14px;
+  min-height: 40px;
+  padding: 10px 14px;
   border-radius: 4px;
-  font-family: var(--fh);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 1px;
-  text-transform: uppercase;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: .15px;
+  text-transform: none;
   cursor: pointer;
   transition: background .18s, transform .15s, box-shadow .18s, border-color .18s;
 }
@@ -792,21 +796,26 @@
   flex-shrink: 0;
 }
 
+/* Google guideline: Roboto Medium, fallback to system sans-serif. */
 .auth-oauth-google {
   background: #fff;
-  border: 1px solid var(--border2);
-  color: var(--text);
-  box-shadow: 0 1px 2px rgba(10, 35, 87, .06);
+  border: 1px solid #747775;
+  color: #1f1f1f;
+  font-family: 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  box-shadow: 0 1px 2px rgba(60, 64, 67, .08);
 }
 .auth-oauth-google:hover:not(:disabled) {
-  border-color: var(--navy);
-  box-shadow: 0 3px 10px rgba(10, 35, 87, .12);
+  background: #f8faff;
+  border-color: #747775;
+  box-shadow: 0 1px 3px rgba(60, 64, 67, .15), 0 1px 2px rgba(60, 64, 67, .1);
 }
 
+/* Apple guideline: SF Pro / system font, sentence case, black background. */
 .auth-oauth-apple {
   background: #000;
   border: 1px solid #000;
   color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif;
   box-shadow: 0 1px 2px rgba(0, 0, 0, .15);
 }
 .auth-oauth-apple:hover:not(:disabled) {

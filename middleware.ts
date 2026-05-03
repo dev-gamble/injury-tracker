@@ -8,6 +8,9 @@ import { updateSession } from "@/lib/supabase/middleware"
 // incoming request CSP includes 'strict-dynamic' + 'nonce-*'. Tracker paths
 // (served by [[...slug]]) fall back to the loose CSP
 // in next.config.ts because the signout-modal injection ships inline handlers.
+// /privacy and /terms intentionally excluded — they're static legal pages
+// with no auth state or XSS-relevant user input, and the looser global CSP
+// (in next.config.ts) allows Cloudflare's email-obfuscation decoder to run.
 const APP_ROUTE_PREFIXES = [
   "/login",
   "/signup",
@@ -20,8 +23,6 @@ const APP_ROUTE_PREFIXES = [
   "/auth",
   "/dashboard",
   "/signout",
-  "/privacy",
-  "/terms",
 ]
 
 function isAppRoute(pathname: string): boolean {

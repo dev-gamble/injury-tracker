@@ -16,7 +16,7 @@ const supabaseConnectSrc = supabaseHostname ? ` https://${supabaseHostname}` : "
 
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline' https://js.stripe.com${isProd ? "" : " 'unsafe-eval'"}`,
+  `script-src 'self' 'unsafe-inline' https://js.stripe.com https://ajax.cloudflare.com${isProd ? "" : " 'unsafe-eval'"}`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data: https://fonts.gstatic.com",

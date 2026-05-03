@@ -929,22 +929,41 @@
 }
 .auth-doc-callout {
   margin: 0 0 18px;
-  padding: 14px 16px;
+  padding: 16px 18px;
   background: var(--surface2);
   border: 1px solid var(--border);
   border-left: 3px solid var(--red);
   border-radius: 4px;
-  font-size: 13px;
+  font-size: 13.5px;
+  line-height: 1.6;
   color: var(--text);
 }
-.auth-doc-callout strong {
+/* Callout title — only the first <strong> in the callout, which we use as
+   the eyebrow heading. Inline <strong> tags later in the callout fall
+   through to the default-emphasis rule below. */
+.auth-doc-callout > strong:first-child {
+  display: block;
   color: var(--red);
   text-transform: uppercase;
   font-family: var(--fh);
   font-size: 11px;
-  letter-spacing: 1.2px;
-  display: block;
-  margin-bottom: 4px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  margin-bottom: 8px;
+}
+.auth-doc-callout strong {
+  color: var(--navy);
+  font-weight: 600;
+}
+.auth-doc-callout em {
+  font-style: italic;
+  color: var(--navy);
+}
+.auth-doc-callout p {
+  margin: 0 0 10px;
+}
+.auth-doc-callout p:last-child {
+  margin-bottom: 0;
 }
 .auth-doc-meta {
   margin: 0 0 22px;

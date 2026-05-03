@@ -25,13 +25,15 @@ export default function TermsPage() {
 
       <div className="auth-doc-callout">
         <strong>Read this first</strong>
-        ENDEX is a <strong>documentation and organization tool</strong> — not a
-        VA decision engine, not a law firm, and not a medical provider.
-        ENDEX is <strong>not affiliated with or endorsed by the U.S.
-        Department of Veterans Affairs.</strong> Ratings shown in the app are
-        <em> estimates</em> based on general VA criteria and are not official
-        determinations. Before you file anything, talk to a VSO, a
-        VA-accredited claims agent, or a disability attorney.
+        <p>
+          ENDEX is a <strong>documentation and organization tool</strong> —
+          not a VA decision engine, not a law firm, and not a medical
+          provider. ENDEX is <strong>not affiliated with or endorsed by the
+          U.S. Department of Veterans Affairs.</strong> Ratings shown in the
+          app are <em>estimates</em> based on general VA criteria and are not
+          official determinations. Before you file anything, talk to a VSO, a
+          VA-accredited claims agent, or a disability attorney.
+        </p>
       </div>
 
       <div className="auth-doc">

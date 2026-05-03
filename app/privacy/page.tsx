@@ -25,11 +25,13 @@ export default function PrivacyPage() {
 
       <div className="auth-doc-callout">
         <strong>Plain-English summary</strong>
-        Your injury records, ratings, and statements stay <strong>in your
-        browser</strong>. We don&rsquo;t upload them to our servers. The only data we
-        keep server-side is what we need to run your account (email + auth) and
-        process your payment. You can export or delete your local data at any
-        time using the in-app export tools.
+        <p>
+          Your injury records, ratings, and statements stay{" "}
+          <strong>in your browser</strong>. We don&rsquo;t upload them to our
+          servers. The only data we keep server-side is what we need to run
+          your account (email + auth) and process your payment. You can export
+          or delete your local data at any time using the in-app export tools.
+        </p>
       </div>
 
       <div className="auth-doc">
@@ -154,14 +156,7 @@ export default function PrivacyPage() {
           local laws and may exercise them via the same address.
         </p>
 
-        <h2>7. Children</h2>
-        <p>
-          ENDEX is not directed to children under 13 and we do not knowingly
-          collect personal information from children. If you believe a child has
-          provided us personal information, contact us and we will delete it.
-        </p>
-
-        <h2>8. Security</h2>
+        <h2>7. Security</h2>
         <p>
           We use industry-standard transport encryption (HTTPS) for everything
           between your browser and our servers. Account passwords are hashed by
@@ -170,21 +165,21 @@ export default function PrivacyPage() {
           us immediately.
         </p>
 
-        <h2>9. International users</h2>
+        <h2>8. International users</h2>
         <p>
           ENDEX is operated from the United States. By using the service, you
           consent to your account data being processed in the United States and
           in the regions of our subprocessors.
         </p>
 
-        <h2>10. Changes to this policy</h2>
+        <h2>9. Changes to this policy</h2>
         <p>
           We may update this policy as the service evolves. Material changes
           will be announced in the app and via email to active subscribers. The
           &ldquo;Last updated&rdquo; date at the top reflects the most recent revision.
         </p>
 
-        <h2>11. Contact</h2>
+        <h2>10. Contact</h2>
         <p>
           Questions about this policy? Email{" "}
           <a href="mailto:veterans@endexclaims.com">veterans@endexclaims.com</a>.

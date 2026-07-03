@@ -8,6 +8,9 @@ import { updateSession } from "@/lib/supabase/middleware"
 // incoming request CSP includes 'strict-dynamic' + 'nonce-*'. Tracker paths
 // (served by [[...slug]]) fall back to the loose CSP
 // in next.config.ts because the signout-modal injection ships inline handlers.
+// /privacy and /terms intentionally excluded — they're static legal pages
+// with no auth state or XSS-relevant user input, and the looser global CSP
+// (in next.config.ts) allows Cloudflare's email-obfuscation decoder to run.
 const APP_ROUTE_PREFIXES = [
   "/login",
   "/signup",
@@ -41,13 +44,18 @@ function buildStrictCsp(nonce: string): string {
   const devConnectSources = isProd
     ? ""
     : " http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*"
+  // The wildcard *.supabase.co covers raw project-URL traffic; the explicit
+  // SUPABASE_HOSTNAME is required when the project is fronted by a custom
+  // domain like auth.endexclaims.com.
+  const supabaseHostname = process.env.SUPABASE_HOSTNAME || ""
+  const supabaseConnectSrc = supabaseHostname ? ` https://${supabaseHostname}` : ""
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isProd ? "" : " 'unsafe-eval'"}`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data: https://fonts.gstatic.com",
-    `connect-src 'self' https://*.supabase.co https://api.supabase.com https://api.axiom.co${devConnectSources}`,
+    `connect-src 'self' https://*.supabase.co https://api.supabase.com https://api.axiom.co${supabaseConnectSrc}${devConnectSources}`,
     "object-src 'none'",
     "form-action 'self'",
     "base-uri 'self'",

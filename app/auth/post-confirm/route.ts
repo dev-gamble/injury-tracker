@@ -21,6 +21,31 @@ export async function GET(request: NextRequest) {
       return attachRequestIdHeader(relativeRedirect("/login"), requestId)
     }
 
+    // Persist the channel BEFORE checking access. OAuth signups don't pass
+    // through signUp() so channel rides the redirect as ?channel=...; if we
+    // ran the access RPC first, the early-launch override returns true for
+    // every signed-in user and we'd redirect to / before saving the marker.
+    // It's user-writable metadata — only impact is later waiting-room
+    // routing and the EARLY ACCESS badge, neither of which grants access.
+    let channel = (user.user_metadata as { access_channel?: unknown } | null)?.access_channel
+    const isKnownChannel = (v: unknown): v is "key" | "subscription" | "free" =>
+      v === "key" || v === "subscription" || v === "free"
+    if (!isKnownChannel(channel)) {
+      const queryChannel = request.nextUrl.searchParams.get("channel")
+      if (isKnownChannel(queryChannel)) {
+        const { error: updateError } = await supabase.auth.updateUser({
+          data: { access_channel: queryChannel },
+        })
+        if (updateError) {
+          routeLog.warn("post_confirm.channel_persist_failed", {
+            userId: user.id,
+            error: errorToFields(updateError),
+          })
+        }
+        channel = queryChannel
+      }
+    }
+
     try {
       const { data, error } = await supabase.rpc("current_user_has_access")
       // Fail-open on RPC error: we can't confirm access, so we fall through
@@ -33,7 +58,7 @@ export async function GET(request: NextRequest) {
           error: errorToFields(error),
         })
       } else if (data === true) {
-        routeLog.info("post_confirm.has_access", { userId: user.id })
+        routeLog.info("post_confirm.has_access", { userId: user.id, channel: typeof channel === "string" ? channel : null })
         return attachRequestIdHeader(relativeRedirect("/"), requestId)
       }
     } catch (error) {
@@ -43,10 +68,15 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Channel is captured in user_metadata at signup. It's user-writable, but
-    // the only impact is which waiting-room page they land on — neither
-    // grants access on its own.
-    const channel = (user.user_metadata as { access_channel?: unknown } | null)?.access_channel
+    // Early-launch: free-channel signups land directly on the app. Belt
+    // and suspenders — has-access RPC above already covers this, but if it
+    // ever fails open, the explicit branch keeps free users from being
+    // bounced to /subscribe.
+    if (channel === "free") {
+      routeLog.info("post_confirm.route_free", { userId: user.id })
+      return attachRequestIdHeader(relativeRedirect("/"), requestId)
+    }
+
     if (channel === "key") {
       routeLog.info("post_confirm.route_redeem_key", { userId: user.id })
       return attachRequestIdHeader(relativeRedirect("/redeem-key"), requestId)

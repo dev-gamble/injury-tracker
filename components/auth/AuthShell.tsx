@@ -8,9 +8,10 @@ type AuthShellProps = {
   subtitle?: string
   children: ReactNode
   footer?: ReactNode
+  wide?: boolean
 }
 
-export function AuthShell({ eyebrow, title, subtitle, children, footer }: AuthShellProps) {
+export function AuthShell({ eyebrow, title, subtitle, children, footer, wide }: AuthShellProps) {
   return (
     <div className="auth-root">
       <header className="auth-header">
@@ -30,7 +31,11 @@ export function AuthShell({ eyebrow, title, subtitle, children, footer }: AuthSh
       </header>
 
       <main className="auth-main">
-        <section className="auth-card" role="region" aria-labelledby="auth-title">
+        <section
+          className={`auth-card${wide ? " is-wide" : ""}`}
+          role="region"
+          aria-labelledby="auth-title"
+        >
           {eyebrow && <div className="auth-eyebrow">{eyebrow}</div>}
           <h1 id="auth-title" className="auth-title">{title}</h1>
           {subtitle && <p className="auth-subtitle">{subtitle}</p>}
@@ -41,6 +46,11 @@ export function AuthShell({ eyebrow, title, subtitle, children, footer }: AuthSh
 
       <div className="auth-footer">
         ENDEX is a tracking, education, and organizational tool. Not an official VA product.
+        <div className="auth-footer-links">
+          <Link href="/privacy" className="auth-footer-link">Privacy</Link>
+          <span aria-hidden="true">·</span>
+          <Link href="/terms" className="auth-footer-link">Terms</Link>
+        </div>
         <div className="auth-footer-copy">&copy; 2026 CG Web Lab, LLC. All rights reserved.</div>
       </div>
     </div>

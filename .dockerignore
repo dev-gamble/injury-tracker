@@ -10,3 +10,4 @@ scripts/
 .vercel
 coverage
 *.tsbuildinfo
+/keys

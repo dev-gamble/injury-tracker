@@ -132,11 +132,30 @@ CREATE OR REPLACE FUNCTION "public"."current_user_has_access"() RETURNS boolean
     where s.user_id = (select auth.uid())
       and s.status in ('active', 'trialing', 'past_due')
       and (s.current_period_end is null or s.current_period_end > now())
-  );
+  )
+  -- Free-tier early-access override: any authenticated user.
+  or (select auth.uid()) is not null;
 $$;
 
 
 ALTER FUNCTION "public"."current_user_has_access"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."current_user_is_subscribed"() RETURNS boolean
+    LANGUAGE "sql" STABLE SECURITY DEFINER
+    SET "search_path" TO 'public', 'pg_temp'
+    AS $$
+  select exists (
+    select 1
+    from public.stripe_user_subscriptions s
+    where s.user_id = (select auth.uid())
+      and s.status in ('active', 'trialing', 'past_due')
+      and (s.current_period_end is null or s.current_period_end > now())
+  );
+$$;
+
+
+ALTER FUNCTION "public"."current_user_is_subscribed"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."get_visit_daily_series"("window_days" integer DEFAULT 30) RETURNS TABLE("bucket_start" timestamp with time zone, "visits" bigint, "uniques" bigint)
@@ -819,6 +838,12 @@ REVOKE ALL ON FUNCTION "public"."current_user_has_access"() FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."current_user_has_access"() TO "anon";
 GRANT ALL ON FUNCTION "public"."current_user_has_access"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."current_user_has_access"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."current_user_is_subscribed"() TO "anon";
+GRANT ALL ON FUNCTION "public"."current_user_is_subscribed"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."current_user_is_subscribed"() TO "service_role";
 
 
 

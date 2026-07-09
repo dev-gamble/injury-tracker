@@ -105,7 +105,11 @@ function renderTimeline(){
   const entries = gatherTimelineEntries();
 
   const _hasSpecials = typeof SPECIAL_CLAIM_TYPES !== 'undefined' && window._specialClaims && SPECIAL_CLAIM_TYPES.some(item => window._specialClaims[item.id]);
-  if(!entries.length && !_hasSpecials){
+  // Presumptive claims (Agent Orange, Gulf War, Burn Pit, POW…) live in
+  // window._presumptiveData — gather them the same way the Rating tab does
+  const _activePresumptives = (typeof PRESUMPTIVE_CLAIMS !== 'undefined' && window._presumptiveData) ?
+    PRESUMPTIVE_CLAIMS.filter(cl => window._presumptiveData[cl.id] && window._presumptiveData[cl.id].selected) : [];
+  if(!entries.length && !_hasSpecials && !_activePresumptives.length){
     c.innerHTML='<div class="empty">No injuries or conditions logged yet.<br>Click the body map or use Quick Select to begin.<br><span style="font-size:11px;color:var(--muted);">Items require a date to appear on the timeline.</span></div>';
     return;
   }
@@ -160,12 +164,23 @@ function renderTimeline(){
   `).join('');
 
   // Special claims & notification banners
-  if(typeof SPECIAL_CLAIM_TYPES !== 'undefined' && window._specialClaims){
+  {
     const NOTIF_IDS = new Set(['combat','pow','agent_orange','gulf_war','burn_pit']);
-    const activeSpecials = SPECIAL_CLAIM_TYPES.filter(item => window._specialClaims[item.id]);
-    if(activeSpecials.length){
+    const activeSpecials = (typeof SPECIAL_CLAIM_TYPES !== 'undefined' && window._specialClaims) ?
+      SPECIAL_CLAIM_TYPES.filter(item => window._specialClaims[item.id]) : [];
+    if(activeSpecials.length || _activePresumptives.length){
+      const _esc = typeof escapeHTML === 'function' ? escapeHTML : (s => s);
       let spHtml = '<div style="margin-top:20px;">';
       spHtml += '<div class="yr-lbl" style="color:#b45309;">Special Claims & Entitlements</div>';
+      // Presumptive claims — amber "applies to this claim" banners
+      _activePresumptives.forEach(cl => {
+        const d = window._presumptiveData[cl.id] || {};
+        const details = (cl.fields||[]).map(f => d[f.id] ? f.label + ' ' + d[f.id] : null).filter(Boolean).join(' · ');
+        spHtml += '<div style="background:#fffbeb;border:1px solid #fde68a;border-left:4px solid #b45309;border-radius:0 6px 6px 0;padding:10px 14px;font-size:12px;color:#92400e;line-height:1.5;margin-bottom:8px;">' +
+          '<strong>' + cl.label + '</strong> — presumptive service connection applies to this claim.' +
+          (details ? '<br><span style="font-size:11px;">' + _esc(details) + '</span>' : '') +
+        '</div>';
+      });
       activeSpecials.forEach(item => {
         const isNotif = NOTIF_IDS.has(item.id);
         if(isNotif){

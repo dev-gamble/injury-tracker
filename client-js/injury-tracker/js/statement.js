@@ -184,9 +184,12 @@ function _renderVocationalInStatement(){
   h += '<div style="font-size:11px;color:var(--muted);margin-bottom:10px;">How do your service-connected conditions affect your ability to work?</div>';
 
   if(vocSecs.length){
+    const _e = typeof escapeHTML === 'function' ? escapeHTML : (x=>x);
     h += '<div class="sp-chips" style="margin-bottom:8px;">';
-    vocSecs.forEach(s => {
-      h += '<span class="sc-chip"><span>' + s + '</span><span class="sc-rm" onclick="removeVocSecondary(\'' + s.replace(/'/g,"\\'") + '\');renderStatement()">×</span></span>';
+    // Index-based removal + escaped label — quotes in custom entries must not
+    // break the chip markup or make the entry unremovable
+    vocSecs.forEach((s, i) => {
+      h += '<span class="sc-chip"><span>' + _e(s) + '</span><span class="sc-rm" onclick="removeVocSecondary(window._vocSecondaries[' + i + ']);renderStatement()">×</span></span>';
     });
     h += '</div>';
   }
@@ -195,13 +198,13 @@ function _renderVocationalInStatement(){
     '<option value="">+ Add vocational condition...</option>';
   if(typeof VOCATIONAL_CONDITIONS !== 'undefined'){
     VOCATIONAL_CONDITIONS.forEach(s => {
-      if(!vocSecs.includes(s)) h += '<option value="' + s + '">' + s + '</option>';
+      if(!vocSecs.includes(s)) h += '<option value="' + s.replace(/"/g,'&quot;') + '">' + s + '</option>';
     });
   }
   h += '</select>';
   h += '<div class="cr-custom-row">' +
-    '<input type="text" class="cr-custom-input" id="ps-custom-voc" placeholder="Custom vocational condition..." oninput="_toggleCustomAddBtn(this)">' +
-    '<button class="cr-custom-btn" disabled onclick="addCustomVocFromStatement()">Add</button>' +
+    '<input type="text" class="cr-custom-input" id="ps-custom-voc" placeholder="Custom vocational condition...">' +
+    '<button class="cr-custom-btn" onclick="addCustomVocFromStatement()">Add</button>' +
   '</div>';
 
   h += '<div style="margin-top:8px;">' +

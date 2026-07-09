@@ -1,8 +1,14 @@
 // ── EXPORT FUNCTIONS ──
 
+// HTML-escape user-entered text before interpolating it into generated
+// report markup — otherwise "<brace>"-style text vanishes into the HTML
+// parser, and imported CSV text could inject live markup.
+function _xh(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 // ── PDF / PRINT SUMMARY ──
 function exportSummary(){
-  if(typeof _requireAccess === 'function' && !_requireAccess()) return;
   const hasBPExport = typeof BP_REGISTRY!=='undefined' && Object.values(BP_REGISTRY).some(cfg=>(window[cfg.stateKey]||[]).length>0);
   const _pk = _getPanelKeys();
   const filteredInj = injuries.filter(i => !_pk.has(i.key));
@@ -59,7 +65,7 @@ function exportSummary(){
         <div style="width:20px;height:20px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:${c};box-shadow:0 2px 5px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;">
           <span style="transform:rotate(45deg);color:#fff;font-size:9px;font-weight:800;font-family:monospace;">${num}</span>
         </div>
-        <div style="position:absolute;bottom:calc(100% + 2px);left:50%;transform:translateX(-50%);background:#1a2332;color:#fff;font-size:9px;font-weight:600;padding:2px 6px;border-radius:3px;white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis;">#${num} · ${p.label.slice(0,18)}</div>
+        <div style="position:absolute;bottom:calc(100% + 2px);left:50%;transform:translateX(-50%);background:#1a2332;color:#fff;font-size:9px;font-weight:600;padding:2px 6px;border-radius:3px;white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis;">#${num} · ${_xh(p.label.slice(0,18))}</div>
       </div>`;
     }).join('');
 
@@ -85,7 +91,7 @@ function exportSummary(){
     ${incomplete.map(i=>{
       const g = gapStatus(i);
       const num = sorted.indexOf(i)+1;
-      return `<div style="font-size:11px;color:#92400e;padding:2px 0;"><strong>#${num} ${i.label}:</strong> Missing — ${g.gaps.join(', ')}</div>`;
+      return `<div style="font-size:11px;color:#92400e;padding:2px 0;"><strong>#${num} ${_xh(i.label)}:</strong> Missing — ${g.gaps.join(', ')}</div>`;
     }).join('')}
   </div>` : `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#166534;font-weight:600;">All injuries have complete evidence records.</div>`;
 
@@ -101,35 +107,35 @@ function exportSummary(){
     let card = `<div class="detail-card" style="break-inside:avoid;">
       <div class="dc-header">
         <span class="dc-num" style="background:${sc};">${num}</span>
-        <span class="dc-label">${i.label}</span>
+        <span class="dc-label">${_xh(i.label)}</span>
         <span class="dc-sev" style="background:${sbg};color:${sc};border:1px solid ${sbd};">${stxt}</span>
         <span class="dc-status" style="background:${g.status==='complete'?'#f0fdf4':'#fffbeb'};color:${g.status==='complete'?'#166534':'#92400e'};border:1px solid ${g.status==='complete'?'#bbf7d0':'#fde68a'};">${g.label}</span>
       </div>
       <div class="dc-grid">
-        <div class="dc-field"><span class="dc-key">Date</span><span class="dc-val">${i.date||'—'}</span></div>
+        <div class="dc-field"><span class="dc-key">Date</span><span class="dc-val">${_xh(i.date)||'—'}</span></div>
         <div class="dc-field"><span class="dc-key">Body</span><span class="dc-val">${i.pin.body} / ${i.pin.side}</span></div>
-        <div class="dc-field"><span class="dc-key">Installation</span><span class="dc-val">${i.location||'—'}</span></div>
-        <div class="dc-field"><span class="dc-key">Event / Duty</span><span class="dc-val">${i.event||'—'}</span></div>
-        <div class="dc-field"><span class="dc-key">Medical Care</span><span class="dc-val">${i.medicalCare==='yes'?(i.clinicName||'Yes'):'No'}</span></div>
-        <div class="dc-field"><span class="dc-key">Witnesses</span><span class="dc-val">${i.witnesses||'—'}</span></div>
+        <div class="dc-field"><span class="dc-key">Installation</span><span class="dc-val">${_xh(i.location)||'—'}</span></div>
+        <div class="dc-field"><span class="dc-key">Event / Duty</span><span class="dc-val">${_xh(i.event)||'—'}</span></div>
+        <div class="dc-field"><span class="dc-key">Medical Care</span><span class="dc-val">${i.medicalCare==='yes'?(_xh(i.clinicName)||'Yes'):'No'}</span></div>
+        <div class="dc-field"><span class="dc-key">Witnesses</span><span class="dc-val">${_xh(i.witnesses)||'—'}</span></div>
         <div class="dc-field"><span class="dc-key">Still Being Seen</span><span class="dc-val">${i.stillBeingSeen?'Yes':'No'}</span></div>
       </div>`;
 
     if(i.description){
-      card += `<div class="dc-desc"><span class="dc-key">Description</span><div style="margin-top:2px;font-style:italic;color:#4b5563;">"${i.description}"</div></div>`;
+      card += `<div class="dc-desc"><span class="dc-key">Description</span><div style="margin-top:2px;font-style:italic;color:#4b5563;">"${_xh(i.description)}"</div></div>`;
     }
 
     if(i.secondaries?.length){
       card += `<div class="dc-section">
         <span class="dc-section-title" style="color:#3730a3;border-color:#c7d2fe;">Secondary Conditions</span>
-        <div class="dc-tags">${i.secondaries.map(s=>`<span class="dc-tag" style="background:#e0e7ff;color:#3730a3;border:1px solid #c7d2fe;">${s}</span>`).join('')}</div>
+        <div class="dc-tags">${i.secondaries.map(s=>`<span class="dc-tag" style="background:#e0e7ff;color:#3730a3;border:1px solid #c7d2fe;">${_xh(s)}</span>`).join('')}</div>
       </div>`;
     }
 
     if(i.functionalImpacts?.length){
       card += `<div class="dc-section">
         <span class="dc-section-title" style="color:#991b1b;border-color:#fecaca;">Daily Life Impact</span>
-        <div class="dc-tags">${i.functionalImpacts.map(fi=>`<span class="dc-tag" style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;">${fi}</span>`).join('')}</div>
+        <div class="dc-tags">${i.functionalImpacts.map(fi=>`<span class="dc-tag" style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;">${_xh(fi)}</span>`).join('')}</div>
       </div>`;
     }
 
@@ -141,7 +147,7 @@ function exportSummary(){
     }
 
     if(i.secondaryNotes){
-      card += `<div class="dc-desc"><span class="dc-key">Notes</span><div style="margin-top:2px;color:#4b5563;">${i.secondaryNotes}</div></div>`;
+      card += `<div class="dc-desc"><span class="dc-key">Notes</span><div style="margin-top:2px;color:#4b5563;">${_xh(i.secondaryNotes)}</div></div>`;
     }
 
     card += `</div>`;
@@ -151,15 +157,16 @@ function exportSummary(){
   // Quick reference table
   const quickRef = sorted.map((i,idx)=>`<tr>
     <td style="font-weight:800;color:${SC[i.severity]||SC.custom};font-family:monospace;text-align:center;">${idx+1}</td>
-    <td>${i.date||'—'}</td><td>${i.label}</td>
+    <td>${_xh(i.date)||'—'}</td><td>${_xh(i.label)}</td>
     <td style="color:${SC[i.severity]||SC.custom};font-weight:700;font-size:11px;text-transform:uppercase;">${i.severity==='custom'?'Other':i.severity}</td>
-    <td>${i.location||'—'}</td>
+    <td>${_xh(i.location)||'—'}</td>
     <td>${i.medicalCare==='yes'?'Yes':'No'}</td>
     <td>${i.secondaries?.length||0}</td>
     <td style="color:${gapStatus(i).status==='complete'?'#166534':'#92400e'};font-weight:600;font-size:10px;">${gapStatus(i).status==='complete'?'Complete':'Incomplete'}</td>
   </tr>`).join('');
 
   const w=window.open('','_blank');
+  if(!w){alert('Your browser blocked the report window. Please allow pop-ups for this page and try again.');return;}
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>ENDEX — Service Impact Index</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -259,11 +266,11 @@ ${(function(){
       return lv !== 'none' ? d.label + ': ' + lv : null;
     }).filter(Boolean).join(', ') || 'Not evaluated';
     h += '<div style="border:1px solid #d1d5db;border-radius:6px;padding:12px 16px;margin-bottom:8px;'+(isH?'border-left:3px solid #c8102e;':'')+'">';
-    h += '<div style="font-weight:700;font-size:13px;color:#0a2357;">'+c.condition+(isH?' <span style="color:#c8102e;font-size:10px;">(ACTIVE RATING)</span>':'')+'</div>';
-    h += '<div style="font-size:11px;color:#6b7280;margin-top:2px;">'+(c.date||'No date')+(c.location?' &middot; '+c.location:'')+(c.event?' &middot; '+c.event:'')+'</div>';
-    if(c.description) h += '<div style="font-size:11px;color:#4b5563;font-style:italic;margin-top:2px;">&ldquo;'+c.description+'&rdquo;</div>';
-    if(c.medicalCare==='yes') h += '<div style="font-size:11px;color:#166534;margin-top:2px;">&#10003; Medical care'+(c.clinicName?' &mdash; '+c.clinicName:'')+'</div>';
-    if(c.witnesses) h += '<div style="font-size:11px;color:#6b7280;margin-top:1px;">Witnesses: '+c.witnesses+'</div>';
+    h += '<div style="font-weight:700;font-size:13px;color:#0a2357;">'+_xh(c.condition)+(isH?' <span style="color:#c8102e;font-size:10px;">(ACTIVE RATING)</span>':'')+'</div>';
+    h += '<div style="font-size:11px;color:#6b7280;margin-top:2px;">'+_xh(c.date||'No date')+(c.location?' &middot; '+_xh(c.location):'')+(c.event?' &middot; '+_xh(c.event):'')+'</div>';
+    if(c.description) h += '<div style="font-size:11px;color:#4b5563;font-style:italic;margin-top:2px;">&ldquo;'+_xh(c.description)+'&rdquo;</div>';
+    if(c.medicalCare==='yes') h += '<div style="font-size:11px;color:#166534;margin-top:2px;">&#10003; Medical care'+(c.clinicName?' &mdash; '+_xh(c.clinicName):'')+'</div>';
+    if(c.witnesses) h += '<div style="font-size:11px;color:#6b7280;margin-top:1px;">Witnesses: '+_xh(c.witnesses)+'</div>';
     h += '<div style="font-size:11px;color:#6b7280;margin-top:4px;">Domains: '+domains+'</div>';
     h += '<div style="font-size:14px;font-weight:800;color:#0a2357;font-family:monospace;margin-top:4px;">'+c.effectiveRating+'%'+(c.manualOverride!==null?' (manual override)':'')+'</div>';
     h += '</div>';
@@ -287,11 +294,11 @@ ${(function(){
       return lv ? d.label + ': ' + lv.label : null;
     }).filter(Boolean).join(', ') || 'Not evaluated';
     h += '<div style="border:1px solid #d1d5db;border-radius:6px;padding:12px 16px;margin-bottom:8px;border-left:3px solid #0a2357;">';
-    h += '<div style="font-weight:700;font-size:13px;color:#0a2357;">'+c.condition+' <span style="font-size:10px;color:#6b7280;font-weight:400;">'+profileLabel+'</span></div>';
-    h += '<div style="font-size:11px;color:#6b7280;margin-top:2px;">'+(c.date||'No date')+(c.location?' &middot; '+c.location:'')+(c.event?' &middot; '+c.event:'')+'</div>';
-    if(c.description) h += '<div style="font-size:11px;color:#4b5563;font-style:italic;margin-top:2px;">&ldquo;'+c.description+'&rdquo;</div>';
-    if(c.medicalCare==='yes') h += '<div style="font-size:11px;color:#166534;margin-top:2px;">&#10003; Medical care'+(c.clinicName?' &mdash; '+c.clinicName:'')+'</div>';
-    if(c.witnesses) h += '<div style="font-size:11px;color:#6b7280;margin-top:1px;">Witnesses: '+c.witnesses+'</div>';
+    h += '<div style="font-weight:700;font-size:13px;color:#0a2357;">'+_xh(c.condition)+' <span style="font-size:10px;color:#6b7280;font-weight:400;">'+profileLabel+'</span></div>';
+    h += '<div style="font-size:11px;color:#6b7280;margin-top:2px;">'+_xh(c.date||'No date')+(c.location?' &middot; '+_xh(c.location):'')+(c.event?' &middot; '+_xh(c.event):'')+'</div>';
+    if(c.description) h += '<div style="font-size:11px;color:#4b5563;font-style:italic;margin-top:2px;">&ldquo;'+_xh(c.description)+'&rdquo;</div>';
+    if(c.medicalCare==='yes') h += '<div style="font-size:11px;color:#166534;margin-top:2px;">&#10003; Medical care'+(c.clinicName?' &mdash; '+_xh(c.clinicName):'')+'</div>';
+    if(c.witnesses) h += '<div style="font-size:11px;color:#6b7280;margin-top:1px;">Witnesses: '+_xh(c.witnesses)+'</div>';
     h += '<div style="font-size:11px;color:#6b7280;margin-top:4px;">'+domains+'</div>';
     h += '<div style="font-size:14px;font-weight:800;color:#0a2357;font-family:monospace;margin-top:4px;">'+c.effectiveRating+'%'+(c.manualOverride!==null?' (manual override)':'')+'</div>';
     h += '</div>';
@@ -317,11 +324,11 @@ ${(function(){
       }).filter(Boolean).join(', ') || 'Not evaluated';
       const extLabel = c.extremity && c.extremity !== 'none' ? ' [' + c.extremity + ']' : '';
       h += '<div style="border:1px solid #d1d5db;border-radius:6px;padding:12px 16px;margin-bottom:8px;border-left:3px solid #047857;">';
-      h += '<div style="font-weight:700;font-size:13px;color:#0a2357;">' + c.condition + extLabel + ' <span style="font-size:10px;color:#6b7280;font-weight:400;">' + profileLabel + '</span></div>';
-      h += '<div style="font-size:11px;color:#6b7280;margin-top:2px;">' + (c.date||'No date') + (c.location?' &middot; '+c.location:'') + (c.event?' &middot; '+c.event:'') + '</div>';
-      if(c.description) h += '<div style="font-size:11px;color:#4b5563;font-style:italic;margin-top:2px;">&ldquo;'+c.description+'&rdquo;</div>';
-      if(c.medicalCare==='yes') h += '<div style="font-size:11px;color:#166534;margin-top:2px;">&#10003; Medical care'+(c.clinicName?' &mdash; '+c.clinicName:'')+'</div>';
-      if(c.witnesses) h += '<div style="font-size:11px;color:#6b7280;margin-top:1px;">Witnesses: '+c.witnesses+'</div>';
+      h += '<div style="font-weight:700;font-size:13px;color:#0a2357;">' + _xh(c.condition) + extLabel + ' <span style="font-size:10px;color:#6b7280;font-weight:400;">' + profileLabel + '</span></div>';
+      h += '<div style="font-size:11px;color:#6b7280;margin-top:2px;">' + _xh(c.date||'No date') + (c.location?' &middot; '+_xh(c.location):'') + (c.event?' &middot; '+_xh(c.event):'') + '</div>';
+      if(c.description) h += '<div style="font-size:11px;color:#4b5563;font-style:italic;margin-top:2px;">&ldquo;'+_xh(c.description)+'&rdquo;</div>';
+      if(c.medicalCare==='yes') h += '<div style="font-size:11px;color:#166534;margin-top:2px;">&#10003; Medical care'+(c.clinicName?' &mdash; '+_xh(c.clinicName):'')+'</div>';
+      if(c.witnesses) h += '<div style="font-size:11px;color:#6b7280;margin-top:1px;">Witnesses: '+_xh(c.witnesses)+'</div>';
       h += '<div style="font-size:11px;color:#6b7280;margin-top:4px;">' + domains + '</div>';
       h += '<div style="font-size:14px;font-weight:800;color:#0a2357;font-family:monospace;margin-top:4px;">' + c.effectiveRating + '%' + (c.manualOverride !== null ? ' (manual override)' : '') + '</div>';
       h += '</div>';
@@ -334,8 +341,8 @@ ${window._personalStatement?'<div class="section-title">Personal Statement</div>
 
 ${(window._vocSecondaries||[]).length?`
 <div class="section-title">Vocational Conditions</div>
-<ul style="font-size:12px;line-height:1.8;">${window._vocSecondaries.map(s=>'<li>'+s+'</li>').join('')}</ul>
-${window._vocNotes?'<div style="margin-top:8px;padding:8px 12px;background:#f8f9fa;border-left:3px solid #0a2357;border-radius:4px;font-size:12px;"><strong>Notes:</strong> '+window._vocNotes+'</div>':''}`:''}
+<ul style="font-size:12px;line-height:1.8;">${window._vocSecondaries.map(s=>'<li>'+_xh(s)+'</li>').join('')}</ul>
+${window._vocNotes?'<div style="margin-top:8px;padding:8px 12px;background:#f8f9fa;border-left:3px solid #0a2357;border-radius:4px;font-size:12px;"><strong>Notes:</strong> '+_xh(window._vocNotes)+'</div>':''}`:''}
 
 ${(function(){
   const smcSels = window._smcSelections || [];
@@ -445,10 +452,10 @@ ${(function(){
 
 // ── CSV EXPORT ──
 function exportCSV(){
-  if(typeof _requireAccess === 'function' && !_requireAccess()) return;
   const _pk2 = _getPanelKeys();
   const filteredInj2 = injuries.filter(i => !_pk2.has(i.key));
-  if(!filteredInj2.length && !(window._mentalHealthConditions||[]).length && !(window._headConditions||[]).length){alert('No injuries to export.');return;}
+  const hasBPExport2 = typeof BP_REGISTRY!=='undefined' && Object.values(BP_REGISTRY).some(cfg=>(window[cfg.stateKey]||[]).length>0);
+  if(!filteredInj2.length && !(window._mentalHealthConditions||[]).length && !(window._headConditions||[]).length && !hasBPExport2){alert('No injuries to export.');return;}
   const sorted=[...filteredInj2].sort((a,b)=>new Date(a.date)-new Date(b.date));
 
   const esc = v => {
@@ -460,7 +467,8 @@ function exportCSV(){
   const headers = ['#','Date','Body Area','Severity','Assigned Rating %','Body','Side','Installation','Event','Description','Medical Care','Clinic','Witnesses','Secondary Conditions','Daily Life Impact','Evidence Status','Missing Evidence','Still Being Seen','Notes'];
   const csvRows = [];
   if(window._userId) csvRows.push('Prepared for:,' + esc(window._userId));
-  csvRows.push('Generated:,' + new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}));
+  // esc() the date — the long en-US format contains a comma that would split the cell
+  csvRows.push('Generated:,' + esc(new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})));
   csvRows.push('');
   csvRows.push(headers.join(','));
 
@@ -665,10 +673,10 @@ function exportCSV(){
 
 // ── TXT EXPORT ──
 function exportTXT(){
-  if(typeof _requireAccess === 'function' && !_requireAccess()) return;
   const _pk3 = _getPanelKeys();
   const filteredInj3 = injuries.filter(i => !_pk3.has(i.key));
-  if(!filteredInj3.length && !(window._mentalHealthConditions||[]).length && !(window._headConditions||[]).length){alert('No injuries to export.');return;}
+  const hasBPExport3 = typeof BP_REGISTRY!=='undefined' && Object.values(BP_REGISTRY).some(cfg=>(window[cfg.stateKey]||[]).length>0);
+  if(!filteredInj3.length && !(window._mentalHealthConditions||[]).length && !(window._headConditions||[]).length && !hasBPExport3){alert('No injuries to export.');return;}
   const sorted=[...filteredInj3].sort((a,b)=>new Date(a.date)-new Date(b.date));
   const line = '='.repeat(60);
   const dash = '-'.repeat(40);

@@ -56,33 +56,43 @@ function onBodyAreaChange(area){
   if(!area){
     condField.classList.add('hidden');
     document.getElementById('custom-label-field').classList.add('hidden');
+    document.getElementById('f-custom-label').value='';
     return;
   }
 
-  // Mental Health & Head/Face → close form, open dedicated panel
-  if(area === 'mental'){
-    removePreviewPin(); pendingPin = null;
-    closeModal();
-    openMentalHealthPanel();
-    return;
-  }
-  if(area === 'head'){
-    removePreviewPin(); pendingPin = null;
-    closeModal();
-    openHeadPanel('headFace');
-    return;
+  // Panel redirects apply ONLY outside an active form session. When the
+  // custom-pin form is open (pendingPin set) or an injury is being edited
+  // (editingId set), redirecting would close the modal and silently discard
+  // the placed pin and everything the user typed.
+  const _formInUse = editingId !== null || (typeof pendingPin !== 'undefined' && pendingPin);
+  if(!_formInUse){
+    // Mental Health & Head/Face → close form, open dedicated panel
+    if(area === 'mental'){
+      removePreviewPin(); pendingPin = null;
+      closeModal();
+      openMentalHealthPanel();
+      return;
+    }
+    if(area === 'head'){
+      removePreviewPin(); pendingPin = null;
+      closeModal();
+      openHeadPanel('headFace');
+      return;
+    }
+    // Body part panels (knee, back, shoulder, etc.)
+    if(typeof BP_REGISTRY !== 'undefined' && BP_REGISTRY[area]){
+      removePreviewPin(); pendingPin = null;
+      closeModal();
+      openBPPanel(area, Object.keys(BP_REGISTRY[area].sideKeys)[0]);
+      return;
+    }
   }
 
-  // Body part panels (knee, back, shoulder, etc.)
-  if(typeof BP_REGISTRY !== 'undefined' && BP_REGISTRY[area]){
-    removePreviewPin(); pendingPin = null;
-    closeModal();
-    openBPPanel(area, Object.keys(BP_REGISTRY[area].sideKeys)[0]);
-    return;
-  }
-
-  // Populate condition dropdown from VA_AREA_CONDITIONS
-  const conditions = (typeof VA_AREA_CONDITIONS!=='undefined' && VA_AREA_CONDITIONS[area]) || [];
+  // Populate condition dropdown from VA_AREA_CONDITIONS (mental/head use their
+  // dedicated lists so the in-form flow still works for those areas)
+  const conditions = area === 'mental' ? (typeof VA_MENTAL !== 'undefined' ? VA_MENTAL : []) :
+                     area === 'head' ? (typeof VA_HEAD !== 'undefined' ? VA_HEAD : []) :
+                     (typeof VA_AREA_CONDITIONS!=='undefined' && VA_AREA_CONDITIONS[area]) || [];
   let h='<option value="">— Select condition —</option>';
   conditions.forEach(name=>{
     h+=`<option value="${name.replace(/"/g,'&quot;')}">${name}</option>`;
@@ -108,6 +118,9 @@ function onConditionChange(val){
     condCustom.classList.add('hidden');
     condCustom.value='';
     document.getElementById('custom-label-field').classList.add('hidden');
+    // Clear the hidden field too — getResolvedLabel gives it top priority, so a
+    // stale value here would silently override the newly selected condition
+    document.getElementById('f-custom-label').value='';
   }
 
   // Update preview pin with condition name
@@ -343,10 +356,13 @@ function renderImpactChips(){
     c.innerHTML='<span style="font-size:11px;color:var(--muted);font-style:italic;">No limitations added</span>';
     return;
   }
-  c.innerHTML = _pendingImpacts.map(fi=>
+  // Index-based removal + escaped label: quotes or angle brackets in user text
+  // must not break the chip markup or its remove button
+  const _e = typeof escapeHTML === 'function' ? escapeHTML : (s=>s);
+  c.innerHTML = _pendingImpacts.map((fi,idx)=>
     `<span class="sc-chip" style="background:rgba(200,16,46,.1);color:var(--red2);border:1px solid rgba(200,16,46,.2);">
-      <span>${fi}</span>
-      <span class="sc-rm" style="color:var(--red);" onclick="removeImpact('${fi.replace(/'/g,"\\'")}')">×</span>
+      <span>${_e(fi)}</span>
+      <span class="sc-rm" style="color:var(--red);" onclick="removeImpact(${idx})">×</span>
     </span>`
   ).join('');
 }
@@ -368,8 +384,8 @@ function addCustomImpact(){
   renderImpactChips();
 }
 
-function removeImpact(label){
-  _pendingImpacts = _pendingImpacts.filter(fi=>fi!==label);
+function removeImpact(idx){
+  _pendingImpacts.splice(idx, 1);
   renderImpactChips();
 }
 

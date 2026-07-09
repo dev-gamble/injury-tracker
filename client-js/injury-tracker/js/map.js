@@ -257,8 +257,15 @@ function refreshPinNumbers(){
   injuries.forEach(inj=>{
     const el=document.getElementById('pin-'+inj.id);
     if(!el) return;
+    const num = injuryNumber(inj.id);
     const numEl=el.querySelector('.pin-num');
-    if(numEl) numEl.textContent=injuryNumber(inj.id);
+    if(numEl) numEl.textContent=num;
+    // Keep the hover tooltip's number in sync with the pin head
+    const tipEl=el.querySelector('.pin-tip');
+    if(tipEl){
+      const tip=(inj.label+(inj.event?' · '+inj.event:'')).slice(0,32);
+      tipEl.textContent='#'+num+' · '+tip;
+    }
   });
 }
 
@@ -462,7 +469,18 @@ function _autoCreatePinFromPanel(pin){
   // Only pin conditions that don't already have a pin
   const needsPin = conditionsToPin.filter(c => !c.ref.pin);
   if(!needsPin.length && conditionsToPin.length){
-    // All already have pins — nothing to do
+    // All already pinned — treat the click as a REPOSITION instead of a silent no-op
+    conditionsToPin.forEach((item, i) => {
+      const px = Math.min(95, baseX + i * 2.5);
+      item.ref.pin = {x:px, y:baseY, side:pin.side, body:pin.body};
+      const el = document.getElementById('pin-cond-' + item.ref.id);
+      if(el){
+        if(layer && el.parentElement !== layer) layer.appendChild(el); // view may have changed
+        el.style.left = px + '%';
+        el.style.top = baseY + '%';
+      }
+    });
+    if(typeof _showToast === 'function') _showToast('Pin moved to the new location.');
     pendingPin = null;
     updateBadges(); updateCount(); renderTimeline();
     return;

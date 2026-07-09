@@ -148,7 +148,7 @@ function handleImportFile(input){
   const status = document.getElementById('import-status');
   const preview = document.getElementById('import-preview');
 
-  if(!file.name.endsWith('.csv')){
+  if(!file.name.toLowerCase().endsWith('.csv')){
     status.textContent = 'Please select a .csv file.';
     status.style.color = 'var(--red)';
     return;
@@ -163,8 +163,25 @@ function handleImportFile(input){
       return;
     }
 
-    const headers = rows[0].map(h=>h.toLowerCase().trim());
-    const dataRows = rows.slice(1).filter(r=>r.some(c=>c.trim()));
+    // Locate the header row instead of assuming rows[0] — the app's own CSV
+    // export writes "Prepared for:"/"Generated:" preamble rows above it
+    let headerIdx = rows.findIndex(r => {
+      const h = r.map(c=>c.toLowerCase().trim());
+      return findCol(h, ['body area','label','injury','area','name']) >= 0 &&
+             findCol(h, ['date','date of injury','incident date']) >= 0;
+    });
+    if(headerIdx === -1) headerIdx = 0;
+
+    const headers = rows[headerIdx].map(h=>h.toLowerCase().trim());
+    // Stop at the first section-divider row (the export appends MENTAL HEALTH /
+    // RATING sections after a blank line — those aren't injury rows)
+    let bodyRows = rows.slice(headerIdx+1);
+    const sectionIdx = bodyRows.findIndex(r => {
+      const first = (r[0]||'').trim();
+      return first && !r.slice(1).some(c=>c.trim()) && /^[A-Z ()&/-]+$/.test(first);
+    });
+    if(sectionIdx > -1) bodyRows = bodyRows.slice(0, sectionIdx);
+    const dataRows = bodyRows.filter(r=>r.some(c=>c.trim()));
 
     // Map columns
     const colMap = {
@@ -192,7 +209,7 @@ function handleImportFile(input){
     // Build preview
     const mapped = dataRows.map(r=>({
       label:     r[colMap.label]||'Unknown',
-      date:      r[colMap.date]||'',
+      date:      normDate(r[colMap.date]),
       severity:  normSeverity(r[colMap.severity]),
       location:  r[colMap.location]||'',
       event:     r[colMap.event]||'',
@@ -238,8 +255,8 @@ function handleImportFile(input){
       const pinOk = pin.key!=='custom';
       ph += `<tr style="border-bottom:1px solid var(--border);${idx%2?'background:var(--surface2)':''}">
         <td style="padding:5px 8px;font-family:var(--fm);font-weight:700;">${idx+1}</td>
-        <td style="padding:5px 8px;">${m.label}</td>
-        <td style="padding:5px 8px;font-family:var(--fm);">${m.date||'—'}</td>
+        <td style="padding:5px 8px;">${typeof escapeHTML==='function'?escapeHTML(m.label):m.label}</td>
+        <td style="padding:5px 8px;font-family:var(--fm);">${typeof escapeHTML==='function'?escapeHTML(m.date)||'—':(m.date||'—')}</td>
         <td style="padding:5px 8px;text-transform:capitalize;">${m.severity}</td>
         <td style="padding:5px 8px;color:${pinOk?'var(--mild)':'var(--moderate)'};">${pinOk?'Matched':'Manual'}</td>
       </tr>`;
@@ -331,6 +348,25 @@ function normBody(val){
   if(!val) return 'male';
   const v = val.toLowerCase().trim();
   return v==='female'||v==='f' ? 'female' : 'male';
+}
+
+// Normalize imported dates to ISO YYYY-MM-DD — the timeline's year grouping and
+// the edit form's <input type=date> both require it. Accepts YYYY-MM-DD,
+// M/D/YYYY, M-D-YYYY, and "Month D, YYYY". Unparseable values pass through.
+function normDate(val){
+  const v = String(val||'').trim();
+  if(!v) return '';
+  let m = v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if(m) return m[1] + '-' + m[2].padStart(2,'0') + '-' + m[3].padStart(2,'0');
+  m = v.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/); // M/D/YYYY (US)
+  if(m) return m[3] + '-' + m[1].padStart(2,'0') + '-' + m[2].padStart(2,'0');
+  m = v.match(/^([A-Za-z]+)\.?\s+(\d{1,2}),?\s+(\d{4})$/); // July 7, 2026
+  if(m){
+    const months = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+    const mi = months.indexOf(m[1].slice(0,3).toLowerCase());
+    if(mi >= 0) return m[3] + '-' + String(mi+1).padStart(2,'0') + '-' + m[2].padStart(2,'0');
+  }
+  return v; // unknown format — keep as-is rather than destroy data
 }
 
 function normSide(val){

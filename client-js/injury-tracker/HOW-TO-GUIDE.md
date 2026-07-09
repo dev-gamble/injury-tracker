@@ -7,13 +7,13 @@ A step-by-step guide to documenting your VA disability claim.
 ## Getting Started
 
 ### On a Computer
-1. Open `injury-tracker-standalone.html` in any web browser (Chrome, Edge, Firefox, Safari).
+1. Open `ENDEX (Standalone).html` in any web browser (Chrome, Edge, Firefox, Safari).
 2. Double-click the file — it opens directly. No internet required after loading (except for fonts).
 
 ### On Your Phone (iPhone or Android)
 
 **Option A — Transfer the file:**
-1. Send `injury-tracker-standalone.html` to your phone (email it to yourself, AirDrop, Google Drive, iCloud, USB, etc.).
+1. Send `ENDEX (Standalone).html` to your phone (email it to yourself, AirDrop, Google Drive, iCloud, USB, etc.).
 2. Open the file from your email or file manager — it will open in your phone's browser.
 3. **iPhone tip:** If it won't open from Files, tap Share > "Open in Safari."
 4. **Android tip:** Open it from Downloads or Files — it should launch in Chrome automatically.
@@ -116,7 +116,7 @@ Click the **Rating** tab.
 
 ## Step 6: Write Your Personal Statement
 
-Click the **Personal Statement** tab.
+Click the **Notes & Statement** tab.
 
 - Use the text editor to write your statement in your own words.
 - Explain how your conditions started, how they've gotten worse, and how they affect daily life.
@@ -152,10 +152,10 @@ Click the **Export** button in the top-right corner:
 ## Frequently Asked Questions
 
 **Q: Do I need internet to use this?**
-A: No. The standalone file works completely offline. The only thing that needs internet is the Google Fonts (Oswald and Open Sans) — if offline, your browser will use fallback fonts and everything still works.
+A: No. The standalone file works completely offline. The only thing that needs internet is the Google Fonts (Teko, Rajdhani, Oswald, and Open Sans) — if offline, your browser will use fallback fonts and everything still works.
 
 **Q: Will my data be saved if I close the browser?**
-A: No — data lives only in your current browser session. Always export (CSV or PDF) before closing. You can import the CSV later to restore.
+A: No — data lives only in your current browser session. Use **Save Project** (encrypted .endexclaim file) before closing, then **Load Project** to restore EVERYTHING — evaluations, ratings, special claims, and your statement. CSV export only covers basic injury rows, and PDF cannot be re-imported at all.
 
 **Q: Can I use this on my phone?**
 A: Yes. The app is responsive and adapts to phone screens. See "Getting Started" above for how to open it on your phone and add it to your home screen.

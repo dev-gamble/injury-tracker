@@ -48,7 +48,7 @@ function addHeadCondition(name) {
   // adding a second entry that would double-count in the combined rating
   const existing = window._headConditions.find(c => c.condition === name);
   if (existing) {
-    if (existing._committed) { existing._committed = false; renderHeadPanel(); }
+    if (existing._committed) { existing._committed = false; renderHeadConditionList(); renderHeadEvalRegion(); }
     return;
   }
   const profileKey = getHeadProfileKey(name);
@@ -65,13 +65,15 @@ function addHeadCondition(name) {
     effectiveRating: 0,
     extremity: 'none',
   }, _condInfoDefaults()));
-  renderHeadPanel();
+  renderHeadConditionList();
+  renderHeadEvalRegion();
 }
 
 function removeHeadCondition(id) {
   if(typeof _removeCondPinIfExists === 'function') _removeCondPinIfExists(id);
   window._headConditions = window._headConditions.filter(c => c.id !== id);
-  renderHeadPanel();
+  renderHeadConditionList();
+  renderHeadEvalRegion();
   if (typeof renderRating === 'function') renderRating();
 }
 
@@ -98,6 +100,8 @@ function updateHeadDomain(condId, domainId, value) {
   // Targeted DOM update — no full re-render, no scroll jump
   _patchHeadDomainButtons('hd-eval-body-'+condId, domainId, parseInt(value));
   _patchHeadRating(condId, cond.effectiveRating, cond.calculatedRating);
+  // Refresh the cond-list so the rating badge reflects the new value.
+  renderHeadConditionList();
   if (typeof renderRating === 'function') renderRating();
 }
 
@@ -139,7 +143,8 @@ function setHeadOverride(condId, value) {
     cond.manualOverride = parseInt(value);
     cond.effectiveRating = cond.manualOverride;
   }
-  renderHeadPanel();
+  renderHeadConditionList();
+  renderHeadEvalRegion();
   if (typeof renderRating === 'function') renderRating();
 }
 
@@ -153,7 +158,8 @@ function toggleHeadOverride(condId, checked) {
     cond.manualOverride = null;
     cond.effectiveRating = cond.calculatedRating;
   }
-  renderHeadPanel();
+  renderHeadConditionList();
+  renderHeadEvalRegion();
   if (typeof renderRating === 'function') renderRating();
 }
 
@@ -178,29 +184,32 @@ function onHeadSearch(val) {
   renderHeadConditionList();
 }
 
-function renderHeadConditionList() {
-  const list = document.getElementById('hd-cond-list');
-  if (!list) return;
+function _buildHeadCondListHTML() {
   // Only show current session's selection — committed conditions are hidden (fresh slate)
   const currentCond = window._headConditions.find(c => !c._committed);
   const selected = new Set();
-  if(currentCond) selected.add(currentCond.condition);
+  if (currentCond) selected.add(currentCond.condition);
 
   const filtered = VA_HEAD.filter(name => !_headSearch || name.toLowerCase().includes(_headSearch));
-  let h = '';
-  filtered.forEach(name => {
+  if (!filtered.length) return '<div style="padding:14px;color:var(--muted);font-size:12px;text-align:center;">No conditions match your search.</div>';
+  return filtered.map(name => {
     const checked = selected.has(name);
     const badge = checked && currentCond ? '<span class="mh-cond-badge mh-rate-' + currentCond.effectiveRating + '">' + currentCond.effectiveRating + '%</span>' : '';
     const escaped = name.replace(/'/g, "\\'");
-    h += '<div class="mh-cond-item' + (checked ? ' selected' : '') + '" onclick="toggleHeadCondition(\'' + escaped + '\')">' +
+    const dataName = name.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    return '<div class="mh-cond-item' + (checked ? ' selected' : '') + '" data-cond-name="' + dataName + '" onclick="toggleHeadCondition(\'' + escaped + '\')">' +
       '<input type="radio" name="hd-cond" ' + (checked ? 'checked' : '') + ' onclick="event.stopPropagation();toggleHeadCondition(\'' + escaped + '\')">' +
       '<span class="mh-cond-label">' + name + '</span>' +
       badge +
     '</div>';
-  });
-  if (!filtered.length) h = '<div style="padding:14px;color:var(--muted);font-size:12px;text-align:center;">No conditions match your search.</div>';
-  list.innerHTML = h;
-  if(typeof _initCondListScroll === 'function') _initCondListScroll(list);
+  }).join('');
+}
+
+function renderHeadConditionList() {
+  const list = document.getElementById('hd-cond-list');
+  if (!list) return;
+  list.innerHTML = _buildHeadCondListHTML();
+  if (typeof _initCondListScroll === 'function') _initCondListScroll(list);
 }
 
 // ── RENDER PANEL ─────────────────────────────────────────────────────────────
@@ -209,7 +218,6 @@ function renderHeadPanel() {
   const panel = document.getElementById('head-panel');
   if (!panel) return;
 
-  const conds = window._headConditions;
   let h = '';
 
   // Header
@@ -236,7 +244,25 @@ function renderHeadPanel() {
   '</div>';
 
   // Condition checklist
-  h += '<div class="mh-cond-list" id="hd-cond-list"></div>';
+  h += '<div class="mh-cond-list" id="hd-cond-list">' + _buildHeadCondListHTML() + '</div>';
+
+  // Dynamic eval region — re-rendered on its own without rebuilding the panel
+  // or the cond-list above. Keeps the user's scroll/search state intact.
+  h += '<div id="hd-eval-region">' + _buildHeadEvalRegionHTML() + '</div>';
+
+  h += '</div>'; // mh-body
+  const _scrollTop = panel.scrollTop;
+  panel.innerHTML = h;
+  panel.scrollTop = _scrollTop;
+}
+
+// Build the HTML for the evaluation region (everything below the cond-list).
+// Split out so updating a condition can re-render only this region instead of
+// rebuilding the panel — that's what keeps the cond-list scroll/search state
+// and hover from twitching on every click.
+function _buildHeadEvalRegionHTML() {
+  const conds = window._headConditions;
+  let h = '';
 
   // Selected conditions evaluation — only current session (non-committed)
   const _visibleConds = conds.filter(c => !c._committed);
@@ -330,17 +356,17 @@ function renderHeadPanel() {
     });
 
     // Summary — current session only
-    h += '<div class="mh-combined" style="background:linear-gradient(135deg,#0a2357 0%,#1d4ed8 100%);">' +
+    h += '<div class="mh-combined">' +
       '<div class="mh-combined-label">Head & Face Ratings</div>' +
-      '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:8px;">';
+      '<div class="mh-combined-tiles">';
     _visibleConds.forEach(c => {
-      h += '<div style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:8px 16px;text-align:center;min-width:80px;">' +
-        '<div style="font-size:12px;font-weight:600;color:#fff;white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis;">' + c.condition + '</div>' +
-        '<div style="font-size:26px;font-weight:800;font-family:var(--fm);color:#fff;line-height:1.2;">' + c.effectiveRating + '%</div>' +
+      h += '<div class="mh-combined-tile">' +
+        '<div class="mh-combined-tile-name">' + c.condition + '</div>' +
+        '<div class="mh-combined-tile-val">' + c.effectiveRating + '%</div>' +
       '</div>';
     });
     h += '</div>' +
-      '<div class="mh-combined-note" style="margin-top:8px;">Each condition contributes separately to your combined VA rating</div>' +
+      '<div class="mh-combined-note">Each condition contributes separately to your combined VA rating</div>' +
     '</div>';
 
   } else {
@@ -366,12 +392,13 @@ function renderHeadPanel() {
   '</button>';
   h += '</div>';
 
-  h += '</div>'; // mh-body
-  const _scrollTop = panel.scrollTop;
-  panel.innerHTML = h;
-  panel.scrollTop = _scrollTop;
+  return h;
+}
 
-  // Render condition list separately (preserves search state)
-  // Use setTimeout to ensure DOM is ready after innerHTML assignment
-  setTimeout(()=>{ renderHeadConditionList(); panel.scrollTop = _scrollTop; }, 0);
+// Render only the section below the cond-list. Falls back to a full panel
+// render if the region doesn't exist yet (e.g., first open).
+function renderHeadEvalRegion() {
+  const region = document.getElementById('hd-eval-region');
+  if (!region) { renderHeadPanel(); return; }
+  region.innerHTML = _buildHeadEvalRegionHTML();
 }

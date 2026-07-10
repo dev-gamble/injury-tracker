@@ -258,7 +258,7 @@ function unlinkBilateral(regionId, condId){
   cond.bilateralLinked = false;
   cond.bilateralPairId = null;
   cond.bilateralSource = false;
-  renderBPPanel(regionId);
+  renderBPEvalRegion(regionId);
 }
 
 // ── OPEN / CLOSE ────────────────────────────────────────────────────────────
@@ -356,7 +356,8 @@ function addBPCondition(regionId, name){
   } else {
     _addBPCondSide(regionId, name, _bpPinKey);
   }
-  renderBPPanel(regionId);
+  renderBPCondList(regionId);
+  renderBPEvalRegion(regionId);
 }
 
 function removeBPCondition(regionId, id){
@@ -371,7 +372,8 @@ function removeBPCondition(regionId, id){
   // Remove individual condition pin
   if(typeof _removeCondPinIfExists === 'function') _removeCondPinIfExists(id);
   window[cfg.stateKey] = window[cfg.stateKey].filter(c=>c.id!==id);
-  renderBPPanel(regionId);
+  renderBPCondList(regionId);
+  renderBPEvalRegion(regionId);
   if(typeof renderRating==='function') renderRating();
 }
 
@@ -390,7 +392,8 @@ function toggleBPCondition(regionId, name){
     if(alreadySelected.bilateralPairId) ids.push(alreadySelected.bilateralPairId);
     ids.forEach(cid => { if(typeof _removeCondPinIfExists === 'function') _removeCondPinIfExists(cid); });
     window[cfg.stateKey] = window[cfg.stateKey].filter(c => !ids.includes(c.id));
-    renderBPPanel(regionId);
+    renderBPCondList(regionId);
+    renderBPEvalRegion(regionId);
     if(typeof renderRating==='function') renderRating();
     return;
   }
@@ -425,7 +428,8 @@ function toggleBPCondition(regionId, name){
           _bpPinKey = chosenKey;
           _addBPCondSide(regionId, name, chosenKey);
         }
-        renderBPPanel(regionId);
+        renderBPCondList(regionId);
+        renderBPEvalRegion(regionId);
       });
       return;
     }
@@ -464,11 +468,15 @@ function updateBPDomain(regionId, condId, domainId, value){
   }
 
   if(needsFullRender){
-    renderBPPanel(regionId);
+    // Bilateral linked-state changed (paired card needs to update or unlink) —
+    // refresh just the eval region, not the panel.
+    renderBPEvalRegion(regionId);
   } else {
     _patchDomainButtons('bp-eval-'+condId, domainId, parseInt(value));
     _patchRating(condId, cond.effectiveRating, cond.calculatedRating);
   }
+  // Refresh the cond-list so the rating badge reflects the new value.
+  renderBPCondList(regionId);
   if(typeof renderRating==='function') renderRating();
 }
 
@@ -552,7 +560,8 @@ function setBPOverride(regionId, condId, value){
       }
     }
   }
-  renderBPPanel(regionId);
+  renderBPCondList(regionId);
+  renderBPEvalRegion(regionId);
   if(typeof renderRating==='function') renderRating();
 }
 
@@ -587,7 +596,8 @@ function toggleBPOverride(regionId, condId, checked){
       }
     }
   }
-  renderBPPanel(regionId);
+  renderBPCondList(regionId);
+  renderBPEvalRegion(regionId);
   if(typeof renderRating==='function') renderRating();
 }
 
@@ -598,11 +608,9 @@ function onBPSearch(regionId, val){
   renderBPCondList(regionId);
 }
 
-function renderBPCondList(regionId){
+function _buildBPCondListHTML(regionId){
   const cfg = BP_REGISTRY[regionId];
-  if(!cfg) return;
-  const list = document.getElementById('bp-cond-list-'+regionId);
-  if(!list) return;
+  if(!cfg) return '';
   const conditions = VA_AREA_CONDITIONS[cfg.conditions] || [];
   const conds = window[cfg.stateKey];
   // Only show the current session's selection (non-committed conditions)
@@ -616,21 +624,26 @@ function renderBPCondList(regionId){
     const examples = (typeof PHYS_EXAMPLES !== 'undefined' && PHYS_EXAMPLES[name]) || '';
     return name.toLowerCase().includes(_bpSearch) || examples.toLowerCase().includes(_bpSearch);
   });
-  let h = '';
-  filtered.forEach(name => {
+  if(!filtered.length) return '<div style="padding:14px;color:var(--muted);font-size:12px;text-align:center;">No conditions match your search.</div>';
+  return filtered.map(name => {
     const checked = selected.has(name);
     const examples = (typeof PHYS_EXAMPLES !== 'undefined' && PHYS_EXAMPLES[name]) || '';
     const exHtml = examples ? '<span class="mh-cond-examples">e.g. '+examples+'</span>' : '';
     const escaped = name.replace(/'/g,"\\'");
+    const dataName = name.replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     const badge = checked && currentCond ? '<span class="mh-cond-badge mh-rate-'+currentCond.effectiveRating+'">'+currentCond.effectiveRating+'%</span>' : '';
-    h += '<div class="mh-cond-item'+(checked?' selected':'')+'" onclick="toggleBPCondition(\''+regionId+'\',\''+escaped+'\')">' +
+    return '<div class="mh-cond-item'+(checked?' selected':'')+'" data-cond-name="'+dataName+'" onclick="toggleBPCondition(\''+regionId+'\',\''+escaped+'\')">' +
       '<input type="radio" name="bp-cond-'+regionId+'" '+(checked?'checked':'')+' onclick="event.stopPropagation();toggleBPCondition(\''+regionId+'\',\''+escaped+'\')">' +
       '<span class="mh-cond-label">'+name+exHtml+'</span>' +
       badge +
     '</div>';
-  });
-  if(!filtered.length) h = '<div style="padding:14px;color:var(--muted);font-size:12px;text-align:center;">No conditions match your search.</div>';
-  list.innerHTML = h;
+  }).join('');
+}
+
+function renderBPCondList(regionId){
+  const list = document.getElementById('bp-cond-list-'+regionId);
+  if(!list) return;
+  list.innerHTML = _buildBPCondListHTML(regionId);
   if(typeof _initCondListScroll === 'function') _initCondListScroll(list);
 }
 
@@ -642,7 +655,6 @@ function renderBPPanel(regionId){
   const panel = document.getElementById(cfg.panelId);
   if(!panel) return;
 
-  const conds = window[cfg.stateKey];
   let h = '';
 
   // Header
@@ -681,7 +693,27 @@ function renderBPPanel(regionId){
   '</div>';
 
   // Condition checklist
-  h += '<div class="mh-cond-list" id="bp-cond-list-'+regionId+'"></div>';
+  h += '<div class="mh-cond-list" id="bp-cond-list-'+regionId+'">'+_buildBPCondListHTML(regionId)+'</div>';
+
+  // Dynamic eval region — re-rendered on its own without rebuilding the panel
+  // or the cond-list above. Keeps the user's scroll/search state intact.
+  h += '<div id="bp-eval-region-'+regionId+'">'+_buildBPEvalRegionHTML(regionId)+'</div>';
+
+  h += '</div>'; // mh-body
+  const _scrollTop = panel.scrollTop;
+  panel.innerHTML = h;
+  panel.scrollTop = _scrollTop;
+}
+
+// Build the HTML for the evaluation region (everything below the cond-list).
+// Split out so updating a condition can re-render only this region instead of
+// rebuilding the panel — that's what keeps the cond-list scroll/search state
+// and hover from twitching on every click.
+function _buildBPEvalRegionHTML(regionId){
+  const cfg = BP_REGISTRY[regionId];
+  if(!cfg) return '';
+  const conds = window[cfg.stateKey];
+  let h = '';
 
   // Evaluations — only show current session (non-committed) conditions
   const _visibleConds = conds.filter(c => !c._committed);
@@ -798,12 +830,13 @@ function renderBPPanel(regionId){
   h += '<button class="mh-back-btn" onclick="closeBPPanel(\''+regionId+'\')" style="margin-top:8px;">Back to Map (no pin)</button>';
   h += '</div>';
 
-  h += '</div>'; // mh-body
-  const _scrollTop = panel.scrollTop;
-  panel.innerHTML = h;
-  panel.scrollTop = _scrollTop;
-  setTimeout(()=>{
-    renderBPCondList(regionId);
-    panel.scrollTop = _scrollTop;
-  }, 0);
+  return h;
+}
+
+// Render only the section below the cond-list. Falls back to a full panel
+// render if the region doesn't exist yet (e.g., first open).
+function renderBPEvalRegion(regionId){
+  const region = document.getElementById('bp-eval-region-'+regionId);
+  if(!region){ renderBPPanel(regionId); return; }
+  region.innerHTML = _buildBPEvalRegionHTML(regionId);
 }

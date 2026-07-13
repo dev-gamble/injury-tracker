@@ -2210,8 +2210,12 @@ const SPINE_CONDITION_PROFILE = {
 function getSpineProfile(conditionName){ return SPINE_PROFILES[SPINE_CONDITION_PROFILE[conditionName] || 'generic']; }
 function getSpineProfileKey(conditionName){ return SPINE_CONDITION_PROFILE[conditionName] || 'generic'; }
 function calculateSpineRating(domainValues){
+  // The spine % is the musculoskeletal rating (ROM/pain, DC 5237 etc.). The
+  // radiculopathy domain is a SEPARATE peripheral-nerve rating (DC 8520) that
+  // affects the legs — it is emitted as its own line item and must NOT inflate
+  // the back percentage here (see BP_REGISTRY.back.nerveSplit).
   let maxVal = 0;
-  Object.values(domainValues).forEach(v => { if(typeof v==='number' && v>maxVal) maxVal=v; });
+  Object.entries(domainValues).forEach(([k,v]) => { if(k!=='radiculopathy' && typeof v==='number' && v>maxVal) maxVal=v; });
   return maxVal;
 }
 
@@ -2356,8 +2360,12 @@ const NECK_CONDITION_PROFILE = {
 function getNeckProfile(name){ return NECK_PROFILES[getNeckProfileKey(name)]; }
 function getNeckProfileKey(name){ return NECK_CONDITION_PROFILE[name.toLowerCase()] || 'cervical'; }
 function calculateNeckRating(domainValues){
+  // The neck % is the musculoskeletal rating (ROM/pain, DC 5237). Cervical
+  // radiculopathy is a SEPARATE peripheral-nerve rating (DC 8510-8513) affecting
+  // the arms — emitted as its own line item, not folded into the neck percentage
+  // here (see BP_REGISTRY.neck.nerveSplit).
   let maxVal = 0;
-  Object.values(domainValues).forEach(v => { if(typeof v==='number' && v>maxVal) maxVal=v; });
+  Object.entries(domainValues).forEach(([k,v]) => { if(k!=='radiculopathy' && typeof v==='number' && v>maxVal) maxVal=v; });
   return maxVal;
 }
 
@@ -2432,10 +2440,20 @@ const HIP_CONDITION_PROFILE = {
 
 function getHipProfile(name){ return HIP_PROFILES[getHipProfileKey(name)]; }
 function getHipProfileKey(name){ return HIP_CONDITION_PROFILE[name.toLowerCase()] || 'rom'; }
+// Combine multiple independent disability ratings per 38 CFR 4.25 (each successive
+// rating applies to the remaining "efficiency"). Order-independent; returns a
+// single rounded value. combine([]) = 0, combine([n]) = n.
+function _combine425(values){
+  const vals = values.filter(v => typeof v==='number' && v>0).sort((a,b)=>b-a);
+  let combined = 0;
+  vals.forEach(v => { combined = combined + (v/100)*(100 - combined); });
+  return Math.round(combined);
+}
 function calculateHipRating(domainValues){
-  let maxVal = 0;
-  Object.values(domainValues).forEach(v => { if(typeof v==='number' && v>maxVal) maxVal=v; });
-  return maxVal;
+  // Limitation of flexion (DC 5252), extension (DC 5251), and abduction/adduction/
+  // rotation (DC 5253) of the thigh are SEPARATE ratable disabilities on the same
+  // hip — combine them per 38 CFR 4.25 rather than taking only the highest.
+  return _combine425(Object.values(domainValues));
 }
 
 // ── ELBOW PROFILES (DC 5205-5213) ────────────────────────────────────────────
@@ -2498,9 +2516,10 @@ const ELBOW_CONDITION_PROFILE = {
 function getElbowProfile(name){ return ELBOW_PROFILES[getElbowProfileKey(name)]; }
 function getElbowProfileKey(name){ return ELBOW_CONDITION_PROFILE[name.toLowerCase()] || 'rom'; }
 function calculateElbowRating(domainValues){
-  let maxVal = 0;
-  Object.values(domainValues).forEach(v => { if(typeof v==='number' && v>maxVal) maxVal=v; });
-  return maxVal;
+  // Limitation of flexion (DC 5206), extension (DC 5207), and pronation/supination
+  // (DC 5213) of the forearm are SEPARATE ratable disabilities on the same elbow —
+  // combine them per 38 CFR 4.25 rather than taking only the highest.
+  return _combine425(Object.values(domainValues));
 }
 
 // ── WRIST/HAND PROFILES (DC 5214/5215/5220-5230) ────────────────────────────

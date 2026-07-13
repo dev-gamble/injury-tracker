@@ -21,6 +21,11 @@ const BP_REGISTRY = {
     calcRating: calculateSpineRating,
     sideKeys: {upperBack:'Upper',spine:'Mid',lowerBack:'Lower'},
     extremityMap: {},
+    // Nerve pain that radiates into the legs (radiculopathy/sciatica, DC 8520) is
+    // a SEPARATE peripheral-nerve rating — it must not be folded into the spine %.
+    nerveSplit: { domainId:'radiculopathy', dc:'DC 8520',
+      label:'Radiculopathy / Sciatica (nerve)',
+      sides:[['LL','Left Leg'],['RL','Right Leg']] },
     note: 'Back conditions are rated based on how far you can bend and move your spine. Nerve pain that shoots down your legs (radiculopathy/sciatica) is rated as a separate condition.',
   },
   shoulder: {
@@ -41,6 +46,11 @@ const BP_REGISTRY = {
     calcRating: calculateNeckRating,
     sideKeys: {neck:'Neck'},
     extremityMap: {},
+    // Cervical radiculopathy radiating into the arms is a SEPARATE peripheral-nerve
+    // rating (upper radicular group, DC 8510-8513) — not folded into the neck %.
+    nerveSplit: { domainId:'radiculopathy', dc:'DC 8510',
+      label:'Cervical Radiculopathy (nerve)',
+      sides:[['LU','Left Arm'],['RU','Right Arm']] },
     note: 'Neck conditions are rated on how far you can turn and tilt your head. Nerve pain, numbness, or tingling that travels down your arms (radiculopathy) is rated as a separate condition.',
   },
   hip: {
@@ -258,7 +268,7 @@ function unlinkBilateral(regionId, condId){
   cond.bilateralLinked = false;
   cond.bilateralPairId = null;
   cond.bilateralSource = false;
-  renderBPEvalRegion(regionId);
+  renderBPPanel(regionId);
 }
 
 // ── OPEN / CLOSE ────────────────────────────────────────────────────────────
@@ -356,8 +366,7 @@ function addBPCondition(regionId, name){
   } else {
     _addBPCondSide(regionId, name, _bpPinKey);
   }
-  renderBPCondList(regionId);
-  renderBPEvalRegion(regionId);
+  renderBPPanel(regionId);
 }
 
 function removeBPCondition(regionId, id){
@@ -372,8 +381,7 @@ function removeBPCondition(regionId, id){
   // Remove individual condition pin
   if(typeof _removeCondPinIfExists === 'function') _removeCondPinIfExists(id);
   window[cfg.stateKey] = window[cfg.stateKey].filter(c=>c.id!==id);
-  renderBPCondList(regionId);
-  renderBPEvalRegion(regionId);
+  renderBPPanel(regionId);
   if(typeof renderRating==='function') renderRating();
 }
 
@@ -392,8 +400,7 @@ function toggleBPCondition(regionId, name){
     if(alreadySelected.bilateralPairId) ids.push(alreadySelected.bilateralPairId);
     ids.forEach(cid => { if(typeof _removeCondPinIfExists === 'function') _removeCondPinIfExists(cid); });
     window[cfg.stateKey] = window[cfg.stateKey].filter(c => !ids.includes(c.id));
-    renderBPCondList(regionId);
-    renderBPEvalRegion(regionId);
+    renderBPPanel(regionId);
     if(typeof renderRating==='function') renderRating();
     return;
   }
@@ -428,8 +435,7 @@ function toggleBPCondition(regionId, name){
           _bpPinKey = chosenKey;
           _addBPCondSide(regionId, name, chosenKey);
         }
-        renderBPCondList(regionId);
-        renderBPEvalRegion(regionId);
+        renderBPPanel(regionId);
       });
       return;
     }
@@ -468,16 +474,46 @@ function updateBPDomain(regionId, condId, domainId, value){
   }
 
   if(needsFullRender){
-    // Bilateral linked-state changed (paired card needs to update or unlink) —
-    // refresh just the eval region, not the panel.
-    renderBPEvalRegion(regionId);
+    renderBPPanel(regionId);
   } else {
     _patchDomainButtons('bp-eval-'+condId, domainId, parseInt(value));
     _patchRating(condId, cond.effectiveRating, cond.calculatedRating);
   }
-  // Refresh the cond-list so the rating badge reflects the new value.
-  renderBPCondList(regionId);
   if(typeof renderRating==='function') renderRating();
+}
+
+// Which limb the radiculopathy/nerve rating applies to. Drives the separate
+// nerve line item and its extremity (for the bilateral factor) in the combined
+// rating. Does not affect this joint's musculoskeletal percentage.
+function setBPNerveSide(regionId, condId, side){
+  const cfg = BP_REGISTRY[regionId];
+  if(!cfg) return;
+  const cond = (window[cfg.stateKey] || []).find(c=>c.id===condId);
+  if(!cond) return;
+  cond.radSide = cond.radSide === side ? '' : side;
+  renderBPPanel(regionId);
+  if(typeof renderRating==='function') renderRating();
+}
+
+// The separate peripheral-nerve (radiculopathy) rating line(s) derived from a
+// body-part condition. Single source of truth used by the rating view AND every
+// export, so the joint's musculoskeletal % and the nerve rating never drift.
+// Returns [] unless the region has a nerveSplit and the nerve domain is > 0.
+function bpNerveItems(cfg, cond){
+  if(!cfg || !cfg.nerveSplit || !cond || !cond.domains) return [];
+  const val = cond.domains[cfg.nerveSplit.domainId] || 0;
+  if(val <= 0) return [];
+  const side = cond.radSide || '';
+  const exts = side === 'both'
+    ? cfg.nerveSplit.sides.map(s => s[0])
+    : [ (cfg.nerveSplit.sides.some(s => s[0] === side) ? side : 'none') ];
+  return exts.map(ext => ({
+    id: 'bp-' + cond.id + '-nerve' + (exts.length > 1 ? '-' + ext : ''),
+    name: cfg.nerveSplit.label,
+    rating: val,
+    extremity: ext,
+    dc: cfg.nerveSplit.dc,
+  }));
 }
 
 // Targeted DOM updates — no re-render, no scroll jump
@@ -560,8 +596,7 @@ function setBPOverride(regionId, condId, value){
       }
     }
   }
-  renderBPCondList(regionId);
-  renderBPEvalRegion(regionId);
+  renderBPPanel(regionId);
   if(typeof renderRating==='function') renderRating();
 }
 
@@ -596,8 +631,7 @@ function toggleBPOverride(regionId, condId, checked){
       }
     }
   }
-  renderBPCondList(regionId);
-  renderBPEvalRegion(regionId);
+  renderBPPanel(regionId);
   if(typeof renderRating==='function') renderRating();
 }
 
@@ -608,9 +642,11 @@ function onBPSearch(regionId, val){
   renderBPCondList(regionId);
 }
 
-function _buildBPCondListHTML(regionId){
+function renderBPCondList(regionId){
   const cfg = BP_REGISTRY[regionId];
-  if(!cfg) return '';
+  if(!cfg) return;
+  const list = document.getElementById('bp-cond-list-'+regionId);
+  if(!list) return;
   const conditions = VA_AREA_CONDITIONS[cfg.conditions] || [];
   const conds = window[cfg.stateKey];
   // Only show the current session's selection (non-committed conditions)
@@ -624,26 +660,21 @@ function _buildBPCondListHTML(regionId){
     const examples = (typeof PHYS_EXAMPLES !== 'undefined' && PHYS_EXAMPLES[name]) || '';
     return name.toLowerCase().includes(_bpSearch) || examples.toLowerCase().includes(_bpSearch);
   });
-  if(!filtered.length) return '<div style="padding:14px;color:var(--muted);font-size:12px;text-align:center;">No conditions match your search.</div>';
-  return filtered.map(name => {
+  let h = '';
+  filtered.forEach(name => {
     const checked = selected.has(name);
     const examples = (typeof PHYS_EXAMPLES !== 'undefined' && PHYS_EXAMPLES[name]) || '';
     const exHtml = examples ? '<span class="mh-cond-examples">e.g. '+examples+'</span>' : '';
     const escaped = name.replace(/'/g,"\\'");
-    const dataName = name.replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     const badge = checked && currentCond ? '<span class="mh-cond-badge mh-rate-'+currentCond.effectiveRating+'">'+currentCond.effectiveRating+'%</span>' : '';
-    return '<div class="mh-cond-item'+(checked?' selected':'')+'" data-cond-name="'+dataName+'" onclick="toggleBPCondition(\''+regionId+'\',\''+escaped+'\')">' +
+    h += '<div class="mh-cond-item'+(checked?' selected':'')+'" onclick="toggleBPCondition(\''+regionId+'\',\''+escaped+'\')">' +
       '<input type="radio" name="bp-cond-'+regionId+'" '+(checked?'checked':'')+' onclick="event.stopPropagation();toggleBPCondition(\''+regionId+'\',\''+escaped+'\')">' +
       '<span class="mh-cond-label">'+name+exHtml+'</span>' +
       badge +
     '</div>';
-  }).join('');
-}
-
-function renderBPCondList(regionId){
-  const list = document.getElementById('bp-cond-list-'+regionId);
-  if(!list) return;
-  list.innerHTML = _buildBPCondListHTML(regionId);
+  });
+  if(!filtered.length) h = '<div style="padding:14px;color:var(--muted);font-size:12px;text-align:center;">No conditions match your search.</div>';
+  list.innerHTML = h;
   if(typeof _initCondListScroll === 'function') _initCondListScroll(list);
 }
 
@@ -655,6 +686,7 @@ function renderBPPanel(regionId){
   const panel = document.getElementById(cfg.panelId);
   if(!panel) return;
 
+  const conds = window[cfg.stateKey];
   let h = '';
 
   // Header
@@ -693,27 +725,7 @@ function renderBPPanel(regionId){
   '</div>';
 
   // Condition checklist
-  h += '<div class="mh-cond-list" id="bp-cond-list-'+regionId+'">'+_buildBPCondListHTML(regionId)+'</div>';
-
-  // Dynamic eval region — re-rendered on its own without rebuilding the panel
-  // or the cond-list above. Keeps the user's scroll/search state intact.
-  h += '<div id="bp-eval-region-'+regionId+'">'+_buildBPEvalRegionHTML(regionId)+'</div>';
-
-  h += '</div>'; // mh-body
-  const _scrollTop = panel.scrollTop;
-  panel.innerHTML = h;
-  panel.scrollTop = _scrollTop;
-}
-
-// Build the HTML for the evaluation region (everything below the cond-list).
-// Split out so updating a condition can re-render only this region instead of
-// rebuilding the panel — that's what keeps the cond-list scroll/search state
-// and hover from twitching on every click.
-function _buildBPEvalRegionHTML(regionId){
-  const cfg = BP_REGISTRY[regionId];
-  if(!cfg) return '';
-  const conds = window[cfg.stateKey];
-  let h = '';
+  h += '<div class="mh-cond-list" id="bp-cond-list-'+regionId+'"></div>';
 
   // Evaluations — only show current session (non-committed) conditions
   const _visibleConds = conds.filter(c => !c._committed);
@@ -779,6 +791,32 @@ function _buildBPEvalRegionHTML(regionId){
         h += '</div>';
 
         h += '</div>';
+
+        // Radiculopathy / nerve domain: it is rated SEPARATELY from this joint's
+        // musculoskeletal %. When set, show which limb it affects (drives its own
+        // rating line + the bilateral factor) and how it will be rated.
+        if(cfg.nerveSplit && domain.id === cfg.nerveSplit.domainId && currentValue > 0){
+          const _side = cond.radSide || '';
+          h += '<div class="bp-nerve-split" style="margin:-4px 0 12px;padding:10px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;">' +
+            '<div style="font-size:11px;color:var(--navy);line-height:1.5;margin-bottom:8px;">' +
+              '<strong>Rated separately as a nerve condition ('+cfg.nerveSplit.dc+'):</strong> '+currentValue+'%. ' +
+              'This does <strong>not</strong> change the '+cfg.title.split(' ')[0].toLowerCase()+' percentage above — it is added as its own line in the combined rating. Which side?' +
+            '</div>' +
+            '<div class="hd-levels" style="grid-template-columns:repeat(3,1fr);">';
+          cfg.nerveSplit.sides.forEach(([code, lbl]) => {
+            h += '<button class="hd-level-btn'+(_side===code?' hd-active':'')+'"' +
+              ' onclick="setBPNerveSide(\''+regionId+'\','+cond.id+',\''+code+'\')">' +
+              '<span class="hd-level-body"><span class="hd-level-label">'+lbl+'</span></span></button>';
+          });
+          h += '<button class="hd-level-btn'+(_side==='both'?' hd-active':'')+'"' +
+            ' onclick="setBPNerveSide(\''+regionId+'\','+cond.id+',\'both\')">' +
+            '<span class="hd-level-body"><span class="hd-level-label">Both</span></span></button>';
+          h += '</div>';
+          if(!_side){
+            h += '<div style="font-size:10px;color:#92400e;margin-top:6px;">Select a side so the nerve rating counts toward the correct limb (needed for the bilateral factor).</div>';
+          }
+          h += '</div>';
+        }
       });
 
       // Calculated rating
@@ -830,13 +868,12 @@ function _buildBPEvalRegionHTML(regionId){
   h += '<button class="mh-back-btn" onclick="closeBPPanel(\''+regionId+'\')" style="margin-top:8px;">Back to Map (no pin)</button>';
   h += '</div>';
 
-  return h;
-}
-
-// Render only the section below the cond-list. Falls back to a full panel
-// render if the region doesn't exist yet (e.g., first open).
-function renderBPEvalRegion(regionId){
-  const region = document.getElementById('bp-eval-region-'+regionId);
-  if(!region){ renderBPPanel(regionId); return; }
-  region.innerHTML = _buildBPEvalRegionHTML(regionId);
+  h += '</div>'; // mh-body
+  const _scrollTop = panel.scrollTop;
+  panel.innerHTML = h;
+  panel.scrollTop = _scrollTop;
+  setTimeout(()=>{
+    renderBPCondList(regionId);
+    panel.scrollTop = _scrollTop;
+  }, 0);
 }

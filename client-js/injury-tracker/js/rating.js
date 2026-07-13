@@ -251,6 +251,22 @@ function buildRatingItems(){
             suggested: cond.calculatedRating,
           });
         }
+        // Radiculopathy / nerve involvement is a SEPARATE peripheral-nerve rating
+        // (e.g. DC 8520 for the leg) — it is NOT part of the spine/neck % above.
+        // Emit it as its own line so it combines per 38 CFR 4.25 and can feed the
+        // bilateral factor via its own limb extremity. Chosen side lives on radSide.
+        if(typeof bpNerveItems === 'function'){
+          bpNerveItems(cfg, cond).forEach(ni => {
+            _ratingItems.push({
+              id: ni.id,
+              name: ni.name,
+              rating: ni.rating,
+              extremity: ni.extremity,
+              type: 'radiculopathy',
+              suggested: ni.rating,
+            });
+          });
+        }
         _pushSecondaries('bp-' + cond.id, cond);
       });
     });
@@ -666,10 +682,6 @@ function _extTip(ext){ return _EXT_TIPS[ext] ? ' <span class="tip" data-tip="'+_
 
 function renderRating(){
   const c = document.getElementById('rc-list');
-  if(!c) return;
-
-  const _locked = typeof _hasAccess === 'function' && !_hasAccess();
-
   buildRatingItems();
 
   const hasBPConds = typeof BP_REGISTRY!=='undefined' && Object.values(BP_REGISTRY).some(cfg=>(window[cfg.stateKey]||[]).length>0);
@@ -828,6 +840,8 @@ function renderRating(){
         const profile = cfg.profiles()[cond.profile] || cfg.profiles().generic;
         const profileLabel = profile.label.split('(')[0].trim();
         const domainSummary = profile.domains.map(d => {
+          // The nerve/radiculopathy domain is shown as its own separate card below.
+          if(cfg.nerveSplit && d.id === cfg.nerveSplit.domainId) return null;
           const v = cond.domains[d.id];
           if(!v) return null;
           return d.label.split(':').pop().trim() + ': ' + v + '%';
@@ -852,6 +866,26 @@ function renderRating(){
             '</div>' +
           '</div>' +
         '</div>';
+        // Separate peripheral-nerve (radiculopathy) rating line(s) — rated apart
+        // from this joint's musculoskeletal %, so show them as their own cards.
+        if(cfg.nerveSplit && cond.domains && (cond.domains[cfg.nerveSplit.domainId] || 0) > 0){
+          _ratingItems.filter(r => String(r.id).indexOf('bp-' + cond.id + '-nerve') === 0).forEach(ni => {
+            const eTag = ni.extremity && ni.extremity !== 'none' ? '<span class="rc-ext-tag">'+ni.extremity+'</span>' : '';
+            const noSide = !ni.extremity || ni.extremity === 'none';
+            html += '<div class="rc-card" style="border-left:3px solid #2563eb;margin-left:18px;">' +
+              '<div class="rc-card-header">' +
+                '<span class="rc-num" style="background:#2563eb;">&#9889;</span>' +
+                '<span class="rc-name">' + ni.name + '</span>' + eTag +
+                '<span style="font-size:9px;font-weight:600;font-family:var(--fh);color:var(--muted);background:var(--bg);border:1px solid var(--border);padding:2px 6px;border-radius:3px;">' + cfg.nerveSplit.dc + '</span>' +
+                '<span class="rc-pct-box"><span class="rc-pct-input" style="display:inline-block;min-width:34px;text-align:right;">' + ni.rating + '</span><span class="rc-pct-sign">%</span></span>' +
+              '</div>' +
+              '<div style="padding:8px 16px 12px;font-size:12px;color:var(--muted);">' +
+                'Rated separately from the ' + cfg.title.split(' ')[0].toLowerCase() + ' (neurological, ' + cfg.nerveSplit.dc + '). Combines into your total on its own.' +
+                (noSide ? ' <span style="color:#92400e;font-weight:600;">Pick a side in the ' + cfg.title.split(' ')[0] + ' panel so it can count toward the bilateral factor.</span>' : '') +
+              '</div>' +
+            '</div>';
+          });
+        }
         html += _renderEvalSecs('bp-' + cond.id);
       });
     });
@@ -1237,7 +1271,6 @@ function renderRating(){
 
   const _scrollY = window.scrollY;
   c.innerHTML = html;
-  if(_locked){ _applyRatingPreview(c); }
   window.scrollTo(0, _scrollY);
   updateRatingCount();
 }
@@ -1286,91 +1319,6 @@ function updateRatingCount(){
 }
 
 // ── EXPORT HELPERS ──
-
-// Locked-preview transform.
-//
-// Locked users see the real calculation render — info card, section title,
-// and the first primary card stay sharp and interactive so the calculator
-// feels alive. Everything below that is moved into a fade region with three
-// stacked backdrop-filter overlays (true rack-focus blur), then a soft veil
-// dissolves into the page background where the sign-in CTA sits.
-//
-// We render the full HTML first (so we can lift authentic elements), then
-// surgically rewrap the DOM. No content is duplicated; the structure is just
-// reshuffled so the bottom of the rating tab fades into a friendly nudge.
-function _applyRatingPreview(container){
-  if(!container || !container.children.length) return;
-
-  const VISIBLE_CARDS = 1;
-  const visible = document.createElement('div');
-  visible.className = 'rc-preview-visible';
-  const fade = document.createElement('div');
-  fade.className = 'rc-preview-fade';
-  fade.setAttribute('aria-hidden', 'true');
-
-  let cardsShown = 0;
-  let switched = false;
-  Array.from(container.children).forEach(function(child){
-    if(switched){ fade.appendChild(child); return; }
-    visible.appendChild(child);
-    if(child.classList && child.classList.contains('rc-card')){
-      cardsShown++;
-      if(cardsShown >= VISIBLE_CARDS) switched = true;
-    }
-  });
-
-  // Neuter any focusable / interactive nodes inside the fade so keyboard
-  // users can't tab into invisible inputs or trigger calculations.
-  fade.querySelectorAll('input, button, select, textarea').forEach(function(el){
-    el.setAttribute('disabled', 'disabled');
-    el.tabIndex = -1;
-  });
-  fade.querySelectorAll('a').forEach(function(a){
-    a.removeAttribute('href');
-    a.tabIndex = -1;
-  });
-
-  // Three stacked overlays produce a smooth depth-of-field gradient: each
-  // layer's mask starts lower than the last, so blur intensity grows toward
-  // the bottom rather than landing as a single uniform smear.
-  for(var i=1; i<=3; i++){
-    var blur = document.createElement('div');
-    blur.className = 'rc-preview-blur rc-preview-blur-' + i;
-    blur.setAttribute('aria-hidden', 'true');
-    fade.appendChild(blur);
-  }
-
-  // Veil dissolves the bottom of the fade into page background so the CTA
-  // doesn't land on a hard edge.
-  var veil = document.createElement('div');
-  veil.className = 'rc-preview-veil';
-  veil.setAttribute('aria-hidden', 'true');
-  fade.appendChild(veil);
-
-  var wrap = document.createElement('div');
-  wrap.className = 'rc-preview-wrap';
-  wrap.appendChild(fade);
-
-  // CTA sits BELOW the fade as a sibling, then pulls itself up with a
-  // negative margin so it appears to emerge from the dissolve.
-  var cta = document.createElement('div');
-  cta.className = 'rc-preview-cta';
-  cta.innerHTML = ''
-    + '<div class="rc-preview-cta-inner">'
-    +   '<div class="rc-preview-cta-eyebrow">Continue your calculation</div>'
-    +   '<h3 class="rc-preview-cta-title">Sign in to use the VA calculator</h3>'
-    +   '<p class="rc-preview-cta-copy">See your full combined rating and the step-by-step math behind your number.</p>'
-    +   '<div class="rc-preview-cta-actions">'
-    +     '<a href="/login" class="rc-preview-cta-btn">Sign in</a>'
-    +   '</div>'
-    + '</div>';
-  wrap.appendChild(cta);
-
-  container.innerHTML = '';
-  container.appendChild(visible);
-  container.appendChild(wrap);
-}
-
 function getRatingBreakdown(){
   buildRatingItems();
   return calculateVARating();

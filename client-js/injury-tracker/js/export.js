@@ -9,7 +9,6 @@ function _xh(s){
 
 // ── PDF / PRINT SUMMARY ──
 function exportSummary(){
-  if(typeof _requireAccess === 'function' && !_requireAccess()) return;
   const hasBPExport = typeof BP_REGISTRY!=='undefined' && Object.values(BP_REGISTRY).some(cfg=>(window[cfg.stateKey]||[]).length>0);
   const _pk = _getPanelKeys();
   const filteredInj = injuries.filter(i => !_pk.has(i.key));
@@ -319,6 +318,7 @@ ${(function(){
       const profile = cfg.profiles()[c.profile] || cfg.profiles().generic;
       const profileLabel = profile.label ? profile.label.split('(')[0].trim() : '';
       const domains = profile.domains.map(d => {
+        if(cfg.nerveSplit && d.id === cfg.nerveSplit.domainId) return null; // shown as its own line below
         const v = c.domains[d.id];
         if(!v) return null;
         return d.label.split(':').pop().trim() + ': ' + v + '%';
@@ -332,6 +332,15 @@ ${(function(){
       if(c.witnesses) h += '<div style="font-size:11px;color:#6b7280;margin-top:1px;">Witnesses: '+_xh(c.witnesses)+'</div>';
       h += '<div style="font-size:11px;color:#6b7280;margin-top:4px;">' + domains + '</div>';
       h += '<div style="font-size:14px;font-weight:800;color:#0a2357;font-family:monospace;margin-top:4px;">' + c.effectiveRating + '%' + (c.manualOverride !== null ? ' (manual override)' : '') + '</div>';
+      // Separate peripheral-nerve (radiculopathy) rating line(s), rated apart from the joint %
+      (typeof bpNerveItems === 'function' ? bpNerveItems(cfg, c) : []).forEach(ni => {
+        const nExt = ni.extremity && ni.extremity !== 'none' ? ' [' + ni.extremity + ']' : '';
+        h += '<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #cbd5e1;font-size:12px;color:#0a2357;">' +
+          '<span style="font-weight:700;">&#9889; ' + _xh(ni.name) + nExt + '</span> ' +
+          '<span style="font-size:10px;color:#6b7280;">' + _xh(ni.dc) + ' &middot; rated separately</span> ' +
+          '<span style="font-weight:800;font-family:monospace;">' + ni.rating + '%</span>' +
+        '</div>';
+      });
       h += '</div>';
     });
   });
@@ -453,7 +462,6 @@ ${(function(){
 
 // ── CSV EXPORT ──
 function exportCSV(){
-  if(typeof _requireAccess === 'function' && !_requireAccess()) return;
   const _pk2 = _getPanelKeys();
   const filteredInj2 = injuries.filter(i => !_pk2.has(i.key));
   const hasBPExport2 = typeof BP_REGISTRY!=='undefined' && Object.values(BP_REGISTRY).some(cfg=>(window[cfg.stateKey]||[]).length>0);
@@ -563,10 +571,11 @@ function exportCSV(){
       bpConds.forEach(c => {
         const profile = cfg.profiles()[c.profile] || cfg.profiles().generic;
         const domainStr = profile.domains.map(d => {
+          if(cfg.nerveSplit && d.id === cfg.nerveSplit.domainId) return null; // separate nerve row below
           const v = c.domains[d.id];
           const lv = d.levels ? d.levels.find(l => l.value === v) : null;
           return d.label.split(':').pop().trim() + '=' + (lv ? lv.label : v + '%');
-        }).join('; ');
+        }).filter(Boolean).join('; ');
         csvRows.push([
           c.condition,
           c.date||'', c.location||'', c.event||'', c.description||'',
@@ -578,6 +587,20 @@ function exportCSV(){
           c.effectiveRating + '%',
           c.manualOverride !== null ? 'Yes' : 'No'
         ].map(esc).join(','));
+        // Separate peripheral-nerve (radiculopathy) rating — its own row/DC/extremity
+        (typeof bpNerveItems === 'function' ? bpNerveItems(cfg, c) : []).forEach(ni => {
+          csvRows.push([
+            ni.name + ' (from ' + c.condition + ')',
+            c.date||'', c.location||'', c.event||'', c.description||'',
+            '', '', '',
+            ni.dc + ' (rated separately)',
+            ni.extremity,
+            cfg.nerveSplit.domainId + '=' + ni.rating + '%',
+            ni.rating + '%',
+            ni.rating + '%',
+            'No'
+          ].map(esc).join(','));
+        });
       });
     });
   }
@@ -675,7 +698,6 @@ function exportCSV(){
 
 // ── TXT EXPORT ──
 function exportTXT(){
-  if(typeof _requireAccess === 'function' && !_requireAccess()) return;
   const _pk3 = _getPanelKeys();
   const filteredInj3 = injuries.filter(i => !_pk3.has(i.key));
   const hasBPExport3 = typeof BP_REGISTRY!=='undefined' && Object.values(BP_REGISTRY).some(cfg=>(window[cfg.stateKey]||[]).length>0);
@@ -827,6 +849,7 @@ function exportTXT(){
         if(c.medicalCare==='yes') txt += '    Medical Care:   ' + (c.clinicName||'Yes') + '\n';
         if(c.witnesses) txt += '    Witnesses:      ' + c.witnesses + '\n';
         profile.domains.forEach(d => {
+          if(cfg.nerveSplit && d.id === cfg.nerveSplit.domainId) return; // separate nerve line below
           const v = c.domains[d.id];
           if(v > 0){
             const lv = d.levels ? d.levels.find(l => l.value === v) : null;
@@ -834,6 +857,12 @@ function exportTXT(){
           }
         });
         txt += '    Rating: ' + c.effectiveRating + '%' + (c.manualOverride !== null ? ' (manual override)' : '') + '\n\n';
+        // Separate peripheral-nerve (radiculopathy) rating line(s)
+        (typeof bpNerveItems === 'function' ? bpNerveItems(cfg, c) : []).forEach(ni => {
+          const nExt = ni.extremity && ni.extremity !== 'none' ? ' [' + ni.extremity + ']' : '';
+          txt += '  ' + ni.name + nExt + ' [' + ni.dc + ' — rated separately]\n';
+          txt += '    Rating: ' + ni.rating + '%\n\n';
+        });
       });
     });
   }

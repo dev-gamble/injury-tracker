@@ -988,8 +988,11 @@ function renderRating(){
       const isHighest = mhItems.length && mhItems[0].id === 'mh-' + cond.id;
       const borderColor = isHighest ? 'var(--red)' : 'var(--border)';
       const domainSummary = MH_DOMAINS.map(d => {
-        const lv = cond.domains[d.id].level;
-        return lv !== 'none' ? d.label.split(' ')[0] + ': ' + MH_IMPAIRMENT_LABELS[lv] : null;
+        // A condition saved before this domain existed simply has no entry for
+        // it — treat that as unanswered rather than throwing and blanking the
+        // whole rating tab.
+        const lv = (cond.domains[d.id] || {}).level;
+        return lv && lv !== 'none' ? d.label.split(' ')[0] + ': ' + MH_IMPAIRMENT_LABELS[lv] : null;
       }).filter(Boolean).join(', ') || 'Not evaluated';
 
       html += `<div class="rc-card" style="border-left:3px solid ${borderColor};">

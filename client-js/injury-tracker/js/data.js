@@ -77,7 +77,14 @@ function _initCondListScroll(listEl){
       listEl.classList.remove('scrolled-bottom');
     }
   };
-  listEl.addEventListener('scroll', check);
+  // The list element outlives its own innerHTML: every re-render calls back in
+  // here on the SAME node — once per keystroke while searching — so binding
+  // unconditionally stacks up handlers that all fire on every scroll. Bind once;
+  // a genuinely new element (full panel re-render) arrives without the flag.
+  if(!listEl._condScrollBound){
+    listEl.addEventListener('scroll', check);
+    listEl._condScrollBound = true;
+  }
   // If content doesn't overflow, hide hint immediately
   setTimeout(check, 50);
 }

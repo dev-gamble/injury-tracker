@@ -105,13 +105,91 @@ function _isStateEmpty(){
 
 // ── SAVE MIGRATIONS ──
 //
-// A save file stores the NUMBER the user picked for each domain, not the
-// criterion that number meant. So whenever a domain's levels change meaning,
-// every existing save silently starts rendering a different medical answer than
-// the veteran actually gave. Bump VACLAIM_VERSION and fix the old data here.
+// A save file stores the ANSWER the user picked for each domain — a number, or a
+// level/frequency pair — but not the criterion that answer meant. So whenever a
+// domain's levels change, every existing save silently starts rendering a
+// different medical answer than the veteran actually gave. Bump VACLAIM_VERSION
+// and fix the old data here.
 //
 // Returns the names of conditions the user must re-answer (criteria changed so
 // much that the old answer can't be translated), so the caller can tell them.
+
+// Panels whose domains are numeric values chosen from a `levels` list (body-part
+// and head). A stored value matching no level is an answer to a deleted question:
+// clear it, recompute, and name the condition for re-review.
+function _sweepLeveledDomains(conds, profileFor, calcRating, needsReview){
+  (conds || []).forEach(cond => {
+    if(!cond || !cond.domains) return;
+    const profile = profileFor(cond);
+    if(!profile || !profile.domains) return;
+    let orphaned = false;
+    profile.domains.forEach(d => {
+      if(!d.levels) return; // free-numeric domain — nothing to match against
+      const v = cond.domains[d.id];
+      if(v === undefined || v === 0) return;
+      if(d.levels.some(l => l.value === v)) return;
+      cond.domains[d.id] = 0;
+      orphaned = true;
+    });
+    if(!orphaned) return;
+    cond.calculatedRating = calcRating(cond);
+    if(cond.manualOverride === null || cond.manualOverride === undefined){
+      cond.effectiveRating = cond.calculatedRating;
+    }
+    if(!needsReview.includes(cond.condition)) needsReview.push(cond.condition);
+  });
+}
+
+// Mental health domains hold {level, frequency} strings keyed by MH_DOMAINS id,
+// so its orphans look different from the numeric panels'. Three shapes to fix:
+// a domain that no longer exists, a level/frequency that no longer exists, and —
+// the direction that actually bites — a domain that has since been ADDED, which
+// an older save simply doesn't have. Renderers walk MH_DOMAINS and index into
+// cond.domains, so a missing entry is a crash, not a blank. Fill it in.
+//
+// The valid levels come from MH_IMPAIRMENT_LEVELS in data.js — never a copy of
+// it. A stale duplicate here would do the exact damage this function exists to
+// prevent: add a level to the panel, and the sweep would call every veteran who
+// picked it "invalid" and quietly reset their answer to none.
+const _MH_FREQUENCIES = ['less25', '25plus']; // the pair calculateMHRating branches on
+const _mhDomainDefault = () => ({ level: 'none', frequency: 'less25' });
+function _sweepMHDomains(conds, needsReview){
+  if(typeof MH_DOMAINS === 'undefined' || typeof calculateMHRating !== 'function') return;
+  if(typeof MH_IMPAIRMENT_LEVELS === 'undefined') return;
+  const knownIds = new Set(MH_DOMAINS.map(d => d.id));
+  (conds || []).forEach(cond => {
+    if(!cond) return;
+    if(!cond.domains) cond.domains = {};
+    let orphaned = false;
+
+    // Answers to questions that no longer exist.
+    Object.keys(cond.domains).forEach(id => {
+      if(!knownIds.has(id)){ delete cond.domains[id]; orphaned = true; return; }
+      const d = cond.domains[id];
+      if(!d || typeof d !== 'object'){
+        cond.domains[id] = _mhDomainDefault();
+        orphaned = true;
+        return;
+      }
+      if(!MH_IMPAIRMENT_LEVELS.includes(d.level)){ d.level = 'none'; orphaned = true; }
+      if(!_MH_FREQUENCIES.includes(d.frequency)){ d.frequency = 'less25'; orphaned = true; }
+    });
+
+    // Questions the save predates. Not a re-review item — the user was never
+    // asked — but it must exist or the rating tab throws on render.
+    MH_DOMAINS.forEach(d => {
+      if(!cond.domains[d.id]) cond.domains[d.id] = _mhDomainDefault();
+    });
+
+    if(!orphaned) return;
+    cond.calculatedRating = calculateMHRating(cond.domains);
+    if(cond.manualOverride === null || cond.manualOverride === undefined){
+      cond.effectiveRating = cond.calculatedRating;
+    }
+    if(!needsReview.includes(cond.condition)) needsReview.push(cond.condition);
+  });
+}
+
 function _migrateState(state){
   const from = state.version || 1;
   if(from >= VACLAIM_VERSION) return [];
@@ -130,39 +208,41 @@ function _migrateState(state){
     });
   }
 
-  // Any stored value that no longer matches a level in its profile is an answer
-  // to a question that no longer exists — GERD's move from DC 7346 (symptom
-  // severity) to DC 7206 (esophageal stricture) in v2 is the case in point: the
-  // old 60% has no counterpart under criteria that ask something different, and
-  // guessing a replacement would put words in the veteran's mouth. Clear it, and
-  // flag the condition so they can answer the new question themselves. Left as
-  // is, the orphaned value highlights no button yet still drives the rating.
+  // Sweep every panel for answers to questions that no longer exist. GERD's move
+  // from DC 7346 (symptom severity) to DC 7206 (esophageal stricture) in v2 is
+  // the case in point: the old 60% has no counterpart under criteria that ask
+  // something different, and guessing a replacement would put words in the
+  // veteran's mouth. Clear it and flag the condition so they can answer the new
+  // question themselves. Left alone, an orphaned value highlights no button yet
+  // still drives the rating.
+  //
+  // This runs for EVERY panel, not just the ones that changed this version — so
+  // whoever next revises a rating scale gets the protection for free, as long as
+  // they bump VACLAIM_VERSION.
   if(typeof BP_REGISTRY !== 'undefined'){
     Object.entries(BP_REGISTRY).forEach(([regionId, cfg]) => {
-      (bpConds[regionId] || []).forEach(cond => {
-        if(!cond || !cond.domains) return;
-        const profiles = cfg.profiles() || {};
-        const profile = profiles[cond.profile] || profiles.generic;
-        if(!profile || !profile.domains) return;
-        let orphaned = false;
-        profile.domains.forEach(d => {
-          if(!d.levels) return; // free-numeric domain — nothing to match against
-          const v = cond.domains[d.id];
-          if(v === undefined || v === 0) return;
-          if(d.levels.some(l => l.value === v)) return;
-          cond.domains[d.id] = 0;
-          orphaned = true;
-        });
-        if(orphaned){
-          cond.calculatedRating = cfg.calcRating(cond.domains);
-          if(cond.manualOverride === null || cond.manualOverride === undefined){
-            cond.effectiveRating = cond.calculatedRating;
-          }
-          if(!needsReview.includes(cond.condition)) needsReview.push(cond.condition);
-        }
-      });
+      const profiles = cfg.profiles() || {};
+      _sweepLeveledDomains(
+        bpConds[regionId],
+        cond => profiles[cond.profile] || profiles.generic,
+        cond => cfg.calcRating(cond.domains),
+        needsReview
+      );
     });
   }
+  // Head & face stores the same numeric domain values against the same
+  // level-list shape, so it sweeps identically.
+  if(typeof HEAD_PROFILES !== 'undefined' && typeof calculateHeadRating === 'function'){
+    _sweepLeveledDomains(
+      state.headConditions,
+      cond => HEAD_PROFILES[cond.profile] || HEAD_PROFILES.generic,
+      cond => calculateHeadRating(cond.domains),
+      needsReview
+    );
+  }
+  // Mental health is the odd one out: its domains hold {level, frequency} strings
+  // rather than numbers, so an orphan looks different and needs its own check.
+  _sweepMHDomains(state.mentalHealthConditions, needsReview);
 
   state.version = VACLAIM_VERSION;
   return needsReview;

@@ -774,26 +774,30 @@ function submitPendingSec(claimId){
     }
   }
 
-  // Bilateral: create TWO entries (left + right) with proper extremity codes
-  if(side === 'both' && area && typeof BP_REGISTRY !== 'undefined' && BP_REGISTRY[area]){
-    const cfg = BP_REGISTRY[area];
-    const sides = Object.entries(cfg.sideKeys);
-    const leftKey = sides.find(([k])=>k.toLowerCase().startsWith('left'));
-    const rightKey = sides.find(([k])=>k.toLowerCase().startsWith('right'));
-    if(leftKey && rightKey){
-      const leftName = name + ' (Left)';
-      const rightName = name + ' (Right)';
-      // Add left entry
-      if(!ref.secondaries.includes(leftName)) ref.secondaries.push(leftName);
-      ref.secondaryEvals[leftName] = { domains: {...st.pendingDomains}, rating: rating };
-      ref.secondaryRatings[leftName] = rating;
-      ref.secondaryExtremities[leftName] = cfg.extremityMap[leftKey[0]] || 'none';
-      // Add right entry
-      if(!ref.secondaries.includes(rightName)) ref.secondaries.push(rightName);
-      ref.secondaryEvals[rightName] = { domains: {...st.pendingDomains}, rating: rating };
-      ref.secondaryRatings[rightName] = rating;
-      ref.secondaryExtremities[rightName] = cfg.extremityMap[rightKey[0]] || 'none';
-    }
+  // Bilateral: create TWO entries (left + right) with proper extremity codes.
+  // Only areas that actually have left/right side keys can split — the side
+  // popup offers "Both" for any sided-looking condition, but _inferSecArea can
+  // land on an area with no sides (e.g. a bladder condition → abdomen, whose
+  // keys are Abdomen/Pelvis). Those fall through to the single-entry path
+  // below; without this the evaluated secondary was silently discarded.
+  const bilCfg = (side === 'both' && area && typeof BP_REGISTRY !== 'undefined' && BP_REGISTRY[area]) ? BP_REGISTRY[area] : null;
+  const bilSides = bilCfg ? Object.entries(bilCfg.sideKeys) : [];
+  const leftKey = bilSides.find(([k])=>k.toLowerCase().startsWith('left'));
+  const rightKey = bilSides.find(([k])=>k.toLowerCase().startsWith('right'));
+
+  if(bilCfg && leftKey && rightKey){
+    const leftName = name + ' (Left)';
+    const rightName = name + ' (Right)';
+    // Add left entry
+    if(!ref.secondaries.includes(leftName)) ref.secondaries.push(leftName);
+    ref.secondaryEvals[leftName] = { domains: {...st.pendingDomains}, rating: rating };
+    ref.secondaryRatings[leftName] = rating;
+    ref.secondaryExtremities[leftName] = bilCfg.extremityMap[leftKey[0]] || 'none';
+    // Add right entry
+    if(!ref.secondaries.includes(rightName)) ref.secondaries.push(rightName);
+    ref.secondaryEvals[rightName] = { domains: {...st.pendingDomains}, rating: rating };
+    ref.secondaryRatings[rightName] = rating;
+    ref.secondaryExtremities[rightName] = bilCfg.extremityMap[rightKey[0]] || 'none';
   } else {
     // Single side or non-bilateral area
     if(!ref.secondaries.includes(name)) ref.secondaries.push(name);

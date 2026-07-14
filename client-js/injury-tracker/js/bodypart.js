@@ -286,7 +286,7 @@ function openBPPanel(regionId, pinKey){
   _bpSearch = '';
   // Mark all existing conditions as committed (from previous sessions)
   // so they are hidden from the fresh condition list
-  (window[cfg.stateKey]||[]).forEach(c => { c._committed = true; });
+  (window[cfg.stateKey]||[]).forEach(c => { c._committed = true; c._wasCommitted = false; });
   const panel = document.getElementById(cfg.panelId);
   const bodyPanel = document.querySelector('.body-panel');
   const sidebar = document.getElementById('sidebar');
@@ -329,12 +329,21 @@ function _addBPCondSide(regionId, name, pinKey){
   if(!cfg) return;
   const conds = window[cfg.stateKey];
   const ext = cfg.extremityMap[pinKey] || 'none';
+  const sideLabel = cfg.sideKeys[pinKey] || '';
   // Never create an exact duplicate (same condition + same side) — it would be
   // double-counted in the combined rating. If a committed one exists from a
   // previous visit, resurface it (with its data intact) instead of adding anew.
-  const existing = conds.find(c=>c.condition===name && c.extremity===ext);
+  //
+  // The identity is condition + extremity + sideLabel. extremity alone is not
+  // enough: on panels whose segments aren't left/right (back Upper/Mid/Lower,
+  // abdomen/pelvis) every segment maps to extremity 'none', so matching on
+  // extremity would make the same condition on a different segment collide
+  // with — and resurface — the entry from the first segment.
+  const existing = conds.find(c=>c.condition===name && c.extremity===ext && (c.sideLabel||'')===sideLabel);
   if(existing){
-    if(existing._committed) existing._committed = false;
+    // Resurfaced records own saved evaluation data and a map pin. Remember that
+    // so deselecting returns them to the committed state instead of deleting.
+    if(existing._committed){ existing._committed = false; existing._wasCommitted = true; }
     return;
   }
   const profileKey = cfg.getProfileKey(name);
@@ -385,6 +394,35 @@ function removeBPCondition(regionId, id){
   if(typeof renderRating==='function') renderRating();
 }
 
+// Drop a condition out of the current selection. Deselecting must never destroy
+// data from an earlier session, so only conditions created fresh in THIS session
+// are actually deleted:
+//   - still committed  → not part of the current selection at all; leave it be.
+//     (The bilateral deselect below follows pairIds, and the other half of a pair
+//     logged in a past session is still committed — deleting it would wipe a
+//     knee the user never even touched today.)
+//   - resurfaced (_wasCommitted) → owns saved evaluation data and a map pin;
+//     put it back in the committed state, exactly as it was.
+//   - created this session → safe to remove.
+function _deselectBPCondition(regionId, cond){
+  const cfg = BP_REGISTRY[regionId];
+  if(!cfg || !cond) return;
+  if(cond._committed) return;
+  if(cond._wasCommitted){
+    cond._committed = true;
+    cond._wasCommitted = false;
+    return;
+  }
+  // Removing one half of a pair leaves the other half linked to an id that no
+  // longer exists — unlink it, the same way removeBPCondition does.
+  if(cond.bilateralPairId){
+    const pair = window[cfg.stateKey].find(c => c.id === cond.bilateralPairId);
+    if(pair){ pair.bilateralLinked = false; pair.bilateralPairId = null; pair.bilateralSource = false; }
+  }
+  if(typeof _removeCondPinIfExists === 'function') _removeCondPinIfExists(cond.id);
+  window[cfg.stateKey] = window[cfg.stateKey].filter(x => x.id !== cond.id);
+}
+
 function toggleBPCondition(regionId, name){
   const cfg = BP_REGISTRY[regionId];
   const conds = window[cfg.stateKey];
@@ -394,22 +432,18 @@ function toggleBPCondition(regionId, name){
   const alreadySelected = uncommitted.find(c => c.condition === name);
 
   if(alreadySelected){
-    // Deselect — remove BOTH sides of a bilateral pair (and their pins), not
-    // just the first match, so no orphaned half is left behind
+    // Deselect — handle BOTH sides of a bilateral pair, not just the first
+    // match, so no orphaned half is left behind
     const ids = [alreadySelected.id];
     if(alreadySelected.bilateralPairId) ids.push(alreadySelected.bilateralPairId);
-    ids.forEach(cid => { if(typeof _removeCondPinIfExists === 'function') _removeCondPinIfExists(cid); });
-    window[cfg.stateKey] = window[cfg.stateKey].filter(c => !ids.includes(c.id));
+    ids.forEach(cid => _deselectBPCondition(regionId, window[cfg.stateKey].find(c => c.id === cid)));
     renderBPPanel(regionId);
     if(typeof renderRating==='function') renderRating();
     return;
   }
 
-  // Remove previous uncommitted selection (and its pins)
-  uncommitted.forEach(c => {
-    if(typeof _removeCondPinIfExists === 'function') _removeCondPinIfExists(c.id);
-    window[cfg.stateKey] = window[cfg.stateKey].filter(x => x.id !== c.id);
-  });
+  // Clear the previous uncommitted selection
+  uncommitted.forEach(c => _deselectBPCondition(regionId, c));
 
   // For bilateral panels, always ask Left / Right / Both via popup
   if(_hasBilateralSides(regionId)){
@@ -451,12 +485,23 @@ function updateBPDomain(regionId, condId, domainId, value){
   const conds = window[cfg.stateKey];
   const cond = conds.find(c=>c.id===condId);
   if(!cond) return;
+  const prevValue = cond.domains[domainId] || 0;
   cond.domains[domainId] = parseInt(value);
   cond.calculatedRating = cfg.calcRating(cond.domains);
   if(cond.manualOverride===null) cond.effectiveRating = cond.calculatedRating;
 
   // Bilateral sync: source → target auto-syncs; editing target unlinks
   let needsFullRender = false;
+
+  // The nerve "Which side?" picker only exists in the panel HTML while the
+  // nerve domain is > 0, so crossing that threshold has to rebuild the panel —
+  // a targeted button patch would leave the picker missing (or stranded). Back
+  // and neck are never bilaterally linked, so nothing else would re-render them
+  // and the user could never pick a side for their radiculopathy rating.
+  if(cfg.nerveSplit && domainId === cfg.nerveSplit.domainId &&
+     (prevValue > 0) !== (parseInt(value) > 0)){
+    needsFullRender = true;
+  }
   if(cond.bilateralLinked && cond.bilateralPairId){
     const pair = conds.find(c=>c.id===cond.bilateralPairId);
     if(pair && pair.bilateralLinked){
@@ -478,8 +523,26 @@ function updateBPDomain(regionId, condId, domainId, value){
   } else {
     _patchDomainButtons('bp-eval-'+condId, domainId, parseInt(value));
     _patchRating(condId, cond.effectiveRating, cond.calculatedRating);
+    _patchCondListBadge(regionId);
   }
   if(typeof renderRating==='function') renderRating();
+}
+
+// The checklist row for the selected condition carries the same rating badge as
+// the eval card. Patch it in place after a targeted domain update — otherwise it
+// keeps showing the pre-click percentage until some unrelated full re-render.
+// Reads the same source of truth renderBPCondList does (first uncommitted cond),
+// so the two can't disagree.
+function _patchCondListBadge(regionId){
+  const cfg = BP_REGISTRY[regionId];
+  if(!cfg) return;
+  const list = document.getElementById('bp-cond-list-'+regionId);
+  if(!list) return;
+  const currentCond = (window[cfg.stateKey] || []).find(c => !c._committed);
+  const badge = list.querySelector('.mh-cond-item.selected .mh-cond-badge');
+  if(!badge || !currentCond) return;
+  badge.textContent = currentCond.effectiveRating + '%';
+  badge.className = 'mh-cond-badge ' + _rateClass(currentCond.effectiveRating);
 }
 
 // Which limb the radiculopathy/nerve rating applies to. Drives the separate
@@ -544,7 +607,7 @@ function _patchRating(condId, effectiveRating, calculatedRating){
   const badge = card.querySelector('.mh-eval-rating');
   if(badge){
     badge.textContent = effectiveRating + '%';
-    badge.className = 'mh-eval-rating mh-rate-' + effectiveRating;
+    badge.className = 'mh-eval-rating ' + _rateClass(effectiveRating);
   }
   // The "Calculated Rating" box must always show the CALCULATED value —
   // even when a manual override sets a different effective rating
@@ -666,7 +729,7 @@ function renderBPCondList(regionId){
     const examples = (typeof PHYS_EXAMPLES !== 'undefined' && PHYS_EXAMPLES[name]) || '';
     const exHtml = examples ? '<span class="mh-cond-examples">e.g. '+examples+'</span>' : '';
     const escaped = name.replace(/'/g,"\\'");
-    const badge = checked && currentCond ? '<span class="mh-cond-badge mh-rate-'+currentCond.effectiveRating+'">'+currentCond.effectiveRating+'%</span>' : '';
+    const badge = checked && currentCond ? '<span class="mh-cond-badge '+_rateClass(currentCond.effectiveRating)+'">'+currentCond.effectiveRating+'%</span>' : '';
     h += '<div class="mh-cond-item'+(checked?' selected':'')+'" onclick="toggleBPCondition(\''+regionId+'\',\''+escaped+'\')">' +
       '<input type="radio" name="bp-cond-'+regionId+'" '+(checked?'checked':'')+' onclick="event.stopPropagation();toggleBPCondition(\''+regionId+'\',\''+escaped+'\')">' +
       '<span class="mh-cond-label">'+name+exHtml+'</span>' +
@@ -752,7 +815,7 @@ function renderBPPanel(regionId){
           (overrideActive ? '<span class="mh-override-tag">Manual</span>' : '') +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:8px;">' +
-          '<span class="mh-eval-rating mh-rate-'+cond.effectiveRating+'">'+cond.effectiveRating+'%</span>' +
+          '<span class="mh-eval-rating '+_rateClass(cond.effectiveRating)+'">'+cond.effectiveRating+'%</span>' +
           '<button class="mh-remove" onclick="event.stopPropagation();removeBPCondition(\''+regionId+'\','+cond.id+')" title="Remove">&times;</button>' +
         '</div>' +
       '</div>';
@@ -871,9 +934,10 @@ function renderBPPanel(regionId){
   h += '</div>'; // mh-body
   const _scrollTop = panel.scrollTop;
   panel.innerHTML = h;
+  // The cond-list container exists as soon as innerHTML is assigned, so fill it
+  // in the same tick. Deferring it left the list empty for a frame and restored
+  // scrollTop twice — once against the short, listless panel, so the position
+  // was wrong until the timer ran, and two quick clicks could race.
+  renderBPCondList(regionId);
   panel.scrollTop = _scrollTop;
-  setTimeout(()=>{
-    renderBPCondList(regionId);
-    panel.scrollTop = _scrollTop;
-  }, 0);
 }

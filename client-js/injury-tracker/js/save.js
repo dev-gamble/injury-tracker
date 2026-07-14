@@ -1,7 +1,9 @@
 // ── SAVE / LOAD PROJECT (.endexclaim encrypted files; legacy .vaclaim also accepted) ──
 
 const VACLAIM_MAGIC = new Uint8Array([0x56, 0x41, 0x43, 0x4C]); // "VACL"
-const VACLAIM_VERSION = 1;
+// v2: knee meniscus 10/20 were mapped to the wrong diagnostic codes, and GERD
+// moved from DC 7346 to the VA's 2024 DC 7206 criteria. See _migrateState.
+const VACLAIM_VERSION = 2;
 const PBKDF2_ITERATIONS = 600000;
 
 // ── CRYPTO HELPERS ──
@@ -101,9 +103,82 @@ function _isStateEmpty(){
   return true;
 }
 
+// ── SAVE MIGRATIONS ──
+//
+// A save file stores the NUMBER the user picked for each domain, not the
+// criterion that number meant. So whenever a domain's levels change meaning,
+// every existing save silently starts rendering a different medical answer than
+// the veteran actually gave. Bump VACLAIM_VERSION and fix the old data here.
+//
+// Returns the names of conditions the user must re-answer (criteria changed so
+// much that the old answer can't be translated), so the caller can tell them.
+function _migrateState(state){
+  const from = state.version || 1;
+  if(from >= VACLAIM_VERSION) return [];
+  const bpConds = state.bodyPartConditions || {};
+  const needsReview = [];
+
+  // v1 → v2: knee meniscus had DC 5258 and DC 5259 backwards (dislocation with
+  // locking is the 20% code, symptomatic removal the 10%). The criteria are the
+  // same, only the values were reversed — so swap them and the user's ANSWER
+  // survives. Their % changes, because the old one was wrong.
+  if(from < 2){
+    (bpConds.knee || []).forEach(c => {
+      if(!c || !c.domains) return;
+      if(c.domains.meniscus === 10) c.domains.meniscus = 20;
+      else if(c.domains.meniscus === 20) c.domains.meniscus = 10;
+    });
+  }
+
+  // Any stored value that no longer matches a level in its profile is an answer
+  // to a question that no longer exists — GERD's move from DC 7346 (symptom
+  // severity) to DC 7206 (esophageal stricture) in v2 is the case in point: the
+  // old 60% has no counterpart under criteria that ask something different, and
+  // guessing a replacement would put words in the veteran's mouth. Clear it, and
+  // flag the condition so they can answer the new question themselves. Left as
+  // is, the orphaned value highlights no button yet still drives the rating.
+  if(typeof BP_REGISTRY !== 'undefined'){
+    Object.entries(BP_REGISTRY).forEach(([regionId, cfg]) => {
+      (bpConds[regionId] || []).forEach(cond => {
+        if(!cond || !cond.domains) return;
+        const profiles = cfg.profiles() || {};
+        const profile = profiles[cond.profile] || profiles.generic;
+        if(!profile || !profile.domains) return;
+        let orphaned = false;
+        profile.domains.forEach(d => {
+          if(!d.levels) return; // free-numeric domain — nothing to match against
+          const v = cond.domains[d.id];
+          if(v === undefined || v === 0) return;
+          if(d.levels.some(l => l.value === v)) return;
+          cond.domains[d.id] = 0;
+          orphaned = true;
+        });
+        if(orphaned){
+          cond.calculatedRating = cfg.calcRating(cond.domains);
+          if(cond.manualOverride === null || cond.manualOverride === undefined){
+            cond.effectiveRating = cond.calculatedRating;
+          }
+          if(!needsReview.includes(cond.condition)) needsReview.push(cond.condition);
+        }
+      });
+    });
+  }
+
+  state.version = VACLAIM_VERSION;
+  return needsReview;
+}
+
 // ── STATE RESTORATION ──
 
 function _restoreAllState(state){
+  const needsReview = _migrateState(state);
+  if(needsReview.length){
+    // Don't let a rating criteria change quietly rewrite someone's claim.
+    setTimeout(() => _showToast(
+      'Rating criteria changed — please re-answer: ' + needsReview.join(', '),
+      '#c2410c'
+    ), 600);
+  }
   // User ID
   window._userId = state.userId || '';
   const uidField = document.getElementById('user-id-field');
@@ -212,7 +287,11 @@ function _restorePins(){
 
 function _showToast(message, color){
   const toast = document.createElement('div');
-  toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:'+(color||'#059669')+';color:#fff;padding:12px 24px;border-radius:8px;font-family:var(--fh);font-size:14px;font-weight:700;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.2);';
+  // Save/load/migration feedback is often the only confirmation the user gets,
+  // so it has to reach screen readers too — a bare styled div announces nothing.
+  toast.setAttribute('role', 'status');
+  toast.setAttribute('aria-live', 'polite');
+  toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:'+(color||'#059669')+';color:#fff;padding:12px 24px;border-radius:8px;font-family:var(--fh);font-size:14px;font-weight:700;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,.2);max-width:min(90vw,520px);text-align:center;';
   toast.textContent = message;
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 4000);
@@ -494,6 +573,10 @@ async function _doLoad(){
 // panels, MST, special claims, SMC, presumptives, vocational, personal statement.
 
 window.addEventListener('beforeunload', function(e){
+  // The sign-out modal (server-injected, sets window.__signingOut on submit)
+  // already warns that local data will be erased — a second native "Leave site?"
+  // dialog on top of it lets the user cancel a sign-out they just confirmed.
+  if(window.__signingOut) return;
   if(!_isStateEmpty()){
     e.preventDefault();
     e.returnValue = '';

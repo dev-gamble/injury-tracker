@@ -1,4 +1,15 @@
 // ── DATA CONSTANTS ── Pin coordinates, groups, secondary condition maps
+
+// Severity-color class for a rating badge. The .mh-rate-* scale in styles.css
+// is defined per decade, but combining separate diagnostic codes within one
+// joint (38 CFR 4.25 — knee, hip, elbow) yields intermediate values like 19 or
+// 44, which would land on a class that doesn't exist and render uncolored.
+// Snap to the nearest decade for the COLOR only; the displayed % stays exact.
+function _rateClass(rating){
+  const v = Math.max(0, Math.min(100, Math.round((Number(rating) || 0) / 10) * 10));
+  return 'mh-rate-' + v;
+}
+
 const MENTAL_PINS = {"mental": {"label": "Mental Health", "x": 52, "y": 10}};
 const HEAD_PINS = {"headFace": {"label": "Head & Face", "x": 52, "y": 17}};
 // NOTE: The front view is a mirror — the body's LEFT side is on the VIEWER'S RIGHT

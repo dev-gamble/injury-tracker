@@ -172,7 +172,7 @@ function renderConditionList() {
   filtered.forEach(name => {
     const checked = selected.has(name);
     const cond = window._mentalHealthConditions.find(c => c.condition === name);
-    const badge = cond ? `<span class="mh-cond-badge mh-rate-${cond.effectiveRating}">${cond.effectiveRating}%</span>` : '';
+    const badge = cond ? `<span class="mh-cond-badge ${_rateClass(cond.effectiveRating)}">${cond.effectiveRating}%</span>` : '';
     const examples = (typeof MH_EXAMPLES !== 'undefined' && MH_EXAMPLES[name]) || '';
     const exHtml = examples ? `<span class="mh-cond-examples">e.g. ${examples}</span>` : '';
     const escapedName = name.replace(/"/g, '&quot;').replace(/'/g, "&#39;");
@@ -248,7 +248,7 @@ function _buildMHEvalRegionHTML() {
 
     conds.forEach(cond => {
       const isHighest = highest && cond.id === highest.id && conds.length > 1;
-      const rateClass = 'mh-rate-' + cond.effectiveRating;
+      const rateClass = _rateClass(cond.effectiveRating);
       const overrideActive = cond.manualOverride !== null;
 
       h += `<div class="mh-eval-card${isHighest ? ' mh-highest' : ''}">`;

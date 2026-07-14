@@ -10,7 +10,7 @@ let _headPinKey = 'headFace'; // which pin was clicked to open
 function openHeadPanel(pinKey) {
   _headPinKey = pinKey || 'headFace';
   // Mark all existing conditions as committed — panel opens as fresh slate
-  (window._headConditions||[]).forEach(c => { c._committed = true; });
+  (window._headConditions||[]).forEach(c => { c._committed = true; c._wasCommitted = false; });
   const panel = document.getElementById('head-panel');
   const bodyPanel = document.querySelector('.body-panel');
   const sidebar = document.getElementById('sidebar');
@@ -48,7 +48,14 @@ function addHeadCondition(name) {
   // adding a second entry that would double-count in the combined rating
   const existing = window._headConditions.find(c => c.condition === name);
   if (existing) {
-    if (existing._committed) { existing._committed = false; renderHeadConditionList(); renderHeadEvalRegion(); }
+    // Resurfaced records own saved evaluation data and a map pin. Remember that
+    // so deselecting returns them to the committed state instead of deleting.
+    if (existing._committed) {
+      existing._committed = false;
+      existing._wasCommitted = true;
+      renderHeadConditionList();
+      renderHeadEvalRegion();
+    }
     return;
   }
   const profileKey = getHeadProfileKey(name);
@@ -77,16 +84,34 @@ function removeHeadCondition(id) {
   if (typeof renderRating === 'function') renderRating();
 }
 
+// Drop a condition out of the current selection. A record resurfaced from a
+// previous visit (_wasCommitted) still owns its saved evaluation and its map
+// pin, so it goes back to the committed state — deselecting must never destroy
+// data the user entered in an earlier session. Only conditions created fresh in
+// this session are actually deleted.
+function _deselectHeadCondition(cond) {
+  if(!cond) return;
+  if(cond._wasCommitted){
+    cond._committed = true;
+    cond._wasCommitted = false;
+    renderHeadConditionList();
+    renderHeadEvalRegion();
+    if (typeof renderRating === 'function') renderRating();
+    return;
+  }
+  removeHeadCondition(cond.id);
+}
+
 function toggleHeadCondition(name) {
   // Single-select: only one non-committed condition at a time
   const uncommitted = window._headConditions.filter(c => !c._committed);
   const alreadySelected = uncommitted.find(c => c.condition === name);
   if(alreadySelected){
-    removeHeadCondition(alreadySelected.id);
+    _deselectHeadCondition(alreadySelected);
     return;
   }
-  // Remove previous uncommitted selection
-  uncommitted.forEach(c => removeHeadCondition(c.id));
+  // Clear the previous uncommitted selection
+  uncommitted.forEach(c => _deselectHeadCondition(c));
   addHeadCondition(name);
 }
 
@@ -126,7 +151,7 @@ function _patchHeadRating(condId, effectiveRating, calculatedRating){
   const badge = card.querySelector('.mh-eval-rating');
   if(badge){
     badge.textContent = effectiveRating + '%';
-    badge.className = 'mh-eval-rating mh-rate-' + effectiveRating;
+    badge.className = 'mh-eval-rating ' + _rateClass(effectiveRating);
   }
   // The "Calculated Rating" box always shows the CALCULATED value, even under override
   const calcVal = evalBody.querySelector('.hd-calc-val');
@@ -194,7 +219,7 @@ function _buildHeadCondListHTML() {
   if (!filtered.length) return '<div style="padding:14px;color:var(--muted);font-size:12px;text-align:center;">No conditions match your search.</div>';
   return filtered.map(name => {
     const checked = selected.has(name);
-    const badge = checked && currentCond ? '<span class="mh-cond-badge mh-rate-' + currentCond.effectiveRating + '">' + currentCond.effectiveRating + '%</span>' : '';
+    const badge = checked && currentCond ? '<span class="mh-cond-badge ' + _rateClass(currentCond.effectiveRating) + '">' + currentCond.effectiveRating + '%</span>' : '';
     const escaped = name.replace(/'/g, "\\'");
     const dataName = name.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     return '<div class="mh-cond-item' + (checked ? ' selected' : '') + '" data-cond-name="' + dataName + '" onclick="toggleHeadCondition(\'' + escaped + '\')">' +
@@ -271,7 +296,7 @@ function _buildHeadEvalRegionHTML() {
 
     _visibleConds.forEach(cond => {
       const profile = HEAD_PROFILES[cond.profile] || HEAD_PROFILES.generic;
-      const rateClass = 'mh-rate-' + cond.effectiveRating;
+      const rateClass = _rateClass(cond.effectiveRating);
       const overrideActive = cond.manualOverride !== null;
 
       h += '<div class="mh-eval-card">';

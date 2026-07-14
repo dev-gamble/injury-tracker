@@ -156,11 +156,16 @@ function buildRatingItems(){
         // MH secondaries go to the MH display section, not into the combined calc
         if(mhNames.has(secLower) || mhSecondaryNames.has(secLower)){
           const secSuggested = getSuggestedRating(sec);
+          // Did the user actually evaluate this secondary, or is the number
+          // only a SUGGESTED_RATINGS guess? CSV-imported and legacy-saved
+          // injuries carry secondary NAMES with no ratings at all.
+          const evaluated = (inj.secondaryRatings && inj.secondaryRatings[sec] !== undefined) ||
+                            (inj._secondaryRatings && (inj._secondaryRatings[sec] !== undefined || inj._secondaryRatings[si] !== undefined));
           const evalRating = (inj.secondaryRatings && inj.secondaryRatings[sec] !== undefined) ? inj.secondaryRatings[sec] :
                              (inj._secondaryRatings && inj._secondaryRatings[sec] !== undefined) ? inj._secondaryRatings[sec] :
                              (inj._secondaryRatings && inj._secondaryRatings[si] !== undefined) ? inj._secondaryRatings[si] :
                              (secSuggested !== null ? secSuggested : 0);
-          _mhSecondaryDisplay.push({ name: sec, rating: evalRating, parentName: inj.label });
+          _mhSecondaryDisplay.push({ name: sec, rating: evalRating, parentName: inj.label, evaluated: !!evaluated });
           return;
         }
 
@@ -200,7 +205,7 @@ function buildRatingItems(){
         const secSuggested = getSuggestedRating(sec);
         // !== undefined (not ||) so an explicit 0% rating is respected
         const rating = secRatings[sec] !== undefined ? secRatings[sec] : (secSuggested !== null ? secSuggested : 0);
-        _mhSecondaryDisplay.push({ name: sec, rating: rating, parentName: ref.condition || '' });
+        _mhSecondaryDisplay.push({ name: sec, rating: rating, parentName: ref.condition || '', evaluated: secRatings[sec] !== undefined });
         return;
       }
       const secSuggested = getSuggestedRating(sec);
@@ -306,12 +311,23 @@ function buildRatingItems(){
   // single MH rating — otherwise a veteran whose only MH claim is e.g.
   // "Depression due to chronic pain" (secondary to a knee) would get 0%.
   _mhSecondaryDisplay.forEach((s, i) => {
-    _mhPool.push({ rating: s.rating, name: s.name, source:'sec', index:i, suggested: null });
+    _mhPool.push({ rating: s.rating, name: s.name, source:'sec', index:i, suggested: null, evaluated: s.evaluated !== false });
   });
 
-  // Apply single highest MH rating across all sources
+  // Apply single highest MH rating across all sources.
+  //
+  // A secondary the user never evaluated carries only a SUGGESTED_RATINGS guess
+  // (e.g. 'major depressive disorder' → 50), so it must not outrank a rating the
+  // veteran actually worked through in the MH panel. Guesses compete only when
+  // nothing has been evaluated at all — that still covers the case this pool
+  // exists for: an MH claim that lives solely as a secondary to another injury.
   if(_mhPool.length){
-    const highest = _mhPool.reduce((best, item) => item.rating > best.rating ? item : best, _mhPool[0]);
+    // "> 0" matters: an MH condition the user added but hasn't rated yet sits at
+    // 0%, and it shouldn't suppress the guess and leave them with no MH line at
+    // all — it just shouldn't be beaten by one.
+    const evaluated = _mhPool.filter(item => item.evaluated !== false && item.rating > 0);
+    const contenders = evaluated.length ? evaluated : _mhPool;
+    const highest = contenders.reduce((best, item) => item.rating > best.rating ? item : best, contenders[0]);
     if(highest.rating > 0){
       _ratingItems.push({
         id: highest.source === 'mh' ? 'mh-' + highest.ref.id :

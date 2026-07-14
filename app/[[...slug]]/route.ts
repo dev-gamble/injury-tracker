@@ -240,11 +240,31 @@ export async function GET(
         // Access can come from either a license-key group OR an active Stripe
         // subscription. Admins and key-group holders short-circuit; everyone
         // else goes through current_user_has_access() which unions both paths.
+        //
+        // Subscription state is verified against the actual
+        // stripe_user_subscriptions table rather than inferred from has-access:
+        // the early-launch free-tier override makes has-access true for every
+        // signed-in user, and without this we'd render a SUBSCRIBED billing pill
+        // linking into a Stripe portal with no customer of record.
+        //
+        // Both RPCs depend on `group` but not on each other, and this branch is
+        // the common case (any free-tier user). Issue them together — served
+        // serially they put two full DB round-trips in front of first byte, on
+        // every navigation, since the HTML is sent no-store.
+        let isSubscribed = false
         if (isAdmin || group !== null) {
           hasAccess = true
         } else {
-          const { data: rpcAccess } = await supabase.rpc('current_user_has_access')
-          hasAccess = rpcAccess === true
+          const [accessRes, subRes] = await Promise.all([
+            supabase.rpc('current_user_has_access'),
+            supabase.rpc('current_user_is_subscribed'),
+          ])
+          hasAccess = accessRes.data === true
+          if (subRes.error) {
+            routeLog.warn('tracker.is_subscribed_rpc_error', { userId: user.id, error: errorToFields(subRes.error) })
+          } else {
+            isSubscribed = subRes.data === true
+          }
         }
         // The pill in the header reflects how the user signed up: a "key"
         // signup (or unset metadata) gets "Redeem Key", a "subscription"
@@ -256,20 +276,6 @@ export async function GET(
           : channelRaw === 'key' ? 'key'
           : channelRaw === 'free' ? 'free'
           : null
-        // Verify subscription against the actual stripe_user_subscriptions
-        // table rather than inferring from has-access. The early-launch
-        // free-tier override makes has-access true for every signed-in user
-        // — without this query we'd render a SUBSCRIBED billing pill that
-        // links into a Stripe portal with no customer of record.
-        let isSubscribed = false
-        if (!isAdmin && group === null) {
-          const { data: subData, error: subError } = await supabase.rpc('current_user_is_subscribed')
-          if (subError) {
-            routeLog.warn('tracker.is_subscribed_rpc_error', { userId: user.id, error: errorToFields(subError) })
-          } else {
-            isSubscribed = subData === true
-          }
-        }
         replacement = renderSignedInBlock(user.email ?? '', group, isAdmin, accessChannel, isSubscribed, hasAccess)
       }
       html = html.replace(AUTH_BUTTON_PATTERN, replacement)

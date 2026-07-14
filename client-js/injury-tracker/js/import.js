@@ -173,13 +173,20 @@ function handleImportFile(input){
     if(headerIdx === -1) headerIdx = 0;
 
     const headers = rows[headerIdx].map(h=>h.toLowerCase().trim());
-    // Stop at the first section-divider row (the export appends MENTAL HEALTH /
-    // RATING sections after a blank line — those aren't injury rows)
+    // Stop at the first section divider (the export appends MENTAL HEALTH /
+    // RATING / PYRAMIDING sections after the injury rows — those aren't injuries).
+    //
+    // The structural signal is "blank row, then a row with only its first cell
+    // filled": the export writes a blank row before every section header, and
+    // injury rows are contiguous. Recognizing headers by their ALL-CAPS text
+    // instead was both too eager — a hand-written "BROKEN ANKLE" row with no
+    // other cells filled silently truncated the import from there on — and too
+    // weak, since headers carrying digits or colons ("PYRAMIDING / DUPLICATE
+    // REVIEW (38 CFR 4.14)") failed the character test and imported as injuries.
     let bodyRows = rows.slice(headerIdx+1);
-    const sectionIdx = bodyRows.findIndex(r => {
-      const first = (r[0]||'').trim();
-      return first && !r.slice(1).some(c=>c.trim()) && /^[A-Z ()&/-]+$/.test(first);
-    });
+    const _isBlankRow = r => !r.some(c => c.trim());
+    const _isLabelOnlyRow = r => (r[0]||'').trim() && !r.slice(1).some(c => c.trim());
+    const sectionIdx = bodyRows.findIndex((r, i) => i > 0 && _isBlankRow(bodyRows[i-1]) && _isLabelOnlyRow(r));
     if(sectionIdx > -1) bodyRows = bodyRows.slice(0, sectionIdx);
     const dataRows = bodyRows.filter(r=>r.some(c=>c.trim()));
 

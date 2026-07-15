@@ -7,11 +7,10 @@ function renderStatement(){
   if(!c) return;
 
   // Gather all conditions for the reference sidebar
-  const _pk = _getPanelKeys();
   const allConds = [];
 
   // Physical injuries (non-panel)
-  injuries.filter(i => !_pk.has(i.key)).forEach(i => {
+  _nonPanelInjuries(injuries).forEach(i => {
     allConds.push({ name: i.label, type: 'Primary', rating: i._assignedRating, date: i.date });
   });
 
@@ -96,39 +95,37 @@ function renderStatement(){
   html += '<div class="ps-sidebar-title">Your Conditions</div>';
   html += '<div class="ps-sidebar-desc">Reference list of everything you\'ve logged. Click a condition to insert its name into your statement.</div>';
 
+  // Condition names come from user input and restored save files — escape both
+  // the displayed name and the onclick argument (quote-escaping alone leaves
+  // <img onerror>-style markup live in the sidebar)
+  const _e = typeof escapeHTML === 'function' ? escapeHTML : (x=>x);
+  const _refItem = (name, typeLabel) => {
+    // Backslashes first — a name ending in \ would otherwise swallow the
+    // closing quote of the psInsert('...') argument and break the onclick
+    const attrSafe = _e(String(name).replace(/\\/g,'\\\\').replace(/'/g,"\\'"));
+    return '<div class="ps-ref-item" onclick="psInsert(\'' + attrSafe + '\')" title="Click to insert">' +
+      '<span class="ps-ref-name">' + _e(name) + '</span>' +
+      '<span class="ps-ref-type">' + _e(typeLabel) + '</span>' +
+    '</div>';
+  };
+
   if(allConds.length){
     html += '<div class="ps-ref-section">Primary & Evaluated</div>';
     allConds.forEach(c => {
       const ext = c.extremity && c.extremity !== 'none' ? ' [' + c.extremity + ']' : '';
       const ratingTxt = c.rating !== undefined && c.rating !== null ? ' — ' + c.rating + '%' : '';
-      const escaped = (c.name + ext).replace(/'/g,"\\'").replace(/"/g,'&quot;');
-      html += '<div class="ps-ref-item" onclick="psInsert(\'' + escaped + '\')" title="Click to insert">' +
-        '<span class="ps-ref-name">' + c.name + ext + '</span>' +
-        '<span class="ps-ref-type">' + c.type + ratingTxt + '</span>' +
-      '</div>';
+      html += _refItem(c.name + ext, c.type + ratingTxt);
     });
   }
 
   if(secSet.size){
     html += '<div class="ps-ref-section">Secondary Conditions</div>';
-    secSet.forEach(s => {
-      const escaped = s.replace(/'/g,"\\'").replace(/"/g,'&quot;');
-      html += '<div class="ps-ref-item" onclick="psInsert(\'' + escaped + '\')" title="Click to insert">' +
-        '<span class="ps-ref-name">' + s + '</span>' +
-        '<span class="ps-ref-type">Secondary</span>' +
-      '</div>';
-    });
+    secSet.forEach(s => { html += _refItem(s, 'Secondary'); });
   }
 
   if(specials.length){
     html += '<div class="ps-ref-section">Special Claims</div>';
-    specials.forEach(s => {
-      const escaped = s.replace(/'/g,"\\'").replace(/"/g,'&quot;');
-      html += '<div class="ps-ref-item" onclick="psInsert(\'' + escaped + '\')" title="Click to insert">' +
-        '<span class="ps-ref-name">' + s + '</span>' +
-        '<span class="ps-ref-type">Special</span>' +
-      '</div>';
-    });
+    specials.forEach(s => { html += _refItem(s, 'Special'); });
   }
 
   if(!allConds.length && !secSet.size && !specials.length){
@@ -179,12 +176,12 @@ function psInsert(text){
 // ── VOCATIONAL CONDITIONS (lives in Personal Statement) ──
 function _renderVocationalInStatement(){
   const vocSecs = window._vocSecondaries || [];
+  const _e = typeof escapeHTML === 'function' ? escapeHTML : (x=>x);
   let h = '<div class="ps-voc-section">';
   h += '<div class="sp-section-title" style="font-size:13px;margin:0 0 6px;">Vocational Conditions <span class="tip" data-tip="Document how your service-connected disabilities affect your ability to work. This is important evidence if your conditions prevent you from working or limit the kind of work you can do.">?</span></div>';
   h += '<div style="font-size:11px;color:var(--muted);margin-bottom:10px;">How do your service-connected conditions affect your ability to work?</div>';
 
   if(vocSecs.length){
-    const _e = typeof escapeHTML === 'function' ? escapeHTML : (x=>x);
     h += '<div class="sp-chips" style="margin-bottom:8px;">';
     // Index-based removal + escaped label — quotes in custom entries must not
     // break the chip markup or make the entry unremovable
@@ -211,7 +208,7 @@ function _renderVocationalInStatement(){
     '<label style="font-size:10px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.5px;font-family:var(--fh);">Vocational Notes</label>' +
     '<textarea id="ps-voc-notes" placeholder="Describe how your conditions affect employment..." ' +
     'style="width:100%;min-height:50px;margin-top:4px;padding:8px;border-radius:8px;border:1px solid var(--border);font-family:var(--fm);font-size:12px;resize:vertical;" ' +
-    'onchange="window._vocNotes=this.value">' + (window._vocNotes||'') + '</textarea>' +
+    'onchange="window._vocNotes=this.value">' + _e(window._vocNotes||'') + '</textarea>' +
   '</div>';
 
   h += '</div>';

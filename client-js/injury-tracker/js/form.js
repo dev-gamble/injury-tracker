@@ -217,7 +217,12 @@ function saveInjury(){
     // Update body area key
     const newArea = document.getElementById('f-body-area').value;
     const origGroup = document.getElementById('f-body-area').dataset.originalGroup;
-    if(newArea && newArea!==origGroup) inj.key = newArea;
+    if(newArea && newArea!==origGroup){
+      inj.key = newArea;
+      // Every selectable area is panel-managed — without this flag the record
+      // would vanish from timeline/rating/exports the moment its key changes
+      inj.customPin = true;
+    }
     inj.pin.label = resolvedLabel;
     // Update pin on map
     const pinEl = document.getElementById('pin-'+inj.id);
@@ -235,7 +240,9 @@ function saveInjury(){
 
   // NEW INJURY MODE
   if(!pendingPin){alert('No pin placed. Click the body map or Quick Select first.');return;}
-  const isCustom = pendingPin.key==='custom';
+  // Check the origin flag, not just the key — onBodyAreaChange already
+  // replaced 'custom' with the selected area by the time we get here
+  const isCustom = pendingPin.key==='custom' || !!pendingPin.customPin;
 
   // For custom pins, require area + condition selection
   if(isCustom){
@@ -260,6 +267,10 @@ function saveInjury(){
   const inj={
     id:Date.now(),
     key:pendingPin.key,
+    // Custom-pin records share panel-managed keys (every area in the dropdown
+    // is one) but are ordinary injuries — this flag keeps _nonPanelInjuries
+    // from hiding them in the timeline, rating, exports, and statement.
+    customPin:isCustom,
     label:finalLabel,
     date, severity:sev,
     location:document.getElementById('f-loc').value,
@@ -295,8 +306,9 @@ function saveInjury(){
   // Stamp date/pin onto body part conditions (knee, back, shoulder, etc.)
   if(typeof BP_REGISTRY !== 'undefined'){
     Object.values(BP_REGISTRY).forEach(cfg => {
-      // Match if the pin key belongs to this body part's side keys
-      if(cfg.sideKeys[pendingPin.key]){
+      // Match if the pin key belongs to this body part's side keys, or is the
+      // region id itself (custom pins store the area/region id, not a side key)
+      if(cfg.sideKeys[pendingPin.key] || cfg.id === pendingPin.key){
         (window[cfg.stateKey]||[]).forEach(c => {
           if(!c.date) c.date = date;
           if(!c.pin) c.pin = {x:inj.pin.x, y:inj.pin.y, side:inj.pin.side, body:inj.pin.body};

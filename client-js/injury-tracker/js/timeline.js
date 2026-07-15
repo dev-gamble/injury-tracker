@@ -36,8 +36,7 @@ function gatherTimelineEntries(){
   const entries = [];
 
   // Physical injuries (skip panel-managed keys — those have their own entries below)
-  const _pk = _getPanelKeys();
-  injuries.filter(i => !_pk.has(i.key)).forEach(i => {
+  _nonPanelInjuries(injuries).forEach(i => {
     if(!i.date) return;
     entries.push({
       type:'injury', id:i.id, label:i.label, date:i.date,
@@ -103,6 +102,9 @@ function gatherTimelineEntries(){
 function renderTimeline(){
   const c=document.getElementById('tl-list');
   const entries = gatherTimelineEntries();
+  // Every user-typed field (and anything restored from a save file) must be
+  // escaped before landing in innerHTML — a shared project file is untrusted
+  const _esc = typeof escapeHTML === 'function' ? escapeHTML : (s => s);
 
   const _hasSpecials = typeof SPECIAL_CLAIM_TYPES !== 'undefined' && window._specialClaims && SPECIAL_CLAIM_TYPES.some(item => window._specialClaims[item.id]);
   // Presumptive claims (Agent Orange, Gulf War, Burn Pit, POW…) live in
@@ -116,44 +118,51 @@ function renderTimeline(){
 
   const years=[...new Set(entries.map(e=>e.date?.slice(0,4)).filter(Boolean))];
   c.innerHTML=years.map(yr=>`
-    <div class="yr-lbl">${yr}</div>
+    <div class="yr-lbl">${_esc(yr)}</div>
     ${entries.filter(e=>e.date?.startsWith(yr)).map(e=>{
       const isPhysical = e.type==='injury';
       const bpCfg = typeof BP_REGISTRY!=='undefined' ? BP_REGISTRY[e.type] : null;
       const num = isPhysical ? injuryNumber(e.ref.id) : (e.type==='mental' ? 'MH' : e.type==='head' ? 'HD' : (bpCfg ? bpCfg.id.slice(0,2).toUpperCase() : 'BP'));
-      const sc=SC[e.severity]||SC.custom;
-      const sbg=SBG[e.severity]||SBG.custom;
-      const sbd=SBD[e.severity]||SBD.custom;
-      const stxt=e.severity==='custom'?'Other':e.severity;
+      const severity = Object.prototype.hasOwnProperty.call(SC, e.severity) ? e.severity : 'custom';
+      const refId = Number(e.ref && e.ref.id);
+      // Body-part conditions intentionally use Date.now() + Math.random() so
+      // two bilateral records created in the same millisecond remain unique.
+      // A finite number is safe to interpolate as a JS numeric literal; do not
+      // narrow legitimate fractional ids to integers and turn actions into 0.
+      const safeId = Number.isFinite(refId) && refId > 0 ? refId : 0;
+      const sc=SC[severity];
+      const sbg=SBG[severity];
+      const sbd=SBD[severity];
+      const stxt=severity==='custom'?'Other':severity;
       const typeTag = e.type==='mental' ? '<span style="font-size:9px;font-weight:700;font-family:var(--fh);color:#7c3aed;background:#f5f3ff;border:1px solid #ddd6fe;padding:1px 5px;border-radius:3px;">Mental Health</span>' :
                       e.type==='head' ? '<span style="font-size:9px;font-weight:700;font-family:var(--fh);color:var(--navy);background:#eff3ff;border:1px solid #bfdbfe;padding:1px 5px;border-radius:3px;">Head & Face</span>' :
                       bpCfg ? '<span style="font-size:9px;font-weight:700;font-family:var(--fh);color:#047857;background:#ecfdf5;border:1px solid #a7f3d0;padding:1px 5px;border-radius:3px;">'+bpCfg.title+'</span>' : '';
-      const editBtn = isPhysical ? `<button class="edit-btn" onclick="editInjury(${e.ref.id})" title="Edit">&#9998;</button>` : '';
+      const editBtn = isPhysical ? `<button class="edit-btn" onclick="editInjury(${safeId})" title="Edit">&#9998;</button>` : '';
       const delBtn = isPhysical
-        ? `<button class="del" onclick="deleteInjury(${e.ref.id})">×</button>`
-        : `<button class="del" onclick="deleteEvalFromTimeline('${e.type}',${e.ref.id})">×</button>`;
-      const pinInfo = e.pin ? `<span style="font-size:10px;color:var(--muted);font-family:var(--fm);">${e.pin.body||''} · ${e.pin.side||''}</span>` : '';
+        ? `<button class="del" onclick="deleteInjury(${safeId})">×</button>`
+        : `<button class="del" onclick="deleteEvalFromTimeline('${e.type}',${safeId})">×</button>`;
+      const pinInfo = e.pin ? `<span style="font-size:10px;color:var(--muted);font-family:var(--fm);">${_esc(e.pin.body||'')} · ${_esc(e.pin.side||'')}</span>` : '';
 
-      return`<div class="ic ${e.severity}">
+      return`<div class="ic ${severity}">
         <div style="flex:1">
           <div class="ic-title">
             <span style="display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;border-radius:50%;background:${sc};color:#fff;font-size:${isPhysical?'11':'8'}px;font-weight:800;font-family:var(--fm);flex-shrink:0;padding:0 4px;">${num}</span>
-            ${e.label}
+            ${_esc(e.label)}
             <span class="stag" style="background:${sbg};color:${sc};border:1px solid ${sbd};">${stxt}</span>
             ${typeTag}
             ${pinInfo}
           </div>
-          <div class="ic-meta">${e.date}${e.location?' · '+e.location:''}${e.event?' · '+e.event:''}</div>
-          ${e.description?`<div class="ic-desc">"${e.description}"</div>`:''}
-          ${e.medicalCare==='yes'?`<div class="ic-med">&#10003; Medical care${e.clinicName?' — '+e.clinicName:' received'}</div>`:''}
-          ${e.witnesses?`<div style="color:var(--muted);font-size:11px;margin-top:3px;">Witnesses: ${e.witnesses}</div>`:''}
+          <div class="ic-meta">${_esc(e.date)}${e.location?' · '+_esc(e.location):''}${e.event?' · '+_esc(e.event):''}</div>
+          ${e.description?`<div class="ic-desc">"${_esc(e.description)}"</div>`:''}
+          ${e.medicalCare==='yes'?`<div class="ic-med">&#10003; Medical care${e.clinicName?' — '+_esc(e.clinicName):' received'}</div>`:''}
+          ${e.witnesses?`<div style="color:var(--muted);font-size:11px;margin-top:3px;">Witnesses: ${_esc(e.witnesses)}</div>`:''}
           ${e.functionalImpacts?.length?`<div style="margin-top:6px;padding:6px 8px;background:rgba(200,16,46,.06);border-radius:6px;border:1px solid rgba(200,16,46,.15);">
             <div style="font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Daily Life Impact</div>
-            <div style="display:flex;flex-wrap:wrap;gap:4px;">${e.functionalImpacts.map(fi=>'<span style="background:rgba(200,16,46,.1);color:var(--red2);font-size:10px;font-weight:600;padding:2px 7px;border-radius:3px;font-family:var(--fm);">'+fi+'</span>').join('')}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">${e.functionalImpacts.map(fi=>'<span style="background:rgba(200,16,46,.1);color:var(--red2);font-size:10px;font-weight:600;padding:2px 7px;border-radius:3px;font-family:var(--fm);">'+_esc(fi)+'</span>').join('')}</div>
           </div>`:''}
           ${e.secondaries?.length?`<div style="margin-top:6px;padding:6px 8px;background:#e0e7ff;border-radius:6px;border:1px solid #c7d2fe;">
             <div style="font-size:10px;font-weight:700;color:#3730a3;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Secondary Conditions</div>
-            ${e.secondaries.map(s=>'<div style="font-size:11px;color:#3730a3;padding:1px 0;">• '+s+'</div>').join('')}
+            ${e.secondaries.map(s=>'<div style="font-size:11px;color:#3730a3;padding:1px 0;">• '+_esc(s)+'</div>').join('')}
           </div>`:''}
           ${isPhysical ? renderGapBar(e.ref) : ''}
         </div>
@@ -169,7 +178,6 @@ function renderTimeline(){
     const activeSpecials = (typeof SPECIAL_CLAIM_TYPES !== 'undefined' && window._specialClaims) ?
       SPECIAL_CLAIM_TYPES.filter(item => window._specialClaims[item.id]) : [];
     if(activeSpecials.length || _activePresumptives.length){
-      const _esc = typeof escapeHTML === 'function' ? escapeHTML : (s => s);
       let spHtml = '<div style="margin-top:20px;">';
       spHtml += '<div class="yr-lbl" style="color:#b45309;">Special Claims & Entitlements</div>';
       // Presumptive claims — amber "applies to this claim" banners

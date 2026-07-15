@@ -7,12 +7,42 @@ function _xh(s){
   return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// The personal statement is rich text (contenteditable innerHTML), so it can't
+// go through _xh — but pasted markup or a tampered save file could smuggle
+// scripts into the report window, which is same-origin with the app
+// (window.open + document.write). Allowlist the formatting tags the statement
+// editor can produce, strip every attribute, and drop active content outright.
+const _RICH_ALLOWED_TAGS = new Set(['P','DIV','BR','B','STRONG','I','EM','U','S','STRIKE','UL','OL','LI','BLOCKQUOTE','SPAN','H1','H2','H3','H4','SUB','SUP']);
+const _RICH_DROP_TAGS = new Set(['SCRIPT','STYLE','IFRAME','OBJECT','EMBED','LINK','META','FORM','INPUT','BUTTON','TEXTAREA','SELECT','TEMPLATE','BASE']);
+function _sanitizeRichHTML(html){
+  const doc = new DOMParser().parseFromString('<div>' + String(html == null ? '' : html) + '</div>', 'text/html');
+  const root = doc.body.firstChild;
+  const clean = node => {
+    Array.from(node.children).forEach(el => {
+      // Non-HTML namespaces (svg, math) can smuggle scriptable content — drop whole
+      if(_RICH_DROP_TAGS.has(el.tagName) || el.namespaceURI !== 'http://www.w3.org/1999/xhtml'){
+        el.remove();
+        return;
+      }
+      clean(el);
+      if(_RICH_ALLOWED_TAGS.has(el.tagName)){
+        Array.from(el.attributes).forEach(a => el.removeAttribute(a.name));
+      } else {
+        // Unknown but inert tag — keep its text/children, lose the element
+        while(el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
+        el.remove();
+      }
+    });
+  };
+  clean(root);
+  return root.innerHTML;
+}
+
 // ── PDF / PRINT SUMMARY ──
 function exportSummary(){
   if(typeof _requireAccess === 'function' && !_requireAccess()) return;
   const hasBPExport = typeof BP_REGISTRY!=='undefined' && Object.values(BP_REGISTRY).some(cfg=>(window[cfg.stateKey]||[]).length>0);
-  const _pk = _getPanelKeys();
-  const filteredInj = injuries.filter(i => !_pk.has(i.key));
+  const filteredInj = _nonPanelInjuries(injuries);
   if(!filteredInj.length && !(window._mentalHealthConditions && window._mentalHealthConditions.length) && !(window._headConditions && window._headConditions.length) && !hasBPExport){alert('No injuries to export.');return;}
   const sorted=[...filteredInj].sort((a,b)=>new Date(a.date)-new Date(b.date));
 
@@ -259,7 +289,7 @@ ${(function(){
   if(!mh.length) return '';
   const highest = mh.reduce((b,c)=>c.effectiveRating>b.effectiveRating?c:b, mh[0]);
   let h = '<div class="section-title">Mental Health Evaluation (VA 8787)</div>';
-  h += '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:11px;color:#1e40af;"><strong>VA Single Rating Rule:</strong> All mental health conditions receive one combined rating. The highest evaluated rating is used.</div>';
+  h += '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:11px;color:#1e40af;"><strong>VA Single Rating Rule:</strong> All mental health conditions receive one combined rating. The highest evaluated rating is used. <strong>Estimate only:</strong> domain percentages follow the VA\'s proposed updated mental-health criteria (not yet in effect); the VA currently rates under 38 CFR 4.130 based on overall social and occupational impairment.</div>';
   mh.forEach(c => {
     const isH = c.id === highest.id && mh.length > 1;
     const domains = (typeof MH_DOMAINS !== 'undefined' ? MH_DOMAINS : []).map(d => {
@@ -348,7 +378,7 @@ ${(function(){
   return h;
 })()}
 
-${window._personalStatement?'<div class="section-title">Personal Statement</div><div style="border:1px solid #d1d5db;border-radius:8px;padding:16px 20px;font-size:13px;line-height:1.7;color:#111;page-break-inside:avoid;">'+window._personalStatement+'</div>':''}
+${window._personalStatement?'<div class="section-title">Personal Statement</div><div style="border:1px solid #d1d5db;border-radius:8px;padding:16px 20px;font-size:13px;line-height:1.7;color:#111;page-break-inside:avoid;">'+_sanitizeRichHTML(window._personalStatement)+'</div>':''}
 
 ${(window._vocSecondaries||[]).length?`
 <div class="section-title">Vocational Conditions</div>
@@ -385,7 +415,7 @@ ${(function(){
     h += '<div style="font-weight:700;color:#0a2357;font-size:13px;">'+claim.label+'</div>';
     claim.fields.forEach(f => {
       const val = d[f.id] || '';
-      if(val) h += '<div style="font-size:11px;margin-top:3px;"><strong style="color:#6b7280;">'+f.label+'</strong> '+val+'</div>';
+      if(val) h += '<div style="font-size:11px;margin-top:3px;"><strong style="color:#6b7280;">'+f.label+'</strong> '+_xh(val)+'</div>';
     });
     h += '</div>';
   });
@@ -412,11 +442,11 @@ ${(function(){
   } else {
     mst.conditions.forEach(c => {
       h += '<div style="border:1px solid #d1d5db;border-radius:6px;padding:10px 14px;margin-bottom:6px;border-left:3px solid #0a2357;">';
-      h += '<span style="font-weight:700;color:#0a2357;">'+c.name+'</span>';
+      h += '<span style="font-weight:700;color:#0a2357;">'+_xh(c.name)+'</span>';
       h += '<span style="float:right;font-weight:800;font-family:monospace;color:#0a2357;">'+c.rating+'%</span>';
       if(c.secondaries && c.secondaries.length){
         c.secondaries.forEach(s => {
-          h += '<div style="margin-top:4px;padding-left:16px;font-size:11px;color:#4b5563;">&#8627; '+s.name+' (secondary) — '+s.rating+'%</div>';
+          h += '<div style="margin-top:4px;padding-left:16px;font-size:11px;color:#4b5563;">&#8627; '+_xh(s.name)+' (secondary) — '+s.rating+'%</div>';
         });
       }
       h += '</div>';
@@ -464,8 +494,7 @@ ${(function(){
 // ── CSV EXPORT ──
 function exportCSV(){
   if(typeof _requireAccess === 'function' && !_requireAccess()) return;
-  const _pk2 = _getPanelKeys();
-  const filteredInj2 = injuries.filter(i => !_pk2.has(i.key));
+  const filteredInj2 = _nonPanelInjuries(injuries);
   const hasBPExport2 = typeof BP_REGISTRY!=='undefined' && Object.values(BP_REGISTRY).some(cfg=>(window[cfg.stateKey]||[]).length>0);
   if(!filteredInj2.length && !(window._mentalHealthConditions||[]).length && !(window._headConditions||[]).length && !hasBPExport2){alert('No injuries to export.');return;}
   const sorted=[...filteredInj2].sort((a,b)=>new Date(a.date)-new Date(b.date));
@@ -701,8 +730,7 @@ function exportCSV(){
 // ── TXT EXPORT ──
 function exportTXT(){
   if(typeof _requireAccess === 'function' && !_requireAccess()) return;
-  const _pk3 = _getPanelKeys();
-  const filteredInj3 = injuries.filter(i => !_pk3.has(i.key));
+  const filteredInj3 = _nonPanelInjuries(injuries);
   const hasBPExport3 = typeof BP_REGISTRY!=='undefined' && Object.values(BP_REGISTRY).some(cfg=>(window[cfg.stateKey]||[]).length>0);
   if(!filteredInj3.length && !(window._mentalHealthConditions||[]).length && !(window._headConditions||[]).length && !hasBPExport3){alert('No injuries to export.');return;}
   const sorted=[...filteredInj3].sort((a,b)=>new Date(a.date)-new Date(b.date));
@@ -873,10 +901,11 @@ function exportTXT(){
   // Personal statement
   if(window._personalStatement){
     txt += 'PERSONAL STATEMENT\n' + line + '\n\n';
-    // Strip HTML tags for plain text
-    const _tmpDiv = document.createElement('div');
-    _tmpDiv.innerHTML = window._personalStatement;
-    txt += (_tmpDiv.textContent || _tmpDiv.innerText || '').trim() + '\n\n';
+    // Strip HTML tags for plain text — via DOMParser, not a live div's
+    // innerHTML: even detached elements load images (onerror fires), so a
+    // tampered save file could execute in the app document
+    const _psDoc = new DOMParser().parseFromString(window._personalStatement, 'text/html');
+    txt += (_psDoc.body.textContent || '').trim() + '\n\n';
   }
 
   // Vocational

@@ -284,6 +284,10 @@ function confirmImport(){
     const inj = {
       id: Date.now() + imported,
       key: pin.key,
+      // Matched pin keys (leftKnee, neck, ...) are panel-managed; imported rows
+      // are ordinary injuries, so reuse the custom-pin visibility flag to keep
+      // _nonPanelInjuries from hiding them everywhere.
+      customPin: true,
       label: m.label,
       date: m.date,
       severity: m.severity,

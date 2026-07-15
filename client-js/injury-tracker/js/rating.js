@@ -132,22 +132,40 @@ function buildRatingItems(){
   // they're already covered by the single MH rating from the MH panel
   const mhNames = new Set((typeof VA_MENTAL !== 'undefined' ? VA_MENTAL : []).map(n=>n.toLowerCase()));
   const mhSecondaryNames = new Set((typeof MENTAL_SECONDARIES !== 'undefined' ? MENTAL_SECONDARIES : []).map(n=>n.toLowerCase()));
+  const customMentalPrimaries = [];
 
   // Skip injuries whose keys are managed by evaluation panels
-  const _pk = _getPanelKeys();
-  const sorted = [...injuries].filter(i => !_pk.has(i.key)).sort((a,b)=>new Date(a.date)-new Date(b.date)||a.id-b.id);
+  const sorted = _nonPanelInjuries(injuries).sort((a,b)=>new Date(a.date)-new Date(b.date)||a.id-b.id);
   sorted.forEach(inj => {
     const ext = getExtremity(inj.key);
     const suggested = getSuggestedRating(inj.label);
-    _ratingItems.push({
-      id: 'p-'+inj.id,
-      injId: inj.id,
-      name: inj.label,
-      rating: inj._assignedRating !== undefined ? inj._assignedRating : (suggested !== null ? suggested : 10),
-      extremity: ext,
-      type: 'primary',
-      suggested: suggested,
-    });
+    const assigned = inj._assignedRating !== undefined ? inj._assignedRating : (suggested !== null ? suggested : 10);
+    const labelLower = typeof inj.label === 'string' ? inj.label.toLowerCase().trim() : '';
+    const isMentalPrimary = inj.key === 'mental' || mhNames.has(labelLower) || mhSecondaryNames.has(labelLower);
+    if(isMentalPrimary){
+      // A mental condition logged from a custom map pin is still subject to the
+      // VA single-rating rule. Keep it out of the ordinary primary list and add
+      // it to the unified MH pool below, where duplicate diagnoses collapse to
+      // the single highest rating alongside panel, MST, and secondary entries.
+      customMentalPrimaries.push({
+        rating: assigned,
+        name: inj.label,
+        source: 'pin',
+        ref: inj,
+        suggested: suggested,
+        evaluated: inj._assignedRating !== undefined,
+      });
+    } else {
+      _ratingItems.push({
+        id: 'p-'+inj.id,
+        injId: inj.id,
+        name: inj.label,
+        rating: assigned,
+        extremity: ext,
+        type: 'primary',
+        suggested: suggested,
+      });
+    }
     // Secondary conditions — skip MH conditions (they go through the MH panel)
     if(inj.secondaries && inj.secondaries.length){
       const injSecExtremities = inj.secondaryExtremities || {};
@@ -299,6 +317,7 @@ function buildRatingItems(){
   mhConds.forEach(c => {
     _mhPool.push({ rating: c.effectiveRating, name: c.condition, source:'mh', ref:c, suggested: c.calculatedRating });
   });
+  _mhPool.push(...customMentalPrimaries);
   if(mstData.conditions && mstData.conditions.length){
     mstData.conditions.forEach((cond, i) => {
       if(_MST_MH_NAMES.has(cond.name.toLowerCase())){
@@ -331,6 +350,7 @@ function buildRatingItems(){
     if(highest.rating > 0){
       _ratingItems.push({
         id: highest.source === 'mh' ? 'mh-' + highest.ref.id :
+            highest.source === 'pin' ? 'mh-pin-' + highest.ref.id :
             highest.source === 'sec' ? 'mh-sec-' + highest.index : 'mst-mh-' + highest.index,
         name: 'Mental Health (' + highest.name + ')',
         rating: highest.rating,
@@ -721,9 +741,9 @@ function renderRating(){
       const icon = w.type === 'duplicate' ? '&#9888;' : '&#9878;';
       const cls = w.type === 'duplicate' ? 'rc-warn-dup' : 'rc-warn-pyr';
       html += '<div class="rc-warning ' + cls + '">' +
-        '<div class="rc-warning-header">' + icon + ' ' + w.title + '</div>' +
-        '<div class="rc-warning-cond">' + w.condition + '</div>' +
-        '<div class="rc-warning-msg">' + w.message + '</div>' +
+        '<div class="rc-warning-header">' + icon + ' ' + escapeHTML(w.title) + '</div>' +
+        '<div class="rc-warning-cond">' + escapeHTML(w.condition) + '</div>' +
+        '<div class="rc-warning-msg">' + escapeHTML(w.message) + '</div>' +
       '</div>';
     });
     html += '<div style="padding:10px 14px;font-size:11px;color:var(--navy);background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;margin-top:8px;line-height:1.6;">' +
@@ -757,7 +777,7 @@ function renderRating(){
       html += `<div class="rc-card">
         <div class="rc-card-header">
           <span class="rc-num" style="background:${sc};">${num}</span>
-          <span class="rc-name">${item.name}</span>
+          <span class="rc-name">${escapeHTML(item.name)}</span>
           ${extTag}
           ${sugTxt}
           <span class="rc-pct-box">
@@ -775,7 +795,7 @@ function renderRating(){
           html += `<div class="rc-sec-item">
             <div class="rc-sec-header">
               <span class="rc-sec-dot">&#8627;</span>
-              <span class="rc-sec-name">${sec.name}</span>
+              <span class="rc-sec-name">${escapeHTML(sec.name)}</span>
               ${secExtTag}
               ${secSugTxt}
               <span class="rc-pct-box">
@@ -801,7 +821,7 @@ function renderRating(){
       const secExtTag = sec.extremity && sec.extremity !== 'none' ? '<span class="rc-ext-tag">'+sec.extremity+'</span>' : '';
       sh += '<div class="rc-sec-item"><div class="rc-sec-header">' +
         '<span class="rc-sec-dot">&#8627;</span>' +
-        '<span class="rc-sec-name">'+sec.name+'</span>' +
+        '<span class="rc-sec-name">'+escapeHTML(sec.name)+'</span>' +
         secExtTag +
         secSugTxt +
         '<span class="rc-pct-box"><input type="number" min="0" max="100" step="10" value="'+sec.rating+'" onchange="onRatingChange(\''+sec.id+'\',this.value)" class="rc-pct-input" title="Override rating %"><span class="rc-pct-sign">%</span></span>' +
@@ -831,7 +851,7 @@ function renderRating(){
       html += '<div class="rc-card" style="border-left:3px solid ' + (inRating ? 'var(--navy)' : 'var(--border)') + ';">' +
         '<div class="rc-card-header">' +
           '<span class="rc-num" style="background:var(--navy);">&#129504;</span>' +
-          '<span class="rc-name">' + cond.condition + '</span>' +
+          '<span class="rc-name">' + escapeHTML(cond.condition) + '</span>' +
           '<span style="font-size:9px;font-weight:600;font-family:var(--fh);color:var(--muted);background:var(--bg);border:1px solid var(--border);padding:2px 6px;border-radius:3px;">' + profileLabel + '</span>' +
           (cond.manualOverride !== null ? '<span style="font-size:9px;font-weight:700;font-family:var(--fh);color:#7c3aed;background:#f5f3ff;border:1px solid #ddd6fe;padding:2px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.5px;">Manual</span>' : '') +
           '<span class="rc-pct-box"><input type="number" min="0" max="100" step="10" value="' + cond.effectiveRating + '" onchange="onEvalRatingChange(\'head\',' + cond.id + ',this.value)" class="rc-pct-input" title="Override rating %"><span class="rc-pct-sign">%</span></span>' +
@@ -872,7 +892,7 @@ function renderRating(){
         html += '<div class="rc-card" style="border-left:3px solid ' + (inRating ? 'var(--navy)' : 'var(--border)') + ';">' +
           '<div class="rc-card-header">' +
             '<span class="rc-num" style="background:var(--navy);">&#9881;</span>' +
-            '<span class="rc-name">' + cond.condition + '</span>' +
+            '<span class="rc-name">' + escapeHTML(cond.condition) + '</span>' +
             extTag +
             '<span style="font-size:9px;font-weight:600;font-family:var(--fh);color:var(--muted);background:var(--bg);border:1px solid var(--border);padding:2px 6px;border-radius:3px;">' + profileLabel + '</span>' +
             (cond.manualOverride !== null ? '<span style="font-size:9px;font-weight:700;font-family:var(--fh);color:#7c3aed;background:#f5f3ff;border:1px solid #ddd6fe;padding:2px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.5px;">Manual</span>' : '') +
@@ -946,9 +966,9 @@ function renderRating(){
     html += '<div style="font-size:13px;font-weight:800;font-family:var(--fh);color:var(--navy);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">Why one rating for all mental health?</div>';
     html += '<p style="margin:0 0 8px;">The VA treats <strong>all mental health conditions as one disability</strong> under 38 CFR 4.130. This means even if you have multiple diagnoses — ';
     if(_allMHNames.length > 1){
-      html += _allMHNames.slice(0,-1).join(', ') + ' and ' + _allMHNames[_allMHNames.length-1];
+      html += _allMHNames.slice(0,-1).map(escapeHTML).join(', ') + ' and ' + escapeHTML(_allMHNames[_allMHNames.length-1]);
     } else if(_allMHNames.length === 1){
-      html += _allMHNames[0];
+      html += escapeHTML(_allMHNames[0]);
     } else {
       html += 'PTSD, depression, anxiety, etc.';
     }
@@ -962,12 +982,12 @@ function renderRating(){
       html += '<div style="font-size:11px;margin-bottom:4px;">You have <strong>' + _allMHNames.length + ' mental health diagnoses</strong>. The VA evaluates them together:</div>';
       _allMHNames.forEach(n => {
         const isHighest = n === _highestMHName;
-        html += '<div style="padding:2px 0;font-size:11px;">' + (isHighest ? '&#9733; ' : '&bull; ') + '<span' + (isHighest ? ' style="font-weight:700;color:var(--navy);"' : '') + '>' + n + '</span>' + (isHighest ? ' <span style="font-size:10px;color:var(--red);font-weight:700;">&larr; highest evaluated rating</span>' : '') + '</div>';
+        html += '<div style="padding:2px 0;font-size:11px;">' + (isHighest ? '&#9733; ' : '&bull; ') + '<span' + (isHighest ? ' style="font-weight:700;color:var(--navy);"' : '') + '>' + escapeHTML(n) + '</span>' + (isHighest ? ' <span style="font-size:10px;color:var(--red);font-weight:700;">&larr; highest evaluated rating</span>' : '') + '</div>';
       });
       html += '<div style="margin-top:6px;font-size:12px;font-weight:700;color:var(--navy);">Combined MH rating: <span style="font-size:16px;">' + _highestMHRating + '%</span></div>';
       html += '<div style="font-size:10px;color:var(--muted);margin-top:2px;">The highest evaluated condition sets the overall mental health rating.</div>';
     } else if(_allMHNames.length === 1){
-      html += '<div style="font-size:11px;">Single diagnosis: <strong>' + _allMHNames[0] + '</strong> at <strong>' + _highestMHRating + '%</strong></div>';
+      html += '<div style="font-size:11px;">Single diagnosis: <strong>' + escapeHTML(_allMHNames[0]) + '</strong> at <strong>' + _highestMHRating + '%</strong></div>';
     } else {
       html += '<div style="font-size:11px;color:var(--muted);">No mental health conditions evaluated yet.</div>';
     }
@@ -977,10 +997,10 @@ function renderRating(){
     html += '<strong>Good to know:</strong> Even though the VA only gives one MH rating, <em>list every diagnosis</em> on your claim. Each diagnosis is documented in your record and can support a higher single rating. ';
     html += 'If your PTSD alone rates at 50%, but adding depression and anxiety symptoms shows greater overall impairment, the combined picture could push you to 70%.';
     if(_mstMHNames.length){
-      html += '<br><br><strong>MST note:</strong> Your MST-caused mental health condition' + (_mstMHNames.length > 1 ? 's' : '') + ' (' + _mstMHNames.join(', ') + ') ' + (_mstMHNames.length > 1 ? 'are' : 'is') + ' included in this single rating — not rated separately.';
+      html += '<br><br><strong>MST note:</strong> Your MST-caused mental health condition' + (_mstMHNames.length > 1 ? 's' : '') + ' (' + _mstMHNames.map(escapeHTML).join(', ') + ') ' + (_mstMHNames.length > 1 ? 'are' : 'is') + ' included in this single rating — not rated separately.';
     }
     if(_mhSecNames.length){
-      html += '<br><br><strong>Secondaries:</strong> Mental health conditions claimed as secondary to a physical injury (' + _mhSecNames.join(', ') + ') are absorbed into this single MH rating. They won\'t be double-counted in your combined VA math.';
+      html += '<br><br><strong>Secondaries:</strong> Mental health conditions claimed as secondary to a physical injury (' + _mhSecNames.map(escapeHTML).join(', ') + ') are absorbed into this single MH rating. They won\'t be double-counted in your combined VA math.';
     }
     html += '</div>';
     html += '</div>';
@@ -998,7 +1018,7 @@ function renderRating(){
       html += `<div class="rc-card" style="border-left:3px solid ${borderColor};">
         <div class="rc-card-header">
           <span class="rc-num" style="background:var(--navy);">&#9881;</span>
-          <span class="rc-name">${cond.condition}</span>
+          <span class="rc-name">${escapeHTML(cond.condition)}</span>
           ${isHighest ? '<span style="font-size:9px;font-weight:700;font-family:var(--fh);color:var(--red);background:#fef2f2;border:1px solid #fecaca;padding:2px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.5px;">Active Rating</span>' : ''}
           ${cond.manualOverride !== null ? '<span style="font-size:9px;font-weight:700;font-family:var(--fh);color:#7c3aed;background:#f5f3ff;border:1px solid #ddd6fe;padding:2px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.5px;">Manual</span>' : ''}
           <span class="rc-pct-box"><input type="number" min="0" max="100" step="10" value="${cond.effectiveRating}" onchange="onEvalRatingChange('mental',${cond.id},this.value)" class="rc-pct-input" title="Override rating %"><span class="rc-pct-sign">%</span></span>
@@ -1300,7 +1320,12 @@ function renderRating(){
 }
 
 function escapeHTML(str){
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // Quotes must be escaped too — callers interpolate into double-quoted
+  // attributes (onclick, title), where a bare " breaks out of the attribute
+  // even when < and > are neutralized
+  return String(str == null ? '' : str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 // Clamp user-typed ratings to 0-100; a cleared field (NaN) becomes 0 instead of

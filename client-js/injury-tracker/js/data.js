@@ -63,6 +63,18 @@ function _getPanelKeys(){
   return s;
 }
 
+// Injuries whose key is panel-managed are hidden anchors — their real data
+// lives in the panel's own state array and renders from there. Records logged
+// through a CUSTOM PIN also carry a panel key (every area in the form's
+// dropdown is panel-managed), but they are ordinary injuries with their own
+// user-typed details, so they must stay visible. Every consumer of the
+// injuries array (timeline, rating, exports, statement, secondary) filters
+// through here.
+function _nonPanelInjuries(list){
+  const pk = _getPanelKeys();
+  return (list || []).filter(i => i.customPin || !pk.has(i.key));
+}
+
 // Returns default info field values for new conditions
 function _condInfoDefaults(){ return {date:'',location:'',event:'',description:'',medicalCare:'',clinicName:'',witnesses:'',stillBeingSeen:false}; }
 
@@ -1206,8 +1218,8 @@ const HEAD_PROFILES = {
         { value: 40, label: 'Anatomical loss of one eye (other 20/40)', description: 'One eye removed or destroyed; other eye normal' },
         { value: 50, label: '20/100 both eyes', description: 'Significant impairment in both eyes' },
         { value: 70, label: '20/200 both eyes', description: 'Legal blindness in both eyes' },
-        { value: 90, label: '5/200 both eyes', description: 'Near-total vision loss in both eyes' },
-        { value: 100, label: 'No more than light perception / anatomical loss, both eyes', description: 'Total blindness' },
+        { value: 90, label: '10/200 both eyes', description: 'Near-total vision loss in both eyes' },
+        { value: 100, label: '5/200 both eyes, light perception only in both eyes, or anatomical loss of both eyes', description: 'Profound bilateral visual impairment or total blindness; review for Special Monthly Compensation.' },
       ]
     }]
   },
@@ -1703,6 +1715,13 @@ function calculateRaynaudsRating(dv){ let m=0; Object.values(dv).forEach(v=>{if(
 
 // 12. GERD (DC 7206 — esophageal stricture criteria since the May 19, 2024
 // digestive-system revision; the old DC 7346 symptom criteria no longer apply)
+const ESOPHAGEAL_STRICTURE_LEVELS = [
+  {value:0, label:'Reflux symptoms without stricture', description:'Heartburn/regurgitation with or without medication, no documented esophageal stricture. Rated 0% under the 2024 criteria, but still establishes service connection.'},
+  {value:10, label:'Stricture controlled by daily medication', description:'Documented history of esophageal stricture(s) requiring daily medication to control difficulty swallowing (dysphagia), otherwise asymptomatic.'},
+  {value:30, label:'Stricture requiring dilation up to 2 times/year', description:'Documented esophageal stricture(s) causing dysphagia, requiring dilatation no more than 2 times per year.'},
+  {value:50, label:'Stricture requiring dilation 3+ times/year', description:'Recurrent or refractory esophageal stricture causing dysphagia and requiring dilatation 3 or more times per year, dilatation with steroid injection, or an esophageal stent.'},
+  {value:80, label:'Refractory with aspiration / weight loss, treated with surgery or PEG tube', description:'Recurrent or refractory stricture causing dysphagia and documented by imaging or endoscopy, with at least one of aspiration, undernutrition, or substantial weight loss, AND treated with surgical correction of the stricture(s) or a percutaneous esophago-gastrointestinal (PEG) feeding tube. Dysphagia, a qualifying complication, and the specified treatment are all required.'},
+];
 const GERD_PROFILES = {
   gerd: {
     label: 'GERD (DC 7206)',
@@ -1710,18 +1729,25 @@ const GERD_PROFILES = {
     domains: [
       { id: 'severity', label: 'Esophageal Involvement',
         description: 'Documented stricture (narrowing) and swallowing difficulty per DC 7206',
-        levels: [
-          {value:0, label:'Reflux symptoms without stricture', description:'Heartburn/regurgitation with or without medication, no documented esophageal stricture. Rated 0% under the 2024 criteria, but still establishes service connection.'},
-          {value:10, label:'Stricture controlled by daily medication', description:'Documented history of esophageal stricture(s) requiring daily medication to control difficulty swallowing (dysphagia), otherwise asymptomatic.'},
-          {value:30, label:'Stricture requiring dilation up to 2 times/year', description:'Documented esophageal stricture(s) causing dysphagia, requiring dilatation no more than 2 times per year.'},
-          {value:50, label:'Stricture requiring dilation 3+ times/year', description:'Recurrent or refractory esophageal stricture requiring dilatation 3 or more times per year, dilatation with steroid injection, or an esophageal stent.'},
-          {value:80, label:'Refractory with aspiration / weight loss / feeding tube', description:'Recurrent or refractory stricture with at least one of: aspiration, undernutrition, substantial weight loss, or treatment with a feeding (G) tube.'},
-        ]
+        levels: ESOPHAGEAL_STRICTURE_LEVELS,
+      }
+    ]
+  },
+  hiatal: {
+    label: 'Hiatal / Paraesophageal Hernia (DC 7346 → DC 7203)',
+    note: 'Under the VA\'s May 2024 digestive schedule, hiatal and paraesophageal hernias are evaluated as esophageal stricture under DC 7203. The evaluation is based on documented narrowing, dysphagia, and required treatment.',
+    domains: [
+      { id: 'severity', label: 'Esophageal Involvement',
+        description: 'Documented stricture (narrowing) and swallowing difficulty under DC 7346, evaluated using DC 7203',
+        levels: ESOPHAGEAL_STRICTURE_LEVELS,
       }
     ]
   }
 };
-const GERD_CONDITION_PROFILE = { 'GERD / acid reflux': 'gerd', 'Hiatal hernia': 'gerd', 'GERD': 'gerd' };
+const GERD_CONDITION_PROFILE = {
+  'GERD / acid reflux': 'gerd', 'GERD': 'gerd',
+  'Hiatal hernia': 'hiatal', 'Hiatal hernia and paraesophageal hernia': 'hiatal',
+};
 function getGERDProfile(cond){ return GERD_PROFILES[GERD_CONDITION_PROFILE[cond] || 'gerd']; }
 function getGERDProfileKey(cond){ return GERD_CONDITION_PROFILE[cond] || 'gerd'; }
 function calculateGERDRating(dv){ let m=0; Object.values(dv).forEach(v=>{if(typeof v==='number'&&v>m)m=v;}); return m; }
@@ -2041,11 +2067,13 @@ const KNEE_PROFILES = {
     label: 'Knee Replacement (DC 5055)',
     domains: [
       { id: 'replacement', label: 'Prosthetic Knee Status',
-        description: 'Current status after total or partial knee replacement surgery.',
+        description: 'Current status after total knee replacement surgery.',
         levels: [
-          {value:30,  label:'Intermediate residuals',    description:'Chronic residuals consisting of moderate painful motion or weakness in the knee.'},
-          {value:60,  label:'Chronic residuals',        description:'Chronic residuals: severe painful motion or weakness requiring assistive devices.'},
-          {value:100, label:'Within 1 year of surgery', description:'100% rating for 1 year following prosthetic replacement of the knee joint (plus the initial convalescence period).'},
+          {value:30,  label:'Intermediate residuals — analogous evaluation 30%', description:'Intermediate weakness, pain, or limitation of motion that produces a 30% analogous evaluation under DC 5256 (ankylosis), DC 5261 (limitation of extension), or DC 5262 (tibia/fibula impairment). This is also the minimum rating following a total knee replacement.'},
+          {value:40,  label:'Intermediate residuals — analogous evaluation 40%', description:'Intermediate weakness, pain, or limitation of motion that produces a 40% analogous evaluation under DC 5256, DC 5261, or DC 5262.'},
+          {value:50,  label:'Intermediate residuals — analogous evaluation 50%', description:'Intermediate weakness, pain, or limitation of motion that produces a 50% analogous evaluation under DC 5256 or DC 5261.'},
+          {value:60,  label:'Chronic severe residuals / analogous evaluation 60%', description:'Chronic residuals consisting of severe painful motion or weakness in the affected extremity, or intermediate residuals producing a 60% analogous evaluation under DC 5256.'},
+          {value:100, label:'Within 4 months of surgery', description:'100% rating for 4 months following implantation or resurfacing of the knee joint prosthesis, after the initial convalescence period under 38 CFR 4.30 (criteria revised February 2021).'},
         ]
       }
     ]
@@ -2417,15 +2445,15 @@ const HIP_PROFILES = {
   },
   replacement: {
     key: 'replacement', label: 'Hip Replacement (DC 5054)',
-    note: 'Following prosthetic replacement. Minimum 30% rating following implantation. 100% for 1 year following.',
+    note: 'Following prosthetic replacement. Minimum 30% rating following implantation. 100% for 4 months following surgery (criteria revised February 2021).',
     domains: [
       { id:'status', label:'Replacement Status', description:'Current functional status after hip replacement',
         levels:[
           {value:30, label:'Minimum', description:'Prosthetic replacement with no significant residuals.'},
           {value:50, label:'Moderate', description:'Moderately severe residuals of weakness, pain, or limitation of motion.'},
           {value:70, label:'Severe', description:'Markedly severe residual weakness, pain, or limitation of motion.'},
-          {value:90, label:'Very Severe', description:'Painful motion or weakness requiring assistive devices.'},
-          {value:100, label:'1-Year Post-Op', description:'For 1 year following implantation of prosthesis.'},
+          {value:90, label:'Very Severe', description:'Painful motion or weakness such as to require the use of crutches.'},
+          {value:100, label:'4-Month Post-Op', description:'For 4 months following implantation or resurfacing of the hip prosthesis, after the initial convalescence period under 38 CFR 4.30.'},
         ]},
     ],
   },
@@ -2880,21 +2908,26 @@ const ABDOMEN_PROFILES = {
         ]},
     ],
   },
+  // GERD picked through the Abdomen panel must use the same DC 7206 stricture
+  // criteria (80% max) as the systemic panel — the generic digestive scale
+  // tops out at 100% on symptom criteria that no longer apply to GERD.
+  gerd: { key: 'gerd', ...GERD_PROFILES.gerd },
+  hiatal: { key: 'hiatal', ...GERD_PROFILES.hiatal },
 };
 
 const ABDOMEN_CONDITION_PROFILE = {
   // Keys MUST be the lowercased picker names from VA_AREA_CONDITIONS.abdomen
-  'gerd / acid reflux':'digestive',
+  'gerd / acid reflux':'gerd',
   'irritable bowel syndrome (ibs)':'digestive',
   'peptic ulcer disease':'digestive',
   'gallbladder disease':'digestive',
   'liver condition':'digestive',
   'bladder condition':'genitourinary',
-  'hiatal hernia':'digestive',
+  'hiatal hernia':'hiatal',
   'crohn\'s disease':'digestive','ulcerative colitis':'digestive',
   'kidney stones':'genitourinary',
   // Legacy aliases (older saves / imports)
-  'gerd':'digestive','gastroesophageal reflux disease':'digestive','ibs':'digestive',
+  'gerd':'gerd','gastroesophageal reflux disease':'gerd','ibs':'digestive',
   'irritable bowel syndrome':'digestive',
   'bladder dysfunction':'genitourinary','erectile dysfunction':'genitourinary',
 };

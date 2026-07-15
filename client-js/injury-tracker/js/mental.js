@@ -327,6 +327,7 @@ function _buildMHEvalRegionHTML() {
       <div class="mh-combined-note">${conds.length > 1
         ? 'Highest of ' + conds.length + ' evaluated conditions (VA single-rating rule)'
         : 'Based on your evaluation above'}</div>
+      <div class="mh-combined-note" style="margin-top:6px;">Estimate only — these five domains follow the VA's <strong>proposed</strong> updated mental-health criteria, which are not yet in effect. Today the VA rates under the General Rating Formula for Mental Disorders (38 CFR 4.130), based on your overall social and occupational impairment, so your actual rating may differ.</div>
     </div>`;
   } else {
     h += `<div class="mh-empty">

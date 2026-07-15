@@ -104,9 +104,12 @@ export default function PrivacyPage() {
             your injury records.
           </li>
           <li>
-            <strong>Anonymous visit analytics:</strong> aggregated page-visit
-            counts to understand which features get used. No injury data and no
-            content from your records is included.
+            <strong>Visit analytics:</strong> when a page loads, we record the
+            page path, referrer, your IP address, browser user agent,
+            approximate location derived from the IP (country, region, city,
+            and coordinates), and — if you are signed in — your account ID.
+            This is used to understand which features get used and to detect
+            abuse. No injury data and no content from your records is included.
           </li>
         </ul>
 
@@ -132,6 +135,7 @@ export default function PrivacyPage() {
           <li><strong>Supabase</strong> — hosted Postgres + auth (account identity, session, access state).</li>
           <li><strong>Stripe</strong> — payment processing (billing identity, subscription state, card data on Stripe&rsquo;s side).</li>
           <li><strong>Axiom</strong> — operational logging (request metadata, no record content).</li>
+          <li><strong>ip-api.com</strong> — IP geolocation for visit analytics (receives the visitor IP address when edge headers don&rsquo;t already provide a location).</li>
           <li><strong>Google &amp; Apple</strong> — only if you use Sign in with Google or Apple, the OAuth handshake passes through them.</li>
           <li><strong>Hosting/CDN</strong> — the platform that serves the application (request routing, no record content).</li>
         </ul>

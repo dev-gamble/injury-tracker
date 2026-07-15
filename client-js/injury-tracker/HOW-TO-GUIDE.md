@@ -7,21 +7,11 @@ A step-by-step guide to documenting your VA disability claim.
 ## Getting Started
 
 ### On a Computer
-1. Open `ENDEX (Standalone).html` in any web browser (Chrome, Edge, Firefox, Safari).
-2. Double-click the file — it opens directly. No internet required after loading (except for fonts).
+1. Open the ENDEX web app in any modern browser (Chrome, Edge, Firefox, Safari) and sign in.
+2. Your claim data stays in your browser while you work — use **Save Project** to download an encrypted copy you can reopen later or share with your VSO.
 
 ### On Your Phone (iPhone or Android)
-
-**Option A — Transfer the file:**
-1. Send `ENDEX (Standalone).html` to your phone (email it to yourself, AirDrop, Google Drive, iCloud, USB, etc.).
-2. Open the file from your email or file manager — it will open in your phone's browser.
-3. **iPhone tip:** If it won't open from Files, tap Share > "Open in Safari."
-4. **Android tip:** Open it from Downloads or Files — it should launch in Chrome automatically.
-
-**Option B — Host it (for easy access):**
-1. Upload the file to a free hosting service or your own Google Drive.
-2. For Google Drive: upload the file > right-click > Share > "Anyone with the link" > copy link.
-3. Open that link on your phone's browser.
+1. Open the same ENDEX web address in your phone's browser and sign in.
 
 **Add to Home Screen (acts like an app):**
 - **iPhone:** Open in Safari > tap the Share button (square with arrow) > "Add to Home Screen."

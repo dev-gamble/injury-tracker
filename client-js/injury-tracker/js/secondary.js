@@ -6,6 +6,16 @@ let _sevOpen = {};
 // Per-claim secondary add state: { claimId: { area, side } }
 let _secAddState = {};
 
+// Secondary rendering predates the shared escapeHTML helper's declaration
+// (rating.js loads later), but every call happens after all scripts load. Keep
+// a safe local fallback so restored/custom names never reach innerHTML raw.
+function _secondaryHTML(value){
+  if(typeof escapeHTML === 'function') return escapeHTML(value);
+  return String(value == null ? '' : value)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 // Helper: remove a panel pin from the map if it exists (legacy key-based)
 function _removePanelPinIfExists(key){
   const el = document.getElementById('pin-panel-' + key);
@@ -899,7 +909,7 @@ function renderSecondaryAddDropdowns(claimId, group){
     if(available.length){
       h += '<div class="cr-suggest">';
       h += '<div class="cr-suggest-title">Veterans commonly also claim with ' +
-        '<strong>' + condName + '</strong>:</div>';
+        '<strong>' + _secondaryHTML(condName) + '</strong>:</div>';
       h += '<div class="cr-suggest-chips">';
       const _pyrRisks = typeof PYRAMIDING_RISKS !== 'undefined' ? PYRAMIDING_RISKS : [];
       available.forEach(s => {
@@ -991,7 +1001,7 @@ function renderPendingSecEval(claimId, st){
 
   let h = '<div class="cr-pending-sec">';
   h += '<div class="cr-pending-head">' +
-    '<span class="cr-pending-name">' + st.pendingSec + '</span>' +
+    '<span class="cr-pending-name">' + _secondaryHTML(st.pendingSec) + '</span>' +
     '<span class="cr-rating-badge" style="background:#e0e7ff;color:#3730a3;border:1px solid #c7d2fe;">' + rating + '%</span>' +
   '</div>';
 
@@ -1097,9 +1107,8 @@ function gatherAllClaims(){
   const claims = [];
 
   // Physical injuries from map (skip panel-managed keys — those are in their own state arrays)
-  const _pk = _getPanelKeys();
-  const sorted = [...injuries].sort((a,b)=>new Date(a.date)-new Date(b.date)||a.id-b.id);
-  sorted.filter(i => !_pk.has(i.key)).forEach(i => {
+  const sorted = _nonPanelInjuries(injuries).sort((a,b)=>new Date(a.date)-new Date(b.date)||a.id-b.id);
+  sorted.forEach(i => {
     // Initialize evaluation state if not present
     if(!i.evalDomains){
       i.evalDomains = {};
@@ -1609,8 +1618,8 @@ function renderSecondary(){
       html += '<div class="cr-primary-head">' +
         '<div class="cr-primary-info">' +
           '<span class="cr-dot" style="background:'+sc+';"></span>' +
-          '<div class="cr-primary-name">' + claim.label + '</div>' +
-          (claim.date ? '<span class="cr-date">' + claim.date + '</span>' : '') +
+          '<div class="cr-primary-name">' + _secondaryHTML(claim.label) + '</div>' +
+          (claim.date ? '<span class="cr-date">' + _secondaryHTML(claim.date) + '</span>' : '') +
         '</div>' +
         '<div class="cr-primary-actions">' +
           '<span class="cr-rating-badge" style="background:'+sbg+';color:'+sc+';border:1px solid '+sbd+';">' + displayRating + '%</span>' +
@@ -1647,7 +1656,7 @@ function renderSecondary(){
             '<div class="cr-sec-info">' +
               '<span class="cr-sec-line"></span>' +
               '<span class="cr-sec-dot" style="background:'+ssc+';"></span>' +
-              '<span class="cr-sec-name">' + s + '</span>' +
+              '<span class="cr-sec-name">' + _secondaryHTML(s) + '</span>' +
             '</div>' +
             '<div class="cr-sec-actions">' +
               '<span class="cr-rating-badge cr-rating-sm" style="background:'+ssbg+';color:'+ssc+';border:1px solid '+ssbd+';">' + secRating + '%</span>' +

@@ -149,7 +149,7 @@ function enterPinPlaceMode(key, label, fromPanel){
     prompt.className = 'pin-place-prompt';
     document.body.appendChild(prompt);
   }
-  prompt.innerHTML = '<span>Click the body map to place: <strong>' + label + '</strong></span>' +
+  prompt.innerHTML = '<span>Click the body map to place: <strong>' + (typeof escapeHTML === 'function' ? escapeHTML(label) : label) + '</strong></span>' +
     '<button onclick="cancelPinPlaceMode()">Cancel</button>';
   prompt.classList.remove('hidden');
 }
@@ -184,8 +184,10 @@ function bodyClicked(e,wrap){
     return;
   }
 
-  // Free-click custom pin
-  pendingPin={x,y,side:curSide,body:curBody,key:'custom',label:''};
+  // Free-click custom pin. customPin marks the ORIGIN: onBodyAreaChange
+  // overwrites pendingPin.key with the selected area before save, so the key
+  // alone can't tell saveInjury this record came from a custom pin.
+  pendingPin={x,y,side:curSide,body:curBody,key:'custom',label:'',customPin:true};
   dropPreviewPin(pendingPin);
   openForm('Custom Pin','custom');
 }
@@ -352,13 +354,18 @@ function dropPin(inj){
   if(!layer) return;
   const num=injuryNumber(inj.id);
   const sev=inj.severity;
-  const tip=(inj.label+(inj.event?' · '+inj.event:'')).slice(0,32);
+  // Escape the tip and coerce the id — both reach innerHTML from restored
+  // save files, which are untrusted (dropPin runs for every injury on load)
+  const _pe = typeof escapeHTML === 'function' ? escapeHTML : (s=>s);
+  const tip=_pe((inj.label+(inj.event?' · '+inj.event:'')).slice(0,32));
+  const _id = Number(inj.id);
+  if(!Number.isFinite(_id)) return; // tampered save file — don't render a broken pin
   const p=document.createElement('div');
-  p.className=`pin pin-${sev}`; p.id=`pin-${inj.id}`;
+  p.className=`pin pin-${sev}`; p.id=`pin-${_id}`;
   p.style.left=x+'%'; p.style.top=y+'%';
   p.innerHTML=`<div class="pin-head"><span class="pin-num">${num}</span></div>
     <div class="pin-tip">#${num} · ${tip}</div>
-    <button class="pin-del" onclick="deleteInjury(${inj.id},event)" title="Remove">×</button>`;
+    <button class="pin-del" onclick="deleteInjury(${_id},event)" title="Remove">×</button>`;
   layer.appendChild(p);
   makeDraggable(p, inj);
 }
@@ -458,8 +465,13 @@ function _autoCreatePinFromPanel(pin){
     conditionsToPin = (window._headConditions||[]).map(c => ({ref:c, label:c.condition, isBilateral:false}));
   } else if(typeof BP_REGISTRY !== 'undefined'){
     Object.values(BP_REGISTRY).forEach(cfg => {
-      if(cfg.sideKeys[pin.key]){
+      const clickedSide = cfg.sideKeys[pin.key];
+      if(clickedSide){
         (window[cfg.stateKey]||[]).forEach(c => {
+          // Left and right share one state array — only pin/move conditions on
+          // the clicked side (bilateral and unsided records match either side),
+          // so repositioning a left-knee pin can't drag right-knee pins along.
+          if(c.sideLabel && c.sideLabel !== clickedSide && !c.bilateralLinked) return;
           conditionsToPin.push({ref:c, label:c.condition, isBilateral:!!c.bilateralLinked, stateKey:cfg.stateKey});
         });
       }
@@ -520,8 +532,9 @@ function _autoCreatePinFromPanel(pin){
         else if(ex.includes('right')) sideTag = '(R)';
       }
       const pinDisplay = sideTag ? sideTag + ' ' + ratingTxt : ratingTxt;
+      const _pe = typeof escapeHTML === 'function' ? escapeHTML : (s => s);
       p.innerHTML = '<div class="pin-head"><span class="pin-num" style="font-size:7px;">' + pinDisplay + '</span></div>' +
-        '<div class="pin-tip">' + (sideTag ? sideTag + ' ' : '') + item.label + ' — ' + ratingTxt + '</div>' +
+        '<div class="pin-tip">' + (sideTag ? sideTag + ' ' : '') + _pe(item.label) + ' — ' + ratingTxt + '</div>' +
         '<button class="pin-del" onclick="_removeCondPin('+item.ref.id+',event)" title="Remove">&times;</button>';
       layer.appendChild(p);
       _makeCondPinDraggable(p, item.ref);

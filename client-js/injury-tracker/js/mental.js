@@ -49,14 +49,14 @@ function addMentalCondition(name) {
     manualOverride: null,
     effectiveRating: 0
   }, _condInfoDefaults()));
-  renderConditionList();
+  _patchMHCondListSelection();
   renderMHEvalRegion();
 }
 
 function removeMentalCondition(id) {
   if(typeof _removeCondPinIfExists === 'function') _removeCondPinIfExists(id);
   window._mentalHealthConditions = window._mentalHealthConditions.filter(c => c.id !== id);
-  renderConditionList();
+  _patchMHCondListSelection();
   renderMHEvalRegion();
   if (typeof renderRating === 'function') renderRating();
 }
@@ -75,7 +75,7 @@ function updateMHDomain(condId, domainId, level) {
   cond.domains[domainId].level = level;
   if (level === 'none') cond.domains[domainId].frequency = 'less25';
   recalcMHRating(cond);
-  renderConditionList();
+  _patchMHCondListSelection();
   renderMHEvalRegion();
   if (typeof renderRating === 'function') renderRating();
 }
@@ -85,7 +85,7 @@ function updateMHFrequency(condId, domainId, freq) {
   if (!cond) return;
   cond.domains[domainId].frequency = freq;
   recalcMHRating(cond);
-  renderConditionList();
+  _patchMHCondListSelection();
   renderMHEvalRegion();
   if (typeof renderRating === 'function') renderRating();
 }
@@ -100,7 +100,7 @@ function setMHOverride(condId, value) {
     cond.manualOverride = parseInt(value);
     cond.effectiveRating = cond.manualOverride;
   }
-  renderConditionList();
+  _patchMHCondListSelection();
   renderMHEvalRegion();
   if (typeof renderRating === 'function') renderRating();
 }
@@ -115,7 +115,7 @@ function toggleMHOverride(condId, checked) {
     cond.manualOverride = null;
     cond.effectiveRating = cond.calculatedRating;
   }
-  renderConditionList();
+  _patchMHCondListSelection();
   renderMHEvalRegion();
   if (typeof renderRating === 'function') renderRating();
 }
@@ -186,6 +186,32 @@ function renderConditionList() {
   if (!filtered.length) h = '<div style="padding:14px;color:var(--muted);font-size:12px;text-align:center;">No conditions match your search.</div>';
   list.innerHTML = h;
   if(typeof _initCondListScroll === 'function') _initCondListScroll(list);
+}
+
+// Update the check state/badges on existing rows WITHOUT rebuilding the list.
+// Assigning innerHTML clamps the list's own scrollTop to 0 (the "check an item
+// near the bottom and it jumps to the top" bug) and re-flashes a filtered list.
+// Checking/rating a condition never changes which rows are present (only the
+// search box does), so patch in place and the scroll/search state stay put.
+// Mental is multi-select, so every selected condition keeps its own badge.
+function _patchMHCondListSelection() {
+  const list = document.getElementById('mh-cond-list');
+  if (!list || !list.querySelector('.mh-cond-item')) { renderConditionList(); return; }
+  list.querySelectorAll('.mh-cond-item').forEach(row => {
+    const name = row.getAttribute('data-cond-name');
+    const cond = window._mentalHealthConditions.find(c => c.condition === name);
+    row.classList.toggle('selected', !!cond);
+    const cb = row.querySelector('input');
+    if (cb) cb.checked = !!cond;
+    let badge = row.querySelector('.mh-cond-badge');
+    if (cond) {
+      if (!badge) { badge = document.createElement('span'); row.appendChild(badge); }
+      badge.className = 'mh-cond-badge ' + _rateClass(cond.effectiveRating);
+      badge.textContent = cond.effectiveRating + '%';
+    } else if (badge) {
+      badge.remove();
+    }
+  });
 }
 
 // ── RENDER PANEL ────────────────────────────────────────────────────────────

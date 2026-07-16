@@ -268,7 +268,7 @@ function unlinkBilateral(regionId, condId){
   cond.bilateralLinked = false;
   cond.bilateralPairId = null;
   cond.bilateralSource = false;
-  renderBPPanel(regionId);
+  renderBPEvalRegion(regionId);
 }
 
 // ── OPEN / CLOSE ────────────────────────────────────────────────────────────
@@ -375,7 +375,8 @@ function addBPCondition(regionId, name){
   } else {
     _addBPCondSide(regionId, name, _bpPinKey);
   }
-  renderBPPanel(regionId);
+  _patchBPCondListSelection(regionId);
+  renderBPEvalRegion(regionId);
 }
 
 function removeBPCondition(regionId, id){
@@ -390,7 +391,8 @@ function removeBPCondition(regionId, id){
   // Remove individual condition pin
   if(typeof _removeCondPinIfExists === 'function') _removeCondPinIfExists(id);
   window[cfg.stateKey] = window[cfg.stateKey].filter(c=>c.id!==id);
-  renderBPPanel(regionId);
+  _patchBPCondListSelection(regionId);
+  renderBPEvalRegion(regionId);
   if(typeof renderRating==='function') renderRating();
 }
 
@@ -437,7 +439,8 @@ function toggleBPCondition(regionId, name){
     const ids = [alreadySelected.id];
     if(alreadySelected.bilateralPairId) ids.push(alreadySelected.bilateralPairId);
     ids.forEach(cid => _deselectBPCondition(regionId, window[cfg.stateKey].find(c => c.id === cid)));
-    renderBPPanel(regionId);
+    _patchBPCondListSelection(regionId);
+    renderBPEvalRegion(regionId);
     if(typeof renderRating==='function') renderRating();
     return;
   }
@@ -469,7 +472,8 @@ function toggleBPCondition(regionId, name){
           _bpPinKey = chosenKey;
           _addBPCondSide(regionId, name, chosenKey);
         }
-        renderBPPanel(regionId);
+        _patchBPCondListSelection(regionId);
+        renderBPEvalRegion(regionId);
       });
       return;
     }
@@ -493,11 +497,12 @@ function updateBPDomain(regionId, condId, domainId, value){
   // Bilateral sync: source → target auto-syncs; editing target unlinks
   let needsFullRender = false;
 
-  // The nerve "Which side?" picker only exists in the panel HTML while the
-  // nerve domain is > 0, so crossing that threshold has to rebuild the panel —
-  // a targeted button patch would leave the picker missing (or stranded). Back
-  // and neck are never bilaterally linked, so nothing else would re-render them
-  // and the user could never pick a side for their radiculopathy rating.
+  // The nerve "Which side?" picker only exists in the eval HTML while the
+  // nerve domain is > 0, so crossing that threshold has to rebuild the eval
+  // region — a targeted button patch would leave the picker missing (or
+  // stranded). Back and neck are never bilaterally linked, so nothing else
+  // would re-render them and the user could never pick a side for their
+  // radiculopathy rating.
   if(cfg.nerveSplit && domainId === cfg.nerveSplit.domainId &&
      (prevValue > 0) !== (parseInt(value) > 0)){
     needsFullRender = true;
@@ -519,7 +524,8 @@ function updateBPDomain(regionId, condId, domainId, value){
   }
 
   if(needsFullRender){
-    renderBPPanel(regionId);
+    renderBPEvalRegion(regionId);
+    _patchCondListBadge(regionId);
   } else {
     _patchDomainButtons('bp-eval-'+condId, domainId, parseInt(value));
     _patchRating(condId, cond.effectiveRating, cond.calculatedRating);
@@ -554,7 +560,7 @@ function setBPNerveSide(regionId, condId, side){
   const cond = (window[cfg.stateKey] || []).find(c=>c.id===condId);
   if(!cond) return;
   cond.radSide = cond.radSide === side ? '' : side;
-  renderBPPanel(regionId);
+  renderBPEvalRegion(regionId);
   if(typeof renderRating==='function') renderRating();
 }
 
@@ -659,7 +665,8 @@ function setBPOverride(regionId, condId, value){
       }
     }
   }
-  renderBPPanel(regionId);
+  renderBPEvalRegion(regionId);
+  _patchCondListBadge(regionId);
   if(typeof renderRating==='function') renderRating();
 }
 
@@ -694,7 +701,8 @@ function toggleBPOverride(regionId, condId, checked){
       }
     }
   }
-  renderBPPanel(regionId);
+  renderBPEvalRegion(regionId);
+  _patchCondListBadge(regionId);
   if(typeof renderRating==='function') renderRating();
 }
 
@@ -729,8 +737,9 @@ function renderBPCondList(regionId){
     const examples = (typeof PHYS_EXAMPLES !== 'undefined' && PHYS_EXAMPLES[name]) || '';
     const exHtml = examples ? '<span class="mh-cond-examples">e.g. '+examples+'</span>' : '';
     const escaped = name.replace(/'/g,"\\'");
+    const dataName = name.replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     const badge = checked && currentCond ? '<span class="mh-cond-badge '+_rateClass(currentCond.effectiveRating)+'">'+currentCond.effectiveRating+'%</span>' : '';
-    h += '<div class="mh-cond-item'+(checked?' selected':'')+'" onclick="toggleBPCondition(\''+regionId+'\',\''+escaped+'\')">' +
+    h += '<div class="mh-cond-item'+(checked?' selected':'')+'" data-cond-name="'+dataName+'" onclick="toggleBPCondition(\''+regionId+'\',\''+escaped+'\')">' +
       '<input type="radio" name="bp-cond-'+regionId+'" '+(checked?'checked':'')+' onclick="event.stopPropagation();toggleBPCondition(\''+regionId+'\',\''+escaped+'\')">' +
       '<span class="mh-cond-label">'+name+exHtml+'</span>' +
       badge +
@@ -741,6 +750,37 @@ function renderBPCondList(regionId){
   if(typeof _initCondListScroll === 'function') _initCondListScroll(list);
 }
 
+// Move the selection highlight/badge between existing rows WITHOUT rebuilding
+// the list. Assigning list.innerHTML clamps the list's own scrollTop to 0 — the
+// "pick an item near the bottom and it jumps to the top" bug — and visibly
+// re-flashes a search-filtered list. A selection never changes which rows are
+// present (only the search box does that), so patch the two affected rows in
+// place instead and the scroll position and search stay put.
+function _patchBPCondListSelection(regionId){
+  const cfg = BP_REGISTRY[regionId];
+  if(!cfg) return;
+  const list = document.getElementById('bp-cond-list-'+regionId);
+  // No list yet (or it's showing the empty-search message with no rows) — fall
+  // back to a full build so the selection still shows.
+  if(!list || !list.querySelector('.mh-cond-item')){ renderBPCondList(regionId); return; }
+  const currentCond = (window[cfg.stateKey]||[]).find(c => !c._committed);
+  const selName = currentCond ? currentCond.condition : null;
+  list.querySelectorAll('.mh-cond-item').forEach(row => {
+    const isSel = row.getAttribute('data-cond-name') === selName;
+    row.classList.toggle('selected', isSel);
+    const radio = row.querySelector('input');
+    if(radio) radio.checked = isSel;
+    let badge = row.querySelector('.mh-cond-badge');
+    if(isSel && currentCond){
+      if(!badge){ badge = document.createElement('span'); row.appendChild(badge); }
+      badge.className = 'mh-cond-badge '+_rateClass(currentCond.effectiveRating);
+      badge.textContent = currentCond.effectiveRating+'%';
+    } else if(badge){
+      badge.remove();
+    }
+  });
+}
+
 // ── RENDER PANEL ────────────────────────────────────────────────────────────
 
 function renderBPPanel(regionId){
@@ -749,7 +789,6 @@ function renderBPPanel(regionId){
   const panel = document.getElementById(cfg.panelId);
   if(!panel) return;
 
-  const conds = window[cfg.stateKey];
   let h = '';
 
   // Header
@@ -789,6 +828,36 @@ function renderBPPanel(regionId){
 
   // Condition checklist
   h += '<div class="mh-cond-list" id="bp-cond-list-'+regionId+'"></div>';
+
+  // Dynamic eval region — re-rendered on its own without rebuilding the panel
+  // or the cond-list above. Keeps the user's scroll/search state intact.
+  h += '<div id="bp-eval-region-'+regionId+'">' + _buildBPEvalRegionHTML(regionId) + '</div>';
+
+  h += '</div>'; // mh-body
+  const _scrollTop = panel.scrollTop;
+  panel.innerHTML = h;
+  // The cond-list container exists as soon as innerHTML is assigned, so fill it
+  // in the same tick. Deferring it left the list empty for a frame and restored
+  // scrollTop twice — once against the short, listless panel, so the position
+  // was wrong until the timer ran, and two quick clicks could race.
+  renderBPCondList(regionId);
+  panel.scrollTop = _scrollTop;
+  // Sidebar badges live behind this overlay — keep them current as the user
+  // adds and rates conditions instead of waiting for a pin to be placed
+  if(typeof updateBadges === 'function') updateBadges();
+  if(typeof updateCount === 'function') updateCount();
+}
+
+// Build the HTML for the evaluation region (everything below the cond-list,
+// including the Place Pin footer). Split out so selections and domain edits can
+// update only this region instead of rebuilding the panel — that's what keeps
+// the cond-list scroll position and the search box alive (same pattern as
+// head.js / mental.js).
+function _buildBPEvalRegionHTML(regionId){
+  const cfg = BP_REGISTRY[regionId];
+  if(!cfg) return '';
+  const conds = window[cfg.stateKey];
+  let h = '';
 
   // Evaluations — only show current session (non-committed) conditions
   const _visibleConds = conds.filter(c => !c._committed);
@@ -931,15 +1000,18 @@ function renderBPPanel(regionId){
   h += '<button class="mh-back-btn" onclick="closeBPPanel(\''+regionId+'\')" style="margin-top:8px;">Back to Map (no pin)</button>';
   h += '</div>';
 
-  h += '</div>'; // mh-body
-  const _scrollTop = panel.scrollTop;
-  panel.innerHTML = h;
-  // The cond-list container exists as soon as innerHTML is assigned, so fill it
-  // in the same tick. Deferring it left the list empty for a frame and restored
-  // scrollTop twice — once against the short, listless panel, so the position
-  // was wrong until the timer ran, and two quick clicks could race.
-  renderBPCondList(regionId);
-  panel.scrollTop = _scrollTop;
+  return h;
+}
+
+// Re-render only the eval region, leaving the search box and cond-list DOM
+// (and their scroll positions) untouched. Falls back to a full panel render
+// if the region container doesn't exist yet.
+function renderBPEvalRegion(regionId){
+  const cfg = BP_REGISTRY[regionId];
+  if(!cfg) return;
+  const region = document.getElementById('bp-eval-region-'+regionId);
+  if(!region){ renderBPPanel(regionId); return; }
+  region.innerHTML = _buildBPEvalRegionHTML(regionId);
   // Sidebar badges live behind this overlay — keep them current as the user
   // adds and rates conditions instead of waiting for a pin to be placed
   if(typeof updateBadges === 'function') updateBadges();

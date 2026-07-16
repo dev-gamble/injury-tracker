@@ -83,7 +83,12 @@ function _initCondListScroll(listEl){
   if(!listEl) return;
   listEl.classList.remove('scrolled-bottom');
   const check = () => {
-    if(listEl.scrollTop + listEl.clientHeight >= listEl.scrollHeight - 10){
+    // Fade the hint out BEFORE it can overlap the last row (the hint's sticky
+    // box is ~26px tall and sits over the bottom edge of the viewport). The
+    // hidden state keeps the hint's layout space (opacity, not display:none) —
+    // collapsing it changed scrollHeight, which flipped this very condition
+    // back and forth at the bottom, so the hint flickered over the last item.
+    if(listEl.scrollTop + listEl.clientHeight >= listEl.scrollHeight - 30){
       listEl.classList.add('scrolled-bottom');
     } else {
       listEl.classList.remove('scrolled-bottom');
@@ -97,7 +102,9 @@ function _initCondListScroll(listEl){
     listEl.addEventListener('scroll', check);
     listEl._condScrollBound = true;
   }
-  // If content doesn't overflow, hide hint immediately
+  // Run now so a short (e.g. search-filtered) list never flashes the hint for
+  // a frame, and again after layout settles in case sizes weren't final yet.
+  check();
   setTimeout(check, 50);
 }
 
@@ -148,17 +155,19 @@ function _condInfoHTML(type, cond){
 
 // Global update handler for condition info fields
 function _updateCondInfo(type, condId, field, value){
+  // Re-render only the eval region — a full panel rebuild would wipe the
+  // cond-list scroll position and search box for a mere clinic-field toggle.
   let cond, rerender;
   if(type==='mh'){
     cond = (window._mentalHealthConditions||[]).find(c=>c.id===condId);
-    rerender = function(){ if(typeof renderMentalPanel==='function') renderMentalPanel(); };
+    rerender = function(){ if(typeof renderMHEvalRegion==='function') renderMHEvalRegion(); };
   } else if(type==='head'){
     cond = (window._headConditions||[]).find(c=>c.id===condId);
-    rerender = function(){ if(typeof renderHeadPanel==='function') renderHeadPanel(); };
+    rerender = function(){ if(typeof renderHeadEvalRegion==='function') renderHeadEvalRegion(); };
   } else {
     const cfg = typeof BP_REGISTRY!=='undefined' ? BP_REGISTRY[type] : null;
     if(cfg) cond = (window[cfg.stateKey]||[]).find(c=>c.id===condId);
-    rerender = function(){ if(typeof renderBPPanel==='function') renderBPPanel(type); };
+    rerender = function(){ if(typeof renderBPEvalRegion==='function') renderBPEvalRegion(type); };
   }
   if(!cond) return;
   cond[field] = value;

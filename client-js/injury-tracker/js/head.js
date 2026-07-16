@@ -53,7 +53,7 @@ function addHeadCondition(name) {
     if (existing._committed) {
       existing._committed = false;
       existing._wasCommitted = true;
-      renderHeadConditionList();
+      _patchHeadCondListSelection();
       renderHeadEvalRegion();
     }
     return;
@@ -72,14 +72,14 @@ function addHeadCondition(name) {
     effectiveRating: 0,
     extremity: 'none',
   }, _condInfoDefaults()));
-  renderHeadConditionList();
+  _patchHeadCondListSelection();
   renderHeadEvalRegion();
 }
 
 function removeHeadCondition(id) {
   if(typeof _removeCondPinIfExists === 'function') _removeCondPinIfExists(id);
   window._headConditions = window._headConditions.filter(c => c.id !== id);
-  renderHeadConditionList();
+  _patchHeadCondListSelection();
   renderHeadEvalRegion();
   if (typeof renderRating === 'function') renderRating();
 }
@@ -94,7 +94,7 @@ function _deselectHeadCondition(cond) {
   if(cond._wasCommitted){
     cond._committed = true;
     cond._wasCommitted = false;
-    renderHeadConditionList();
+    _patchHeadCondListSelection();
     renderHeadEvalRegion();
     if (typeof renderRating === 'function') renderRating();
     return;
@@ -125,8 +125,8 @@ function updateHeadDomain(condId, domainId, value) {
   // Targeted DOM update — no full re-render, no scroll jump
   _patchHeadDomainButtons('hd-eval-body-'+condId, domainId, parseInt(value));
   _patchHeadRating(condId, cond.effectiveRating, cond.calculatedRating);
-  // Refresh the cond-list so the rating badge reflects the new value.
-  renderHeadConditionList();
+  // Refresh the selected row's badge in place (no rebuild → no scroll jump).
+  _patchHeadCondListSelection();
   if (typeof renderRating === 'function') renderRating();
 }
 
@@ -168,7 +168,7 @@ function setHeadOverride(condId, value) {
     cond.manualOverride = parseInt(value);
     cond.effectiveRating = cond.manualOverride;
   }
-  renderHeadConditionList();
+  _patchHeadCondListSelection();
   renderHeadEvalRegion();
   if (typeof renderRating === 'function') renderRating();
 }
@@ -183,7 +183,7 @@ function toggleHeadOverride(condId, checked) {
     cond.manualOverride = null;
     cond.effectiveRating = cond.calculatedRating;
   }
-  renderHeadConditionList();
+  _patchHeadCondListSelection();
   renderHeadEvalRegion();
   if (typeof renderRating === 'function') renderRating();
 }
@@ -237,6 +237,32 @@ function renderHeadConditionList() {
   if (typeof _initCondListScroll === 'function') _initCondListScroll(list);
 }
 
+// Move the selection highlight/badge between existing rows WITHOUT rebuilding
+// the list. Assigning innerHTML clamps the list's own scrollTop to 0 (the
+// "pick a low item and it jumps to the top" bug) and re-flashes a filtered
+// list. A selection or a rating change never alters which rows are present, so
+// patch in place and the scroll position and search box stay put.
+function _patchHeadCondListSelection() {
+  const list = document.getElementById('hd-cond-list');
+  if (!list || !list.querySelector('.mh-cond-item')) { renderHeadConditionList(); return; }
+  const currentCond = window._headConditions.find(c => !c._committed);
+  const selName = currentCond ? currentCond.condition : null;
+  list.querySelectorAll('.mh-cond-item').forEach(row => {
+    const isSel = row.getAttribute('data-cond-name') === selName;
+    row.classList.toggle('selected', isSel);
+    const radio = row.querySelector('input');
+    if (radio) radio.checked = isSel;
+    let badge = row.querySelector('.mh-cond-badge');
+    if (isSel && currentCond) {
+      if (!badge) { badge = document.createElement('span'); row.appendChild(badge); }
+      badge.className = 'mh-cond-badge ' + _rateClass(currentCond.effectiveRating);
+      badge.textContent = currentCond.effectiveRating + '%';
+    } else if (badge) {
+      badge.remove();
+    }
+  });
+}
+
 // ── RENDER PANEL ─────────────────────────────────────────────────────────────
 
 function renderHeadPanel() {
@@ -278,6 +304,8 @@ function renderHeadPanel() {
   h += '</div>'; // mh-body
   const _scrollTop = panel.scrollTop;
   panel.innerHTML = h;
+  const list = document.getElementById('hd-cond-list');
+  if (typeof _initCondListScroll === 'function') _initCondListScroll(list);
   panel.scrollTop = _scrollTop;
   // Sidebar badges live behind this overlay — keep them current as the user
   // adds and rates conditions instead of waiting for a pin to be placed

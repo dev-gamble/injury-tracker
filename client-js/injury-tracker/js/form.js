@@ -56,33 +56,43 @@ function onBodyAreaChange(area){
   if(!area){
     condField.classList.add('hidden');
     document.getElementById('custom-label-field').classList.add('hidden');
+    document.getElementById('f-custom-label').value='';
     return;
   }
 
-  // Mental Health & Head/Face → close form, open dedicated panel
-  if(area === 'mental'){
-    removePreviewPin(); pendingPin = null;
-    closeModal();
-    openMentalHealthPanel();
-    return;
-  }
-  if(area === 'head'){
-    removePreviewPin(); pendingPin = null;
-    closeModal();
-    openHeadPanel('headFace');
-    return;
+  // Panel redirects apply ONLY outside an active form session. When the
+  // custom-pin form is open (pendingPin set) or an injury is being edited
+  // (editingId set), redirecting would close the modal and silently discard
+  // the placed pin and everything the user typed.
+  const _formInUse = editingId !== null || (typeof pendingPin !== 'undefined' && pendingPin);
+  if(!_formInUse){
+    // Mental Health & Head/Face → close form, open dedicated panel
+    if(area === 'mental'){
+      removePreviewPin(); pendingPin = null;
+      closeModal();
+      openMentalHealthPanel();
+      return;
+    }
+    if(area === 'head'){
+      removePreviewPin(); pendingPin = null;
+      closeModal();
+      openHeadPanel('headFace');
+      return;
+    }
+    // Body part panels (knee, back, shoulder, etc.)
+    if(typeof BP_REGISTRY !== 'undefined' && BP_REGISTRY[area]){
+      removePreviewPin(); pendingPin = null;
+      closeModal();
+      openBPPanel(area, Object.keys(BP_REGISTRY[area].sideKeys)[0]);
+      return;
+    }
   }
 
-  // Body part panels (knee, back, shoulder, etc.)
-  if(typeof BP_REGISTRY !== 'undefined' && BP_REGISTRY[area]){
-    removePreviewPin(); pendingPin = null;
-    closeModal();
-    openBPPanel(area, Object.keys(BP_REGISTRY[area].sideKeys)[0]);
-    return;
-  }
-
-  // Populate condition dropdown from VA_AREA_CONDITIONS
-  const conditions = (typeof VA_AREA_CONDITIONS!=='undefined' && VA_AREA_CONDITIONS[area]) || [];
+  // Populate condition dropdown from VA_AREA_CONDITIONS (mental/head use their
+  // dedicated lists so the in-form flow still works for those areas)
+  const conditions = area === 'mental' ? (typeof VA_MENTAL !== 'undefined' ? VA_MENTAL : []) :
+                     area === 'head' ? (typeof VA_HEAD !== 'undefined' ? VA_HEAD : []) :
+                     (typeof VA_AREA_CONDITIONS!=='undefined' && VA_AREA_CONDITIONS[area]) || [];
   let h='<option value="">— Select condition —</option>';
   conditions.forEach(name=>{
     h+=`<option value="${name.replace(/"/g,'&quot;')}">${name}</option>`;
@@ -108,6 +118,9 @@ function onConditionChange(val){
     condCustom.classList.add('hidden');
     condCustom.value='';
     document.getElementById('custom-label-field').classList.add('hidden');
+    // Clear the hidden field too — getResolvedLabel gives it top priority, so a
+    // stale value here would silently override the newly selected condition
+    document.getElementById('f-custom-label').value='';
   }
 
   // Update preview pin with condition name
@@ -204,7 +217,12 @@ function saveInjury(){
     // Update body area key
     const newArea = document.getElementById('f-body-area').value;
     const origGroup = document.getElementById('f-body-area').dataset.originalGroup;
-    if(newArea && newArea!==origGroup) inj.key = newArea;
+    if(newArea && newArea!==origGroup){
+      inj.key = newArea;
+      // Every selectable area is panel-managed — without this flag the record
+      // would vanish from timeline/rating/exports the moment its key changes
+      inj.customPin = true;
+    }
     inj.pin.label = resolvedLabel;
     // Update pin on map
     const pinEl = document.getElementById('pin-'+inj.id);
@@ -222,7 +240,9 @@ function saveInjury(){
 
   // NEW INJURY MODE
   if(!pendingPin){alert('No pin placed. Click the body map or Quick Select first.');return;}
-  const isCustom = pendingPin.key==='custom';
+  // Check the origin flag, not just the key — onBodyAreaChange already
+  // replaced 'custom' with the selected area by the time we get here
+  const isCustom = pendingPin.key==='custom' || !!pendingPin.customPin;
 
   // For custom pins, require area + condition selection
   if(isCustom){
@@ -247,6 +267,10 @@ function saveInjury(){
   const inj={
     id:Date.now(),
     key:pendingPin.key,
+    // Custom-pin records share panel-managed keys (every area in the dropdown
+    // is one) but are ordinary injuries — this flag keeps _nonPanelInjuries
+    // from hiding them in the timeline, rating, exports, and statement.
+    customPin:isCustom,
     label:finalLabel,
     date, severity:sev,
     location:document.getElementById('f-loc').value,
@@ -282,8 +306,9 @@ function saveInjury(){
   // Stamp date/pin onto body part conditions (knee, back, shoulder, etc.)
   if(typeof BP_REGISTRY !== 'undefined'){
     Object.values(BP_REGISTRY).forEach(cfg => {
-      // Match if the pin key belongs to this body part's side keys
-      if(cfg.sideKeys[pendingPin.key]){
+      // Match if the pin key belongs to this body part's side keys, or is the
+      // region id itself (custom pins store the area/region id, not a side key)
+      if(cfg.sideKeys[pendingPin.key] || cfg.id === pendingPin.key){
         (window[cfg.stateKey]||[]).forEach(c => {
           if(!c.date) c.date = date;
           if(!c.pin) c.pin = {x:inj.pin.x, y:inj.pin.y, side:inj.pin.side, body:inj.pin.body};
@@ -343,10 +368,13 @@ function renderImpactChips(){
     c.innerHTML='<span style="font-size:11px;color:var(--muted);font-style:italic;">No limitations added</span>';
     return;
   }
-  c.innerHTML = _pendingImpacts.map(fi=>
+  // Index-based removal + escaped label: quotes or angle brackets in user text
+  // must not break the chip markup or its remove button
+  const _e = typeof escapeHTML === 'function' ? escapeHTML : (s=>s);
+  c.innerHTML = _pendingImpacts.map((fi,idx)=>
     `<span class="sc-chip" style="background:rgba(200,16,46,.1);color:var(--red2);border:1px solid rgba(200,16,46,.2);">
-      <span>${fi}</span>
-      <span class="sc-rm" style="color:var(--red);" onclick="removeImpact('${fi.replace(/'/g,"\\'")}')">×</span>
+      <span>${_e(fi)}</span>
+      <span class="sc-rm" style="color:var(--red);" onclick="removeImpact(${idx})">×</span>
     </span>`
   ).join('');
 }
@@ -368,8 +396,8 @@ function addCustomImpact(){
   renderImpactChips();
 }
 
-function removeImpact(label){
-  _pendingImpacts = _pendingImpacts.filter(fi=>fi!==label);
+function removeImpact(idx){
+  _pendingImpacts.splice(idx, 1);
   renderImpactChips();
 }
 

@@ -1,7 +1,21 @@
 // ── DATA CONSTANTS ── Pin coordinates, groups, secondary condition maps
+
+// Severity-color class for a rating badge. The .mh-rate-* scale in styles.css
+// is defined per decade, but combining separate diagnostic codes within one
+// joint (38 CFR 4.25 — knee, hip, elbow) yields intermediate values like 19 or
+// 44, which would land on a class that doesn't exist and render uncolored.
+// Snap to the nearest decade for the COLOR only; the displayed % stays exact.
+function _rateClass(rating){
+  const v = Math.max(0, Math.min(100, Math.round((Number(rating) || 0) / 10) * 10));
+  return 'mh-rate-' + v;
+}
+
 const MENTAL_PINS = {"mental": {"label": "Mental Health", "x": 52, "y": 10}};
 const HEAD_PINS = {"headFace": {"label": "Head & Face", "x": 52, "y": 17}};
-const FRONT_PINS = {"head": {"label": "Head", "x": 52, "y": 17}, "leftEar": {"label": "Left Ear", "x": 30, "y": 17}, "rightEar": {"label": "Right Ear", "x": 73, "y": 17}, "leftEye": {"label": "Left Eye", "x": 40, "y": 14}, "rightEye": {"label": "Right Eye", "x": 63, "y": 14}, "nose": {"label": "Nose", "x": 52, "y": 16}, "jaw": {"label": "Jaw / TMJ", "x": 52, "y": 22}, "neck": {"label": "Neck", "x": 52, "y": 25}, "leftShoulder": {"label": "Left Shoulder", "x": 21, "y": 30}, "rightShoulder": {"label": "Right Shoulder", "x": 80, "y": 30}, "chest": {"label": "Chest", "x": 52, "y": 34}, "leftLung": {"label": "Left Lung", "x": 35, "y": 34}, "rightLung": {"label": "Right Lung", "x": 68, "y": 34}, "abdomen": {"label": "Abdomen", "x": 52, "y": 46}, "leftElbow": {"label": "Left Elbow", "x": 19, "y": 42}, "rightElbow": {"label": "Right Elbow", "x": 83, "y": 42}, "leftForearm": {"label": "Left Forearm", "x": 13, "y": 49}, "rightForearm": {"label": "Right Forearm", "x": 88, "y": 49}, "leftWrist": {"label": "Left Wrist", "x": 10, "y": 54}, "rightWrist": {"label": "Right Wrist", "x": 90, "y": 54}, "leftHand": {"label": "Left Hand", "x": 14, "y": 57}, "rightHand": {"label": "Right Hand", "x": 87, "y": 57}, "leftHip": {"label": "Left Hip", "x": 37, "y": 54}, "rightHip": {"label": "Right Hip", "x": 63, "y": 54}, "pelvis": {"label": "Pelvis / Groin", "x": 52, "y": 55}, "leftThigh": {"label": "Left Thigh", "x": 38, "y": 63}, "rightThigh": {"label": "Right Thigh", "x": 62, "y": 63}, "leftKnee": {"label": "Left Knee", "x": 38, "y": 70}, "rightKnee": {"label": "Right Knee", "x": 62, "y": 70}, "leftShin": {"label": "Left Shin", "x": 38, "y": 77}, "rightShin": {"label": "Right Shin", "x": 62, "y": 77}, "leftAnkle": {"label": "Left Ankle", "x": 38, "y": 84}, "rightAnkle": {"label": "Right Ankle", "x": 62, "y": 84}, "leftFoot": {"label": "Left Foot", "x": 37, "y": 87}, "rightFoot": {"label": "Right Foot", "x": 62, "y": 87}};
+// NOTE: The front view is a mirror — the body's LEFT side is on the VIEWER'S RIGHT
+// (map.js draws the RIGHT label on the viewer's left). Left-side pins therefore
+// use the higher x values, matching the on-map side labels.
+const FRONT_PINS = {"head": {"label": "Head", "x": 52, "y": 17}, "leftEar": {"label": "Left Ear", "x": 73, "y": 17}, "rightEar": {"label": "Right Ear", "x": 30, "y": 17}, "leftEye": {"label": "Left Eye", "x": 63, "y": 14}, "rightEye": {"label": "Right Eye", "x": 40, "y": 14}, "nose": {"label": "Nose", "x": 52, "y": 16}, "jaw": {"label": "Jaw / TMJ", "x": 52, "y": 22}, "neck": {"label": "Neck", "x": 52, "y": 25}, "leftShoulder": {"label": "Left Shoulder", "x": 80, "y": 30}, "rightShoulder": {"label": "Right Shoulder", "x": 21, "y": 30}, "chest": {"label": "Chest", "x": 52, "y": 34}, "leftLung": {"label": "Left Lung", "x": 68, "y": 34}, "rightLung": {"label": "Right Lung", "x": 35, "y": 34}, "abdomen": {"label": "Abdomen", "x": 52, "y": 46}, "leftElbow": {"label": "Left Elbow", "x": 83, "y": 42}, "rightElbow": {"label": "Right Elbow", "x": 19, "y": 42}, "leftForearm": {"label": "Left Forearm", "x": 88, "y": 49}, "rightForearm": {"label": "Right Forearm", "x": 13, "y": 49}, "leftWrist": {"label": "Left Wrist", "x": 90, "y": 54}, "rightWrist": {"label": "Right Wrist", "x": 10, "y": 54}, "leftHand": {"label": "Left Hand", "x": 87, "y": 57}, "rightHand": {"label": "Right Hand", "x": 14, "y": 57}, "leftHip": {"label": "Left Hip", "x": 63, "y": 54}, "rightHip": {"label": "Right Hip", "x": 37, "y": 54}, "pelvis": {"label": "Pelvis / Groin", "x": 52, "y": 55}, "leftThigh": {"label": "Left Thigh", "x": 62, "y": 63}, "rightThigh": {"label": "Right Thigh", "x": 38, "y": 63}, "leftKnee": {"label": "Left Knee", "x": 62, "y": 70}, "rightKnee": {"label": "Right Knee", "x": 38, "y": 70}, "leftShin": {"label": "Left Shin", "x": 62, "y": 77}, "rightShin": {"label": "Right Shin", "x": 38, "y": 77}, "leftAnkle": {"label": "Left Ankle", "x": 62, "y": 84}, "rightAnkle": {"label": "Right Ankle", "x": 38, "y": 84}, "leftFoot": {"label": "Left Foot", "x": 62, "y": 87}, "rightFoot": {"label": "Right Foot", "x": 37, "y": 87}};
 const BACK_PINS  = {"head": {"label": "Head", "x": 52, "y": 17}, "neck": {"label": "Neck", "x": 52, "y": 25}, "leftShoulder": {"label": "Left Shoulder", "x": 21, "y": 30}, "rightShoulder": {"label": "Right Shoulder", "x": 80, "y": 30}, "upperBack": {"label": "Upper Back", "x": 52, "y": 34}, "spine": {"label": "Spine", "x": 52, "y": 43}, "lowerBack": {"label": "Lower Back", "x": 52, "y": 49}, "leftElbow": {"label": "Left Elbow", "x": 19, "y": 42}, "rightElbow": {"label": "Right Elbow", "x": 83, "y": 42}, "leftForearm": {"label": "Left Forearm", "x": 13, "y": 49}, "rightForearm": {"label": "Right Forearm", "x": 88, "y": 49}, "leftWrist": {"label": "Left Wrist", "x": 10, "y": 54}, "rightWrist": {"label": "Right Wrist", "x": 90, "y": 54}, "leftHand": {"label": "Left Hand", "x": 14, "y": 57}, "rightHand": {"label": "Right Hand", "x": 87, "y": 57}, "glutes": {"label": "Glutes", "x": 52, "y": 56}, "leftHamstring": {"label": "Left Hamstring", "x": 38, "y": 63}, "rightHamstring": {"label": "Right Hamstring", "x": 62, "y": 63}, "leftKnee": {"label": "Left Knee", "x": 38, "y": 70}, "rightKnee": {"label": "Right Knee", "x": 62, "y": 70}, "leftCalf": {"label": "Left Calf", "x": 38, "y": 77}, "rightCalf": {"label": "Right Calf", "x": 62, "y": 77}, "leftAnkle": {"label": "Left Ankle", "x": 38, "y": 84}, "rightAnkle": {"label": "Right Ankle", "x": 62, "y": 84}, "leftFoot": {"label": "Left Foot", "x": 37, "y": 87}, "rightFoot": {"label": "Right Foot", "x": 62, "y": 87}};
 
 const SIDEBAR_ITEMS = {
@@ -49,30 +63,48 @@ function _getPanelKeys(){
   return s;
 }
 
+// Injuries whose key is panel-managed are hidden anchors — their real data
+// lives in the panel's own state array and renders from there. Records logged
+// through a CUSTOM PIN also carry a panel key (every area in the form's
+// dropdown is panel-managed), but they are ordinary injuries with their own
+// user-typed details, so they must stay visible. Every consumer of the
+// injuries array (timeline, rating, exports, statement, secondary) filters
+// through here.
+function _nonPanelInjuries(list){
+  const pk = _getPanelKeys();
+  return (list || []).filter(i => i.customPin || !pk.has(i.key));
+}
+
 // Returns default info field values for new conditions
 function _condInfoDefaults(){ return {date:'',location:'',event:'',description:'',medicalCare:'',clinicName:'',witnesses:'',stillBeingSeen:false}; }
-
-// Toggle the adjacent .cr-custom-btn's disabled state based on input contents.
-// Wired via `oninput="_toggleCustomAddBtn(this)"` on each `.cr-custom-input`.
-function _toggleCustomAddBtn(input){
-  const row = input.closest('.cr-custom-row');
-  const btn = row ? row.querySelector('.cr-custom-btn') : null;
-  if(btn) btn.disabled = !input.value.trim();
-}
 
 // Attach scroll-bottom detection to condition lists (hides "Scroll for more" hint)
 function _initCondListScroll(listEl){
   if(!listEl) return;
   listEl.classList.remove('scrolled-bottom');
   const check = () => {
-    if(listEl.scrollTop + listEl.clientHeight >= listEl.scrollHeight - 10){
+    // Fade the hint out BEFORE it can overlap the last row (the hint's sticky
+    // box is ~26px tall and sits over the bottom edge of the viewport). The
+    // hidden state keeps the hint's layout space (opacity, not display:none) —
+    // collapsing it changed scrollHeight, which flipped this very condition
+    // back and forth at the bottom, so the hint flickered over the last item.
+    if(listEl.scrollTop + listEl.clientHeight >= listEl.scrollHeight - 30){
       listEl.classList.add('scrolled-bottom');
     } else {
       listEl.classList.remove('scrolled-bottom');
     }
   };
-  listEl.addEventListener('scroll', check);
-  // If content doesn't overflow, hide hint immediately
+  // The list element outlives its own innerHTML: every re-render calls back in
+  // here on the SAME node — once per keystroke while searching — so binding
+  // unconditionally stacks up handlers that all fire on every scroll. Bind once;
+  // a genuinely new element (full panel re-render) arrives without the flag.
+  if(!listEl._condScrollBound){
+    listEl.addEventListener('scroll', check);
+    listEl._condScrollBound = true;
+  }
+  // Run now so a short (e.g. search-filtered) list never flashes the hint for
+  // a frame, and again after layout settles in case sizes weren't final yet.
+  check();
   setTimeout(check, 50);
 }
 
@@ -123,17 +155,19 @@ function _condInfoHTML(type, cond){
 
 // Global update handler for condition info fields
 function _updateCondInfo(type, condId, field, value){
+  // Re-render only the eval region — a full panel rebuild would wipe the
+  // cond-list scroll position and search box for a mere clinic-field toggle.
   let cond, rerender;
   if(type==='mh'){
     cond = (window._mentalHealthConditions||[]).find(c=>c.id===condId);
-    rerender = function(){ if(typeof renderMentalPanel==='function') renderMentalPanel(); };
+    rerender = function(){ if(typeof renderMHEvalRegion==='function') renderMHEvalRegion(); };
   } else if(type==='head'){
     cond = (window._headConditions||[]).find(c=>c.id===condId);
-    rerender = function(){ if(typeof renderHeadPanel==='function') renderHeadPanel(); };
+    rerender = function(){ if(typeof renderHeadEvalRegion==='function') renderHeadEvalRegion(); };
   } else {
     const cfg = typeof BP_REGISTRY!=='undefined' ? BP_REGISTRY[type] : null;
     if(cfg) cond = (window[cfg.stateKey]||[]).find(c=>c.id===condId);
-    rerender = function(){ if(typeof renderBPPanel==='function') renderBPPanel(type); };
+    rerender = function(){ if(typeof renderBPEvalRegion==='function') renderBPEvalRegion(type); };
   }
   if(!cond) return;
   cond[field] = value;
@@ -807,7 +841,7 @@ const KEY_TO_GROUP = {};
  ['neck',['neck']],
  ['shoulder',['leftShoulder','rightShoulder']],
  ['back',['upperBack','spine','lowerBack']],
- ['chest',['chest']],
+ ['chest',['chest','leftLung','rightLung']],
  ['abdomen',['abdomen','pelvis','glutes']],
  ['hip',['leftHip','rightHip']],
  ['elbow',['leftElbow','rightElbow']],
@@ -1123,9 +1157,7 @@ const HEAD_PROFILES = {
         description: 'What kind of hearing issue do you experience?',
         levels: [
           { value: 0, label: 'No hearing problems', description: 'Normal hearing in both ears.' },
-          { value: 10, label: 'Hearing loss only', description: 'Difficulty hearing conversations or sounds, but no ringing.' },
-          { value: 10, label: 'Ringing only (tinnitus)', description: 'Ringing, buzzing, or hissing in one or both ears, but hearing is otherwise normal. Note: Tinnitus is rated separately under DC 6260 — use the Tinnitus profile if claiming tinnitus alone.' },
-          { value: 10, label: 'Both hearing loss and ringing', description: 'Both reduced hearing and persistent ringing/buzzing. Each may be rated separately.' },
+          { value: 10, label: 'Hearing loss and/or ringing (tinnitus)', description: 'Difficulty hearing conversations or sounds, and/or ringing, buzzing, or hissing in one or both ears. Note: Tinnitus is rated separately under DC 6260 (use the Tinnitus profile to claim it) — hearing loss and tinnitus CAN both be rated on the same ear.' },
         ]
       },
       { id: 'degree', label: 'Degree of Hearing Loss',
@@ -1189,13 +1221,14 @@ const HEAD_PROFILES = {
       description: 'Best corrected visual acuity in the affected eye(s)',
       levels: [
         { value: 0, label: '20/40 or better both eyes', description: 'Normal or near-normal corrected vision' },
-        { value: 10, label: '20/50–20/70 in one eye', description: 'Mild impairment in one eye; other 20/40 or better' },
-        { value: 20, label: '20/100 one eye or 20/70 both', description: 'Moderate visual impairment' },
-        { value: 30, label: '20/200 one eye or 20/100 both', description: 'Significant impairment; legally impaired in one eye' },
-        { value: 40, label: '20/200 both eyes or 5/200 one eye', description: 'Severe visual impairment' },
-        { value: 50, label: '5/200 both eyes', description: 'Very severe visual impairment' },
-        { value: 70, label: 'Light perception only in one eye', description: 'Functional blindness in one eye' },
-        { value: 100, label: 'No light perception / anatomical loss both eyes', description: 'Total blindness' },
+        { value: 10, label: '20/50–20/100 in one eye (other 20/40)', description: 'Mild impairment in one eye; other eye normal' },
+        { value: 20, label: '20/200 in one eye (other 20/40)', description: 'Legal-blindness-level impairment in one eye; other eye normal' },
+        { value: 30, label: '10/200–5/200 or light perception only in one eye (other 20/40), or 20/70 both eyes', description: 'Functional blindness in one eye with normal other eye, or moderate impairment in both eyes' },
+        { value: 40, label: 'Anatomical loss of one eye (other 20/40)', description: 'One eye removed or destroyed; other eye normal' },
+        { value: 50, label: '20/100 both eyes', description: 'Significant impairment in both eyes' },
+        { value: 70, label: '20/200 both eyes', description: 'Legal blindness in both eyes' },
+        { value: 90, label: '10/200 both eyes', description: 'Near-total vision loss in both eyes' },
+        { value: 100, label: '5/200 both eyes, light perception only in both eyes, or anatomical loss of both eyes', description: 'Profound bilateral visual impairment or total blindness; review for Special Monthly Compensation.' },
       ]
     }]
   },
@@ -1381,11 +1414,11 @@ const CFS_PROFILES = {
       { id: 'severity', label: 'Functional Limitation',
         description: 'Degree of activity restriction and flare-ups bad enough to keep you in bed',
         levels: [
-          {value:10, label:'Nearly constant but able to function', description:'Debilitating fatigue, cognitive impairments, or other symptoms nearly constant and restrict routine daily activities by less than 25 percent of the pre-illness level; or flare-ups bad enough to keep you in bed for at least 1 but less than 2 weeks total per year.'},
-          {value:20, label:'Routine activities restricted 25-50%', description:'Symptoms restrict routine daily activities to 50 to 75 percent of the pre-illness level; or flare-ups bad enough to keep you in bed for at least 2 but less than 4 weeks total per year.'},
-          {value:40, label:'Routine activities restricted 50-75%', description:'Symptoms restrict routine daily activities to less than 50 percent of the pre-illness level; or flare-ups bad enough to keep you in bed for at least 4 but less than 6 weeks total per year.'},
-          {value:60, label:'Nearly completely restricted', description:'Symptoms nearly completely restrict routine daily activities; or flare-ups bad enough to keep you in bed for at least 6 weeks total per year.'},
-          {value:100, label:'Completely debilitating', description:'Debilitating fatigue, cognitive impairments and other symptoms that are completely debilitating, virtually restricting all routine daily activities.'},
+          {value:10, label:'Controlled by medication or brief flare-ups', description:'Symptoms wax and wane with flare-ups bad enough to keep you in bed for at least 1 but less than 2 weeks total per year; or symptoms controlled by continuous medication.'},
+          {value:20, label:'Nearly constant, activities reduced by up to 25%', description:'Symptoms nearly constant and restrict routine daily activities by less than 25 percent of the pre-illness level; or flare-ups bad enough to keep you in bed for at least 2 but less than 4 weeks total per year.'},
+          {value:40, label:'Nearly constant, activities down to 50-75% of normal', description:'Symptoms nearly constant and restrict routine daily activities to 50 to 75 percent of the pre-illness level; or flare-ups bad enough to keep you in bed for at least 4 but less than 6 weeks total per year.'},
+          {value:60, label:'Nearly constant, activities below 50% of normal', description:'Symptoms nearly constant and restrict routine daily activities to less than 50 percent of the pre-illness level; or flare-ups bad enough to keep you in bed for at least 6 weeks total per year.'},
+          {value:100, label:'Almost completely restricted', description:'Symptoms nearly constant and so severe that routine daily activities are restricted almost completely, occasionally precluding self-care.'},
         ]
       }
     ]
@@ -1570,20 +1603,21 @@ const EPILEPSY_PROFILES = {
         levels: [
           {value:0, label:'No major seizures', description:'No documented major seizures.'},
           {value:20, label:'1 in last 2 years', description:'At least 1 major seizure in the last 2 years.'},
-          {value:40, label:'1 in last 6 months', description:'At least 1 major seizure in the last 6 months; or 2+ in last year.'},
-          {value:60, label:'1 every 3 months', description:'Averaging at least 1 major seizure every 3 months over the last year.'},
-          {value:80, label:'1 per month', description:'Averaging at least 1 major seizure per month over the last year.'},
-          {value:100, label:'1+ per week', description:'Averaging at least 1 major seizure per week over the last year.'},
+          {value:40, label:'1 in last 6 months or 2 in last year', description:'At least 1 major seizure in the last 6 months; or 2 in the last year.'},
+          {value:60, label:'Averaging 1 every 4 months', description:'Averaging at least 1 major seizure in 4 months over the last year.'},
+          {value:80, label:'Averaging 1 every 3 months', description:'Averaging at least 1 major seizure in 3 months over the last year.'},
+          {value:100, label:'Averaging 1 per month', description:'Averaging at least 1 major seizure per month over the last year.'},
         ]
       },
       { id: 'minor', label: 'Minor Seizures (Petit Mal / Absence)',
         description: 'Absence seizures (brief staring spells), sudden muscle jerks (myoclonic jerks), or other minor seizure activity',
         levels: [
           {value:0, label:'No minor seizures', description:'No documented minor seizures.'},
-          {value:10, label:'1-2 minor seizures in last 6 months', description:'A confirmed minor seizure within the last 6 months.'},
+          {value:10, label:'Confirmed diagnosis with seizure history', description:'A confirmed diagnosis of epilepsy with a history of seizures (minimum rating; also applies when continuous medication is required for control).'},
           {value:20, label:'2+ minor seizures in last 6 months', description:'At least 2 minor seizures in the last 6 months.'},
           {value:40, label:'5-8 minor seizures per week', description:'Averaging 5 to 8 minor seizures weekly.'},
-          {value:60, label:'More than 10 minor seizures per week', description:'Averaging more than 10 minor seizures weekly.'},
+          {value:60, label:'9-10 minor seizures per week', description:'Averaging 9 to 10 minor seizures weekly.'},
+          {value:80, label:'More than 10 minor seizures per week', description:'Averaging more than 10 minor seizures weekly.'},
         ]
       }
     ]
@@ -1676,8 +1710,8 @@ const RAYNAUDS_PROFILES = {
           {value:10, label:'1-3 attacks per week', description:'Characteristic attacks occurring one to three times a week.'},
           {value:20, label:'4-6 attacks per week', description:'Characteristic attacks occurring four to six times a week.'},
           {value:40, label:'Daily attacks', description:'Characteristic attacks occurring at least daily.'},
-          {value:60, label:'2+ digital ulcers, autoamputation', description:'Two or more digital ulcers and history of characteristic attacks, including autoamputation of one or more digits.'},
-          {value:100, label:'2+ digital ulcers plus autoamputation + critical ischemia', description:'Two or more digital ulcers plus autoamputation of one or more digits and history of characteristic attacks.'},
+          {value:60, label:'2+ digital ulcers', description:'Two or more digital ulcers and a history of characteristic attacks.'},
+          {value:100, label:'2+ digital ulcers plus autoamputation of one or more digits', description:'Two or more digital ulcers with autoamputation of one or more digits and a history of characteristic attacks.'},
         ]
       }
     ]
@@ -1688,24 +1722,41 @@ function getRaynaudsProfile(cond){ return RAYNAUDS_PROFILES[RAYNAUDS_CONDITION_P
 function getRaynaudsProfileKey(cond){ return RAYNAUDS_CONDITION_PROFILE[cond] || 'raynauds'; }
 function calculateRaynaudsRating(dv){ let m=0; Object.values(dv).forEach(v=>{if(typeof v==='number'&&v>m)m=v;}); return m; }
 
-// 12. GERD (DC 7346)
+// 12. GERD (DC 7206 — esophageal stricture criteria since the May 19, 2024
+// digestive-system revision; the old DC 7346 symptom criteria no longer apply)
+const ESOPHAGEAL_STRICTURE_LEVELS = [
+  {value:0, label:'Reflux symptoms without stricture', description:'Heartburn/regurgitation with or without medication, no documented esophageal stricture. Rated 0% under the 2024 criteria, but still establishes service connection.'},
+  {value:10, label:'Stricture controlled by daily medication', description:'Documented history of esophageal stricture(s) requiring daily medication to control difficulty swallowing (dysphagia), otherwise asymptomatic.'},
+  {value:30, label:'Stricture requiring dilation up to 2 times/year', description:'Documented esophageal stricture(s) causing dysphagia, requiring dilatation no more than 2 times per year.'},
+  {value:50, label:'Stricture requiring dilation 3+ times/year', description:'Recurrent or refractory esophageal stricture causing dysphagia and requiring dilatation 3 or more times per year, dilatation with steroid injection, or an esophageal stent.'},
+  {value:80, label:'Refractory with aspiration / weight loss, treated with surgery or PEG tube', description:'Recurrent or refractory stricture causing dysphagia and documented by imaging or endoscopy, with at least one of aspiration, undernutrition, or substantial weight loss, AND treated with surgical correction of the stricture(s) or a percutaneous esophago-gastrointestinal (PEG) feeding tube. Dysphagia, a qualifying complication, and the specified treatment are all required.'},
+];
 const GERD_PROFILES = {
   gerd: {
-    label: 'GERD / Hiatal Hernia (DC 7346)',
-    note: 'Rated based on symptom severity, pain, and weight loss.',
+    label: 'GERD (DC 7206)',
+    note: 'Since the VA\'s May 2024 digestive update, GERD is rated under DC 7206 based on esophageal stricture (narrowing) and swallowing difficulty. GERD without a stricture is generally 0% — still worth claiming, since it establishes service connection for future worsening and secondaries.',
     domains: [
-      { id: 'severity', label: 'Symptom Severity',
-        description: 'Frequency and severity of reflux symptoms',
-        levels: [
-          {value:10, label:'Two or more symptoms of less severity', description:'Two or more of the symptoms for the 30 percent evaluation of less severity.'},
-          {value:30, label:'Persistently recurrent symptoms with chest pain, difficulty swallowing, heartburn, regurgitation', description:'Persistently recurrent stomach/chest distress with difficulty swallowing (dysphagia), heartburn (pyrosis), and regurgitation, accompanied by pain behind the breastbone or in the arm or shoulder, causing considerable impairment of health.'},
-          {value:60, label:'Pain, vomiting, significant weight loss, vomiting blood/black stool with anemia', description:'Symptoms of pain, vomiting, significant weight loss and vomiting blood (hematemesis) or black/bloody stool (melena) with moderate anemia; or other symptom combinations causing severe impairment of health.'},
-        ]
+      { id: 'severity', label: 'Esophageal Involvement',
+        description: 'Documented stricture (narrowing) and swallowing difficulty per DC 7206',
+        levels: ESOPHAGEAL_STRICTURE_LEVELS,
+      }
+    ]
+  },
+  hiatal: {
+    label: 'Hiatal / Paraesophageal Hernia (DC 7346 → DC 7203)',
+    note: 'Under the VA\'s May 2024 digestive schedule, hiatal and paraesophageal hernias are evaluated as esophageal stricture under DC 7203. The evaluation is based on documented narrowing, dysphagia, and required treatment.',
+    domains: [
+      { id: 'severity', label: 'Esophageal Involvement',
+        description: 'Documented stricture (narrowing) and swallowing difficulty under DC 7346, evaluated using DC 7203',
+        levels: ESOPHAGEAL_STRICTURE_LEVELS,
       }
     ]
   }
 };
-const GERD_CONDITION_PROFILE = { 'GERD / acid reflux': 'gerd', 'Hiatal hernia': 'gerd', 'GERD': 'gerd' };
+const GERD_CONDITION_PROFILE = {
+  'GERD / acid reflux': 'gerd', 'GERD': 'gerd',
+  'Hiatal hernia': 'hiatal', 'Hiatal hernia and paraesophageal hernia': 'hiatal',
+};
 function getGERDProfile(cond){ return GERD_PROFILES[GERD_CONDITION_PROFILE[cond] || 'gerd']; }
 function getGERDProfileKey(cond){ return GERD_CONDITION_PROFILE[cond] || 'gerd'; }
 function calculateGERDRating(dv){ let m=0; Object.values(dv).forEach(v=>{if(typeof v==='number'&&v>m)m=v;}); return m; }
@@ -1719,7 +1770,7 @@ const ED_PROFILES = {
       { id: 'severity', label: 'Severity of Dysfunction',
         description: 'Degree of erectile dysfunction or loss of creative organ',
         levels: [
-          {value:0, label:'Erectile dysfunction present', description:'Loss of erectile power; rated 0% but eligible for Special Monthly Compensation (SMC-K) for loss of use of a creative organ (~$120/month additional).'},
+          {value:0, label:'Erectile dysfunction present', description:'Loss of erectile power; rated 0% but eligible for Special Monthly Compensation (SMC-K) for loss of use of a creative organ (~$140/month additional, adjusted annually). Record SMC-K in the Special Claims tab.'},
           {value:20, label:'Penile deformity with loss of erectile power', description:'Deformity of the penis with loss of erectile power.'},
           {value:30, label:'Removal of half or more of penis', description:'Removal of half or more of the penis.'},
         ]
@@ -1727,8 +1778,7 @@ const ED_PROFILES = {
       { id: 'organ', label: 'Loss of Creative Organ',
         description: 'Loss or removal of a creative organ (testicle, ovary)',
         levels: [
-          {value:0, label:'No loss of creative organ', description:'No loss or removal of a creative organ.'},
-          {value:0, label:'Loss of use (SMC-K eligible)', description:'Loss of use of a creative organ qualifies for Special Monthly Compensation (SMC-K) at approximately $120/month, separate from the disability percentage.'},
+          {value:0, label:'No removal (loss of use = SMC-K)', description:'No removal of a creative organ. If you have LOSS OF USE, the schedular rating stays 0% but you qualify for Special Monthly Compensation (SMC-K, ~$140/month, adjusted annually) — record it in the Special Claims tab.'},
           {value:20, label:'Removal of one testicle', description:'Removal of one testicle.'},
           {value:30, label:'Removal of both testicles / complete loss', description:'Removal of both testicles, or complete shrinkage/wasting (atrophy).'},
         ]
@@ -2016,8 +2066,8 @@ const KNEE_PROFILES = {
         description: 'Meniscus (cartilage) damage, locking, or surgical removal.',
         levels: [
           {value:0,  label:'Asymptomatic',            description:'No symptoms or asymptomatic residuals following removal.'},
-          {value:10, label:'Dislocated with locking',  description:'Dislocated semilunar cartilage with frequent episodes of locking, pain, and swelling from fluid in the joint (effusion).'},
-          {value:20, label:'Symptomatic after removal', description:'Symptomatic residuals following semilunar cartilage removal.'},
+          {value:10, label:'Symptomatic after removal', description:'Symptomatic residuals following semilunar cartilage removal (DC 5259).'},
+          {value:20, label:'Dislocated with locking',  description:'Dislocated semilunar cartilage with frequent episodes of locking, pain, and swelling from fluid in the joint (effusion) (DC 5258).'},
         ]
       }
     ]
@@ -2026,11 +2076,13 @@ const KNEE_PROFILES = {
     label: 'Knee Replacement (DC 5055)',
     domains: [
       { id: 'replacement', label: 'Prosthetic Knee Status',
-        description: 'Current status after total or partial knee replacement surgery.',
+        description: 'Current status after total knee replacement surgery.',
         levels: [
-          {value:30,  label:'Intermediate residuals',    description:'Chronic residuals consisting of moderate painful motion or weakness in the knee.'},
-          {value:60,  label:'Chronic residuals',        description:'Chronic residuals: severe painful motion or weakness requiring assistive devices.'},
-          {value:100, label:'Within 13 months of surgery', description:'100% rating for 13 months following prosthetic replacement of knee joint.'},
+          {value:30,  label:'Intermediate residuals — analogous evaluation 30%', description:'Intermediate weakness, pain, or limitation of motion that produces a 30% analogous evaluation under DC 5256 (ankylosis), DC 5261 (limitation of extension), or DC 5262 (tibia/fibula impairment). This is also the minimum rating following a total knee replacement.'},
+          {value:40,  label:'Intermediate residuals — analogous evaluation 40%', description:'Intermediate weakness, pain, or limitation of motion that produces a 40% analogous evaluation under DC 5256, DC 5261, or DC 5262.'},
+          {value:50,  label:'Intermediate residuals — analogous evaluation 50%', description:'Intermediate weakness, pain, or limitation of motion that produces a 50% analogous evaluation under DC 5256 or DC 5261.'},
+          {value:60,  label:'Chronic severe residuals / analogous evaluation 60%', description:'Chronic residuals consisting of severe painful motion or weakness in the affected extremity, or intermediate residuals producing a 60% analogous evaluation under DC 5256.'},
+          {value:100, label:'Within 4 months of surgery', description:'100% rating for 4 months following implantation or resurfacing of the knee joint prosthesis, after the initial convalescence period under 38 CFR 4.30 (criteria revised February 2021).'},
         ]
       }
     ]
@@ -2086,6 +2138,15 @@ function getKneeProfileKey(conditionName){
   return KNEE_CONDITION_PROFILE[conditionName] || 'generic';
 }
 function calculateKneeRating(domainValues){
+  // Limited flexion (DC 5260) and limited extension (DC 5261) are SEPARATE
+  // ratable disabilities on the same knee (VAOPGCPREC 9-2004) — combine them
+  // per 38 CFR 4.25 rather than taking the higher of the two.
+  const flex = typeof domainValues.flexion === 'number' ? domainValues.flexion : 0;
+  const ext = typeof domainValues.extension === 'number' ? domainValues.extension : 0;
+  if(flex > 0 && ext > 0){
+    const hi = Math.max(flex, ext), lo = Math.min(flex, ext);
+    return Math.round(hi + (lo/100) * (100 - hi));
+  }
   let maxVal = 0;
   Object.values(domainValues).forEach(v => {
     if(typeof v === 'number' && v > maxVal) maxVal = v;
@@ -2204,8 +2265,12 @@ const SPINE_CONDITION_PROFILE = {
 function getSpineProfile(conditionName){ return SPINE_PROFILES[SPINE_CONDITION_PROFILE[conditionName] || 'generic']; }
 function getSpineProfileKey(conditionName){ return SPINE_CONDITION_PROFILE[conditionName] || 'generic'; }
 function calculateSpineRating(domainValues){
+  // The spine % is the musculoskeletal rating (ROM/pain, DC 5237 etc.). The
+  // radiculopathy domain is a SEPARATE peripheral-nerve rating (DC 8520) that
+  // affects the legs — it is emitted as its own line item and must NOT inflate
+  // the back percentage here (see BP_REGISTRY.back.nerveSplit).
   let maxVal = 0;
-  Object.values(domainValues).forEach(v => { if(typeof v==='number' && v>maxVal) maxVal=v; });
+  Object.entries(domainValues).forEach(([k,v]) => { if(k!=='radiculopathy' && typeof v==='number' && v>maxVal) maxVal=v; });
   return maxVal;
 }
 
@@ -2350,8 +2415,12 @@ const NECK_CONDITION_PROFILE = {
 function getNeckProfile(name){ return NECK_PROFILES[getNeckProfileKey(name)]; }
 function getNeckProfileKey(name){ return NECK_CONDITION_PROFILE[name.toLowerCase()] || 'cervical'; }
 function calculateNeckRating(domainValues){
+  // The neck % is the musculoskeletal rating (ROM/pain, DC 5237). Cervical
+  // radiculopathy is a SEPARATE peripheral-nerve rating (DC 8510-8513) affecting
+  // the arms — emitted as its own line item, not folded into the neck percentage
+  // here (see BP_REGISTRY.neck.nerveSplit).
   let maxVal = 0;
-  Object.values(domainValues).forEach(v => { if(typeof v==='number' && v>maxVal) maxVal=v; });
+  Object.entries(domainValues).forEach(([k,v]) => { if(k!=='radiculopathy' && typeof v==='number' && v>maxVal) maxVal=v; });
   return maxVal;
 }
 
@@ -2385,15 +2454,15 @@ const HIP_PROFILES = {
   },
   replacement: {
     key: 'replacement', label: 'Hip Replacement (DC 5054)',
-    note: 'Following prosthetic replacement. Minimum 30% rating following implantation. 100% for 1 year following.',
+    note: 'Following prosthetic replacement. Minimum 30% rating following implantation. 100% for 4 months following surgery (criteria revised February 2021).',
     domains: [
       { id:'status', label:'Replacement Status', description:'Current functional status after hip replacement',
         levels:[
           {value:30, label:'Minimum', description:'Prosthetic replacement with no significant residuals.'},
           {value:50, label:'Moderate', description:'Moderately severe residuals of weakness, pain, or limitation of motion.'},
           {value:70, label:'Severe', description:'Markedly severe residual weakness, pain, or limitation of motion.'},
-          {value:90, label:'Very Severe', description:'Painful motion or weakness requiring assistive devices.'},
-          {value:100, label:'1-Year Post-Op', description:'For 1 year following implantation of prosthesis.'},
+          {value:90, label:'Very Severe', description:'Painful motion or weakness such as to require the use of crutches.'},
+          {value:100, label:'4-Month Post-Op', description:'For 4 months following implantation or resurfacing of the hip prosthesis, after the initial convalescence period under 38 CFR 4.30.'},
         ]},
     ],
   },
@@ -2416,16 +2485,30 @@ const HIP_PROFILES = {
 const HIP_CONDITION_PROFILE = {
   'hip osteoarthritis':'rom','degenerative joint disease - hip':'rom','hip labral tear':'rom',
   'hip bursitis (trochanteric)':'rom','hip impingement (femoroacetabular)':'rom',
-  'avascular necrosis (hip)':'rom','hip fracture residuals':'rom',
+  'hip impingement (fai)':'rom',
+  'avascular necrosis (hip)':'rom','avascular necrosis of hip':'rom',
+  'hip fracture residuals':'rom','hip fracture':'rom',
+  // 'Hip replacement (total)' is the actual picker name — DC 5054 profile
+  'hip replacement (total)':'replacement',
   'total hip replacement':'replacement','hip replacement':'replacement',
 };
 
 function getHipProfile(name){ return HIP_PROFILES[getHipProfileKey(name)]; }
 function getHipProfileKey(name){ return HIP_CONDITION_PROFILE[name.toLowerCase()] || 'rom'; }
+// Combine multiple independent disability ratings per 38 CFR 4.25 (each successive
+// rating applies to the remaining "efficiency"). Order-independent; returns a
+// single rounded value. combine([]) = 0, combine([n]) = n.
+function _combine425(values){
+  const vals = values.filter(v => typeof v==='number' && v>0).sort((a,b)=>b-a);
+  let combined = 0;
+  vals.forEach(v => { combined = combined + (v/100)*(100 - combined); });
+  return Math.round(combined);
+}
 function calculateHipRating(domainValues){
-  let maxVal = 0;
-  Object.values(domainValues).forEach(v => { if(typeof v==='number' && v>maxVal) maxVal=v; });
-  return maxVal;
+  // Limitation of flexion (DC 5252), extension (DC 5251), and abduction/adduction/
+  // rotation (DC 5253) of the thigh are SEPARATE ratable disabilities on the same
+  // hip — combine them per 38 CFR 4.25 rather than taking only the highest.
+  return _combine425(Object.values(domainValues));
 }
 
 // ── ELBOW PROFILES (DC 5205-5213) ────────────────────────────────────────────
@@ -2488,9 +2571,10 @@ const ELBOW_CONDITION_PROFILE = {
 function getElbowProfile(name){ return ELBOW_PROFILES[getElbowProfileKey(name)]; }
 function getElbowProfileKey(name){ return ELBOW_CONDITION_PROFILE[name.toLowerCase()] || 'rom'; }
 function calculateElbowRating(domainValues){
-  let maxVal = 0;
-  Object.values(domainValues).forEach(v => { if(typeof v==='number' && v>maxVal) maxVal=v; });
-  return maxVal;
+  // Limitation of flexion (DC 5206), extension (DC 5207), and pronation/supination
+  // (DC 5213) of the forearm are SEPARATE ratable disabilities on the same elbow —
+  // combine them per 38 CFR 4.25 rather than taking only the highest.
+  return _combine425(Object.values(domainValues));
 }
 
 // ── WRIST/HAND PROFILES (DC 5214/5215/5220-5230) ────────────────────────────
@@ -2620,22 +2704,22 @@ const ANKLE_PROFILES = {
         levels:[
           {value:0, label:'Mild', description:'Symptoms relieved by built-up shoe or arch support.'},
           {value:10, label:'Moderate', description:'Weight-bearing line over or toward the big toe, inward bowing of the Achilles tendon. One or both feet.'},
-          {value:20, label:'Severe (Unilateral)', description:'Clear evidence of marked deformity, pain when the foot is moved or used, swelling, thick calluses. One foot.'},
-          {value:30, label:'Severe (Bilateral)', description:'Severe flatfoot in both feet — marked deformity, pain when the foot is moved or used, swelling, thick calluses.'},
-          {value:50, label:'Pronounced', description:'Pronounced; marked inward rolling of the foot (pronation), extreme tenderness of the bottom of the foot, not improved by orthopedic shoes/appliances.'},
+          {value:20, label:'Severe (one foot)', description:'Clear evidence of marked deformity, pain when the foot is moved or used, swelling, thick calluses. One foot.'},
+          {value:30, label:'Severe (both feet) or Pronounced (one foot)', description:'Severe flatfoot in both feet; OR pronounced flatfoot in one foot — marked inward rolling (pronation), extreme tenderness of the sole, not improved by orthopedic shoes/appliances.'},
+          {value:50, label:'Pronounced (both feet)', description:'Pronounced flatfoot in both feet; marked pronation, extreme tenderness of the sole, marked inward displacement and severe spasm of the Achilles tendon, not improved by orthopedic shoes/appliances.'},
         ]},
     ],
   },
   plantar: {
-    key: 'plantar', label: 'Plantar Fasciitis',
-    note: 'Rated by analogy, commonly under DC 5276 or 5284.',
+    key: 'plantar', label: 'Plantar Fasciitis (DC 5269)',
+    note: 'Plantar fasciitis has its own diagnostic code, DC 5269, since February 2021.',
     domains: [
-      { id:'severity', label:'Plantar Fasciitis Severity', description:'Overall severity of plantar fasciitis',
+      { id:'severity', label:'Plantar Fasciitis Severity', description:'Response to treatment per DC 5269',
         levels:[
           {value:0, label:'None', description:'No significant impairment.'},
-          {value:10, label:'Moderate', description:'Pain with prolonged standing/walking, relieved with rest.'},
-          {value:20, label:'Moderately Severe', description:'Pain with most weight-bearing, some activity limitation.'},
-          {value:30, label:'Severe', description:'Severe pain limiting most activities.'},
+          {value:10, label:'Improved by treatment', description:'Symptoms relieved or improved by treatment (orthotics, therapy, medication, or surgery).'},
+          {value:20, label:'No relief despite treatment (one foot)', description:'Symptoms not relieved by both non-surgical and surgical treatment. One foot.'},
+          {value:30, label:'No relief despite treatment (both feet)', description:'Symptoms not relieved by both non-surgical and surgical treatment. Both feet.'},
         ]},
     ],
   },
@@ -2657,8 +2741,11 @@ const ANKLE_PROFILES = {
 
 const ANKLE_CONDITION_PROFILE = {
   'limited rom - ankle':'rom','ankle instability':'instability','ankle sprain (chronic)':'instability',
-  'flatfoot (pes planus)':'flatfoot','plantar fasciitis':'plantar','achilles tendinitis':'rom',
-  'heel spurs':'plantar','ankle fracture residuals':'rom','ankle arthritis':'rom',
+  // 'Flat feet (pes planus)' is the actual picker name — DC 5276 profile
+  'flat feet (pes planus)':'flatfoot',
+  'flatfoot (pes planus)':'flatfoot','plantar fasciitis':'plantar',
+  'achilles tendinitis':'rom','achilles tendinitis / rupture':'rom',
+  'heel spurs':'plantar','ankle fracture residuals':'rom','ankle fracture':'rom','ankle arthritis':'rom',
   'morton\'s neuroma':'generic','bunion (hallux valgus)':'generic','hammer toe':'generic',
 };
 
@@ -2720,10 +2807,10 @@ const CHEST_PROFILES = {
         ]},
       { id:'medication', label:'Medication Level', description:'Current asthma treatment tier',
         levels:[
-          {value:0, label:'No daily medication', description:'Intermittent use of bronchodilator only.'},
-          {value:10, label:'Daily inhaled bronchodilator', description:'Daily use of inhaled bronchodilator therapy.'},
-          {value:30, label:'Daily inhaled corticosteroid', description:'Daily inhalational anti-inflammatory medication (inhaled corticosteroid like Flovent, QVAR, Pulmicort).'},
-          {value:60, label:'High-dose inhaled + intermittent oral steroids', description:'High-dose inhaled corticosteroid plus intermittent systemic (oral) corticosteroid courses (prednisone bursts).'},
+          {value:0, label:'No medication needed', description:'No asthma medication required.'},
+          {value:10, label:'Intermittent bronchodilator', description:'Intermittent (as-needed) inhalational or oral bronchodilator therapy (e.g., rescue inhaler).'},
+          {value:30, label:'Daily bronchodilator or inhaled corticosteroid', description:'Daily inhalational or oral bronchodilator therapy; or inhalational anti-inflammatory medication (inhaled corticosteroid like Flovent, QVAR, Pulmicort).'},
+          {value:60, label:'Intermittent oral steroid courses', description:'Intermittent (at least three per year) courses of systemic (oral or injected) corticosteroids (prednisone bursts).'},
           {value:100, label:'Daily systemic corticosteroids or immuno-suppressive', description:'Requires daily use of systemic high-dose corticosteroids or immuno-suppressive medications.'},
         ]},
       { id:'attacks', label:'Exacerbation Frequency', description:'How often asthma attacks require medical intervention',
@@ -2753,9 +2840,20 @@ const CHEST_PROFILES = {
 };
 
 const CHEST_CONDITION_PROFILE = {
+  // Keys MUST be the lowercased picker names from VA_AREA_CONDITIONS.chest
+  'asthma':'asthma',
+  'copd / chronic bronchitis':'respiratory',
+  'pulmonary embolism':'respiratory',
+  'restrictive lung disease':'respiratory',
+  'sleep apnea':'apnea',
+  'pleural effusion':'respiratory',
+  'pneumothorax':'respiratory',
+  'chronic cough':'respiratory',
+  'costochondritis':'generic',
+  // Legacy aliases (older saves / imports)
   'asthma, bronchial':'asthma','chronic obstructive pulmonary disease':'respiratory',
-  'bronchitis':'respiratory','restrictive lung disease':'respiratory',
-  'sleep apnea syndromes (obstructive, central, mixed)':'apnea','costochondritis':'generic',
+  'bronchitis':'respiratory',
+  'sleep apnea syndromes (obstructive, central, mixed)':'apnea',
   'pulmonary embolism residuals':'respiratory',
 };
 
@@ -2798,10 +2896,10 @@ const ABDOMEN_PROFILES = {
       { id:'voiding', label:'Voiding Dysfunction', description:'Frequency, urgency, or incontinence',
         levels:[
           {value:0, label:'Normal', description:'Normal voiding function.'},
-          {value:10, label:'Mild', description:'Daytime voiding interval 1-2 hours, or awakening to void 2 times per night.'},
-          {value:20, label:'Moderate', description:'Daytime voiding interval <1 hour, or awakening to void 3-4 times per night.'},
-          {value:40, label:'Severe', description:'Requiring absorbent materials that must be changed 2-4 times per day.'},
-          {value:60, label:'Very Severe', description:'Requiring absorbent materials changed more than 4 times per day, or use of appliance.'},
+          {value:10, label:'Mild', description:'Daytime voiding interval 2-3 hours, or awakening to void 2 times per night.'},
+          {value:20, label:'Moderate', description:'Daytime voiding interval 1-2 hours, or awakening to void 3-4 times per night; or absorbent materials changed less than 2 times per day.'},
+          {value:40, label:'Severe', description:'Daytime voiding interval under 1 hour, or awakening to void 5+ times per night; or absorbent materials changed 2-4 times per day.'},
+          {value:60, label:'Very Severe', description:'Requiring absorbent materials changed more than 4 times per day, or use of an appliance.'},
         ]},
     ],
   },
@@ -2819,14 +2917,28 @@ const ABDOMEN_PROFILES = {
         ]},
     ],
   },
+  // GERD picked through the Abdomen panel must use the same DC 7206 stricture
+  // criteria (80% max) as the systemic panel — the generic digestive scale
+  // tops out at 100% on symptom criteria that no longer apply to GERD.
+  gerd: { key: 'gerd', ...GERD_PROFILES.gerd },
+  hiatal: { key: 'hiatal', ...GERD_PROFILES.hiatal },
 };
 
 const ABDOMEN_CONDITION_PROFILE = {
-  'gerd':'digestive','gastroesophageal reflux disease':'digestive','ibs':'digestive',
-  'irritable bowel syndrome':'digestive','hiatal hernia':'digestive',
+  // Keys MUST be the lowercased picker names from VA_AREA_CONDITIONS.abdomen
+  'gerd / acid reflux':'gerd',
+  'irritable bowel syndrome (ibs)':'digestive',
+  'peptic ulcer disease':'digestive',
+  'gallbladder disease':'digestive',
+  'liver condition':'digestive',
+  'bladder condition':'genitourinary',
+  'hiatal hernia':'hiatal',
   'crohn\'s disease':'digestive','ulcerative colitis':'digestive',
-  'bladder dysfunction':'genitourinary','erectile dysfunction':'genitourinary',
   'kidney stones':'genitourinary',
+  // Legacy aliases (older saves / imports)
+  'gerd':'gerd','gastroesophageal reflux disease':'gerd','ibs':'digestive',
+  'irritable bowel syndrome':'digestive',
+  'bladder dysfunction':'genitourinary','erectile dysfunction':'genitourinary',
 };
 
 function getAbdomenProfile(name){ return ABDOMEN_PROFILES[getAbdomenProfileKey(name)]; }
@@ -2885,11 +2997,17 @@ const LEG_PROFILES = {
 };
 
 const LEG_CONDITION_PROFILE = {
-  'shin splints (mtss)':'muscle','muscle strain (thigh)':'muscle','muscle strain (calf)':'muscle',
-  'muscle atrophy':'muscle','peripheral neuropathy (lower)':'neuropathy',
+  // Keys MUST be the lowercased picker names from VA_AREA_CONDITIONS.leg
+  'shin splints (mtss)':'muscle',
+  'hamstring strain':'muscle','quadriceps strain':'muscle','calf strain / tear':'muscle',
+  'muscle atrophy':'muscle','compartment syndrome':'muscle',
+  'peripheral neuropathy':'neuropathy',
+  'deep vein thrombosis (dvt)':'generic','varicose veins':'generic',
+  // Legacy aliases (older saves / imports)
+  'muscle strain (thigh)':'muscle','muscle strain (calf)':'muscle',
+  'peripheral neuropathy (lower)':'neuropathy',
   'sciatic nerve involvement':'neuropathy','lower extremity numbness / tingling':'neuropathy',
-  'deep vein thrombosis':'generic','varicose veins':'generic',
-  'compartment syndrome':'muscle',
+  'deep vein thrombosis':'generic',
 };
 
 function getLegProfile(name){ return LEG_PROFILES[getLegProfileKey(name)]; }

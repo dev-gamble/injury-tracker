@@ -1,11 +1,48 @@
 // ── EXPORT FUNCTIONS ──
 
+// HTML-escape user-entered text before interpolating it into generated
+// report markup — otherwise "<brace>"-style text vanishes into the HTML
+// parser, and imported CSV text could inject live markup.
+function _xh(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// The personal statement is rich text (contenteditable innerHTML), so it can't
+// go through _xh — but pasted markup or a tampered save file could smuggle
+// scripts into the report window, which is same-origin with the app
+// (window.open + document.write). Allowlist the formatting tags the statement
+// editor can produce, strip every attribute, and drop active content outright.
+const _RICH_ALLOWED_TAGS = new Set(['P','DIV','BR','B','STRONG','I','EM','U','S','STRIKE','UL','OL','LI','BLOCKQUOTE','SPAN','H1','H2','H3','H4','SUB','SUP']);
+const _RICH_DROP_TAGS = new Set(['SCRIPT','STYLE','IFRAME','OBJECT','EMBED','LINK','META','FORM','INPUT','BUTTON','TEXTAREA','SELECT','TEMPLATE','BASE']);
+function _sanitizeRichHTML(html){
+  const doc = new DOMParser().parseFromString('<div>' + String(html == null ? '' : html) + '</div>', 'text/html');
+  const root = doc.body.firstChild;
+  const clean = node => {
+    Array.from(node.children).forEach(el => {
+      // Non-HTML namespaces (svg, math) can smuggle scriptable content — drop whole
+      if(_RICH_DROP_TAGS.has(el.tagName) || el.namespaceURI !== 'http://www.w3.org/1999/xhtml'){
+        el.remove();
+        return;
+      }
+      clean(el);
+      if(_RICH_ALLOWED_TAGS.has(el.tagName)){
+        Array.from(el.attributes).forEach(a => el.removeAttribute(a.name));
+      } else {
+        // Unknown but inert tag — keep its text/children, lose the element
+        while(el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
+        el.remove();
+      }
+    });
+  };
+  clean(root);
+  return root.innerHTML;
+}
+
 // ── PDF / PRINT SUMMARY ──
 function exportSummary(){
   if(typeof _requireAccess === 'function' && !_requireAccess()) return;
   const hasBPExport = typeof BP_REGISTRY!=='undefined' && Object.values(BP_REGISTRY).some(cfg=>(window[cfg.stateKey]||[]).length>0);
-  const _pk = _getPanelKeys();
-  const filteredInj = injuries.filter(i => !_pk.has(i.key));
+  const filteredInj = _nonPanelInjuries(injuries);
   if(!filteredInj.length && !(window._mentalHealthConditions && window._mentalHealthConditions.length) && !(window._headConditions && window._headConditions.length) && !hasBPExport){alert('No injuries to export.');return;}
   const sorted=[...filteredInj].sort((a,b)=>new Date(a.date)-new Date(b.date));
 
@@ -59,7 +96,7 @@ function exportSummary(){
         <div style="width:20px;height:20px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:${c};box-shadow:0 2px 5px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;">
           <span style="transform:rotate(45deg);color:#fff;font-size:9px;font-weight:800;font-family:monospace;">${num}</span>
         </div>
-        <div style="position:absolute;bottom:calc(100% + 2px);left:50%;transform:translateX(-50%);background:#1a2332;color:#fff;font-size:9px;font-weight:600;padding:2px 6px;border-radius:3px;white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis;">#${num} · ${p.label.slice(0,18)}</div>
+        <div style="position:absolute;bottom:calc(100% + 2px);left:50%;transform:translateX(-50%);background:#1a2332;color:#fff;font-size:9px;font-weight:600;padding:2px 6px;border-radius:3px;white-space:nowrap;max-width:110px;overflow:hidden;text-overflow:ellipsis;">#${num} · ${_xh(p.label.slice(0,18))}</div>
       </div>`;
     }).join('');
 
@@ -85,7 +122,7 @@ function exportSummary(){
     ${incomplete.map(i=>{
       const g = gapStatus(i);
       const num = sorted.indexOf(i)+1;
-      return `<div style="font-size:11px;color:#92400e;padding:2px 0;"><strong>#${num} ${i.label}:</strong> Missing — ${g.gaps.join(', ')}</div>`;
+      return `<div style="font-size:11px;color:#92400e;padding:2px 0;"><strong>#${num} ${_xh(i.label)}:</strong> Missing — ${g.gaps.join(', ')}</div>`;
     }).join('')}
   </div>` : `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#166534;font-weight:600;">All injuries have complete evidence records.</div>`;
 
@@ -101,35 +138,35 @@ function exportSummary(){
     let card = `<div class="detail-card" style="break-inside:avoid;">
       <div class="dc-header">
         <span class="dc-num" style="background:${sc};">${num}</span>
-        <span class="dc-label">${i.label}</span>
+        <span class="dc-label">${_xh(i.label)}</span>
         <span class="dc-sev" style="background:${sbg};color:${sc};border:1px solid ${sbd};">${stxt}</span>
         <span class="dc-status" style="background:${g.status==='complete'?'#f0fdf4':'#fffbeb'};color:${g.status==='complete'?'#166534':'#92400e'};border:1px solid ${g.status==='complete'?'#bbf7d0':'#fde68a'};">${g.label}</span>
       </div>
       <div class="dc-grid">
-        <div class="dc-field"><span class="dc-key">Date</span><span class="dc-val">${i.date||'—'}</span></div>
+        <div class="dc-field"><span class="dc-key">Date</span><span class="dc-val">${_xh(i.date)||'—'}</span></div>
         <div class="dc-field"><span class="dc-key">Body</span><span class="dc-val">${i.pin.body} / ${i.pin.side}</span></div>
-        <div class="dc-field"><span class="dc-key">Installation</span><span class="dc-val">${i.location||'—'}</span></div>
-        <div class="dc-field"><span class="dc-key">Event / Duty</span><span class="dc-val">${i.event||'—'}</span></div>
-        <div class="dc-field"><span class="dc-key">Medical Care</span><span class="dc-val">${i.medicalCare==='yes'?(i.clinicName||'Yes'):'No'}</span></div>
-        <div class="dc-field"><span class="dc-key">Witnesses</span><span class="dc-val">${i.witnesses||'—'}</span></div>
+        <div class="dc-field"><span class="dc-key">Installation</span><span class="dc-val">${_xh(i.location)||'—'}</span></div>
+        <div class="dc-field"><span class="dc-key">Event / Duty</span><span class="dc-val">${_xh(i.event)||'—'}</span></div>
+        <div class="dc-field"><span class="dc-key">Medical Care</span><span class="dc-val">${i.medicalCare==='yes'?(_xh(i.clinicName)||'Yes'):'No'}</span></div>
+        <div class="dc-field"><span class="dc-key">Witnesses</span><span class="dc-val">${_xh(i.witnesses)||'—'}</span></div>
         <div class="dc-field"><span class="dc-key">Still Being Seen</span><span class="dc-val">${i.stillBeingSeen?'Yes':'No'}</span></div>
       </div>`;
 
     if(i.description){
-      card += `<div class="dc-desc"><span class="dc-key">Description</span><div style="margin-top:2px;font-style:italic;color:#4b5563;">"${i.description}"</div></div>`;
+      card += `<div class="dc-desc"><span class="dc-key">Description</span><div style="margin-top:2px;font-style:italic;color:#4b5563;">"${_xh(i.description)}"</div></div>`;
     }
 
     if(i.secondaries?.length){
       card += `<div class="dc-section">
         <span class="dc-section-title" style="color:#3730a3;border-color:#c7d2fe;">Secondary Conditions</span>
-        <div class="dc-tags">${i.secondaries.map(s=>`<span class="dc-tag" style="background:#e0e7ff;color:#3730a3;border:1px solid #c7d2fe;">${s}</span>`).join('')}</div>
+        <div class="dc-tags">${i.secondaries.map(s=>`<span class="dc-tag" style="background:#e0e7ff;color:#3730a3;border:1px solid #c7d2fe;">${_xh(s)}</span>`).join('')}</div>
       </div>`;
     }
 
     if(i.functionalImpacts?.length){
       card += `<div class="dc-section">
         <span class="dc-section-title" style="color:#991b1b;border-color:#fecaca;">Daily Life Impact</span>
-        <div class="dc-tags">${i.functionalImpacts.map(fi=>`<span class="dc-tag" style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;">${fi}</span>`).join('')}</div>
+        <div class="dc-tags">${i.functionalImpacts.map(fi=>`<span class="dc-tag" style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;">${_xh(fi)}</span>`).join('')}</div>
       </div>`;
     }
 
@@ -141,7 +178,7 @@ function exportSummary(){
     }
 
     if(i.secondaryNotes){
-      card += `<div class="dc-desc"><span class="dc-key">Notes</span><div style="margin-top:2px;color:#4b5563;">${i.secondaryNotes}</div></div>`;
+      card += `<div class="dc-desc"><span class="dc-key">Notes</span><div style="margin-top:2px;color:#4b5563;">${_xh(i.secondaryNotes)}</div></div>`;
     }
 
     card += `</div>`;
@@ -151,15 +188,16 @@ function exportSummary(){
   // Quick reference table
   const quickRef = sorted.map((i,idx)=>`<tr>
     <td style="font-weight:800;color:${SC[i.severity]||SC.custom};font-family:monospace;text-align:center;">${idx+1}</td>
-    <td>${i.date||'—'}</td><td>${i.label}</td>
+    <td>${_xh(i.date)||'—'}</td><td>${_xh(i.label)}</td>
     <td style="color:${SC[i.severity]||SC.custom};font-weight:700;font-size:11px;text-transform:uppercase;">${i.severity==='custom'?'Other':i.severity}</td>
-    <td>${i.location||'—'}</td>
+    <td>${_xh(i.location)||'—'}</td>
     <td>${i.medicalCare==='yes'?'Yes':'No'}</td>
     <td>${i.secondaries?.length||0}</td>
     <td style="color:${gapStatus(i).status==='complete'?'#166534':'#92400e'};font-weight:600;font-size:10px;">${gapStatus(i).status==='complete'?'Complete':'Incomplete'}</td>
   </tr>`).join('');
 
   const w=window.open('','_blank');
+  if(!w){alert('Your browser blocked the report window. Please allow pop-ups for this page and try again.');return;}
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>ENDEX — Service Impact Index</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -251,7 +289,7 @@ ${(function(){
   if(!mh.length) return '';
   const highest = mh.reduce((b,c)=>c.effectiveRating>b.effectiveRating?c:b, mh[0]);
   let h = '<div class="section-title">Mental Health Evaluation (VA 8787)</div>';
-  h += '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:11px;color:#1e40af;"><strong>VA Single Rating Rule:</strong> All mental health conditions receive one combined rating. The highest evaluated rating is used.</div>';
+  h += '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:11px;color:#1e40af;"><strong>VA Single Rating Rule:</strong> All mental health conditions receive one combined rating. The highest evaluated rating is used. <strong>Estimate only:</strong> domain percentages follow the VA\'s proposed updated mental-health criteria (not yet in effect); the VA currently rates under 38 CFR 4.130 based on overall social and occupational impairment.</div>';
   mh.forEach(c => {
     const isH = c.id === highest.id && mh.length > 1;
     const domains = (typeof MH_DOMAINS !== 'undefined' ? MH_DOMAINS : []).map(d => {
@@ -259,11 +297,11 @@ ${(function(){
       return lv !== 'none' ? d.label + ': ' + lv : null;
     }).filter(Boolean).join(', ') || 'Not evaluated';
     h += '<div style="border:1px solid #d1d5db;border-radius:6px;padding:12px 16px;margin-bottom:8px;'+(isH?'border-left:3px solid #c8102e;':'')+'">';
-    h += '<div style="font-weight:700;font-size:13px;color:#0a2357;">'+c.condition+(isH?' <span style="color:#c8102e;font-size:10px;">(ACTIVE RATING)</span>':'')+'</div>';
-    h += '<div style="font-size:11px;color:#6b7280;margin-top:2px;">'+(c.date||'No date')+(c.location?' &middot; '+c.location:'')+(c.event?' &middot; '+c.event:'')+'</div>';
-    if(c.description) h += '<div style="font-size:11px;color:#4b5563;font-style:italic;margin-top:2px;">&ldquo;'+c.description+'&rdquo;</div>';
-    if(c.medicalCare==='yes') h += '<div style="font-size:11px;color:#166534;margin-top:2px;">&#10003; Medical care'+(c.clinicName?' &mdash; '+c.clinicName:'')+'</div>';
-    if(c.witnesses) h += '<div style="font-size:11px;color:#6b7280;margin-top:1px;">Witnesses: '+c.witnesses+'</div>';
+    h += '<div style="font-weight:700;font-size:13px;color:#0a2357;">'+_xh(c.condition)+(isH?' <span style="color:#c8102e;font-size:10px;">(ACTIVE RATING)</span>':'')+'</div>';
+    h += '<div style="font-size:11px;color:#6b7280;margin-top:2px;">'+_xh(c.date||'No date')+(c.location?' &middot; '+_xh(c.location):'')+(c.event?' &middot; '+_xh(c.event):'')+'</div>';
+    if(c.description) h += '<div style="font-size:11px;color:#4b5563;font-style:italic;margin-top:2px;">&ldquo;'+_xh(c.description)+'&rdquo;</div>';
+    if(c.medicalCare==='yes') h += '<div style="font-size:11px;color:#166534;margin-top:2px;">&#10003; Medical care'+(c.clinicName?' &mdash; '+_xh(c.clinicName):'')+'</div>';
+    if(c.witnesses) h += '<div style="font-size:11px;color:#6b7280;margin-top:1px;">Witnesses: '+_xh(c.witnesses)+'</div>';
     h += '<div style="font-size:11px;color:#6b7280;margin-top:4px;">Domains: '+domains+'</div>';
     h += '<div style="font-size:14px;font-weight:800;color:#0a2357;font-family:monospace;margin-top:4px;">'+c.effectiveRating+'%'+(c.manualOverride!==null?' (manual override)':'')+'</div>';
     h += '</div>';
@@ -287,11 +325,11 @@ ${(function(){
       return lv ? d.label + ': ' + lv.label : null;
     }).filter(Boolean).join(', ') || 'Not evaluated';
     h += '<div style="border:1px solid #d1d5db;border-radius:6px;padding:12px 16px;margin-bottom:8px;border-left:3px solid #0a2357;">';
-    h += '<div style="font-weight:700;font-size:13px;color:#0a2357;">'+c.condition+' <span style="font-size:10px;color:#6b7280;font-weight:400;">'+profileLabel+'</span></div>';
-    h += '<div style="font-size:11px;color:#6b7280;margin-top:2px;">'+(c.date||'No date')+(c.location?' &middot; '+c.location:'')+(c.event?' &middot; '+c.event:'')+'</div>';
-    if(c.description) h += '<div style="font-size:11px;color:#4b5563;font-style:italic;margin-top:2px;">&ldquo;'+c.description+'&rdquo;</div>';
-    if(c.medicalCare==='yes') h += '<div style="font-size:11px;color:#166534;margin-top:2px;">&#10003; Medical care'+(c.clinicName?' &mdash; '+c.clinicName:'')+'</div>';
-    if(c.witnesses) h += '<div style="font-size:11px;color:#6b7280;margin-top:1px;">Witnesses: '+c.witnesses+'</div>';
+    h += '<div style="font-weight:700;font-size:13px;color:#0a2357;">'+_xh(c.condition)+' <span style="font-size:10px;color:#6b7280;font-weight:400;">'+profileLabel+'</span></div>';
+    h += '<div style="font-size:11px;color:#6b7280;margin-top:2px;">'+_xh(c.date||'No date')+(c.location?' &middot; '+_xh(c.location):'')+(c.event?' &middot; '+_xh(c.event):'')+'</div>';
+    if(c.description) h += '<div style="font-size:11px;color:#4b5563;font-style:italic;margin-top:2px;">&ldquo;'+_xh(c.description)+'&rdquo;</div>';
+    if(c.medicalCare==='yes') h += '<div style="font-size:11px;color:#166534;margin-top:2px;">&#10003; Medical care'+(c.clinicName?' &mdash; '+_xh(c.clinicName):'')+'</div>';
+    if(c.witnesses) h += '<div style="font-size:11px;color:#6b7280;margin-top:1px;">Witnesses: '+_xh(c.witnesses)+'</div>';
     h += '<div style="font-size:11px;color:#6b7280;margin-top:4px;">'+domains+'</div>';
     h += '<div style="font-size:14px;font-weight:800;color:#0a2357;font-family:monospace;margin-top:4px;">'+c.effectiveRating+'%'+(c.manualOverride!==null?' (manual override)':'')+'</div>';
     h += '</div>';
@@ -311,31 +349,41 @@ ${(function(){
       const profile = cfg.profiles()[c.profile] || cfg.profiles().generic;
       const profileLabel = profile.label ? profile.label.split('(')[0].trim() : '';
       const domains = profile.domains.map(d => {
+        if(cfg.nerveSplit && d.id === cfg.nerveSplit.domainId) return null; // shown as its own line below
         const v = c.domains[d.id];
         if(!v) return null;
         return d.label.split(':').pop().trim() + ': ' + v + '%';
       }).filter(Boolean).join(', ') || 'Not evaluated';
       const extLabel = c.extremity && c.extremity !== 'none' ? ' [' + c.extremity + ']' : '';
       h += '<div style="border:1px solid #d1d5db;border-radius:6px;padding:12px 16px;margin-bottom:8px;border-left:3px solid #047857;">';
-      h += '<div style="font-weight:700;font-size:13px;color:#0a2357;">' + c.condition + extLabel + ' <span style="font-size:10px;color:#6b7280;font-weight:400;">' + profileLabel + '</span></div>';
-      h += '<div style="font-size:11px;color:#6b7280;margin-top:2px;">' + (c.date||'No date') + (c.location?' &middot; '+c.location:'') + (c.event?' &middot; '+c.event:'') + '</div>';
-      if(c.description) h += '<div style="font-size:11px;color:#4b5563;font-style:italic;margin-top:2px;">&ldquo;'+c.description+'&rdquo;</div>';
-      if(c.medicalCare==='yes') h += '<div style="font-size:11px;color:#166534;margin-top:2px;">&#10003; Medical care'+(c.clinicName?' &mdash; '+c.clinicName:'')+'</div>';
-      if(c.witnesses) h += '<div style="font-size:11px;color:#6b7280;margin-top:1px;">Witnesses: '+c.witnesses+'</div>';
+      h += '<div style="font-weight:700;font-size:13px;color:#0a2357;">' + _xh(c.condition) + extLabel + ' <span style="font-size:10px;color:#6b7280;font-weight:400;">' + profileLabel + '</span></div>';
+      h += '<div style="font-size:11px;color:#6b7280;margin-top:2px;">' + _xh(c.date||'No date') + (c.location?' &middot; '+_xh(c.location):'') + (c.event?' &middot; '+_xh(c.event):'') + '</div>';
+      if(c.description) h += '<div style="font-size:11px;color:#4b5563;font-style:italic;margin-top:2px;">&ldquo;'+_xh(c.description)+'&rdquo;</div>';
+      if(c.medicalCare==='yes') h += '<div style="font-size:11px;color:#166534;margin-top:2px;">&#10003; Medical care'+(c.clinicName?' &mdash; '+_xh(c.clinicName):'')+'</div>';
+      if(c.witnesses) h += '<div style="font-size:11px;color:#6b7280;margin-top:1px;">Witnesses: '+_xh(c.witnesses)+'</div>';
       h += '<div style="font-size:11px;color:#6b7280;margin-top:4px;">' + domains + '</div>';
       h += '<div style="font-size:14px;font-weight:800;color:#0a2357;font-family:monospace;margin-top:4px;">' + c.effectiveRating + '%' + (c.manualOverride !== null ? ' (manual override)' : '') + '</div>';
+      // Separate peripheral-nerve (radiculopathy) rating line(s), rated apart from the joint %
+      (typeof bpNerveItems === 'function' ? bpNerveItems(cfg, c) : []).forEach(ni => {
+        const nExt = ni.extremity && ni.extremity !== 'none' ? ' [' + ni.extremity + ']' : '';
+        h += '<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #cbd5e1;font-size:12px;color:#0a2357;">' +
+          '<span style="font-weight:700;">&#9889; ' + _xh(ni.name) + nExt + '</span> ' +
+          '<span style="font-size:10px;color:#6b7280;">' + _xh(ni.dc) + ' &middot; rated separately</span> ' +
+          '<span style="font-weight:800;font-family:monospace;">' + ni.rating + '%</span>' +
+        '</div>';
+      });
       h += '</div>';
     });
   });
   return h;
 })()}
 
-${window._personalStatement?'<div class="section-title">Personal Statement</div><div style="border:1px solid #d1d5db;border-radius:8px;padding:16px 20px;font-size:13px;line-height:1.7;color:#111;page-break-inside:avoid;">'+window._personalStatement+'</div>':''}
+${window._personalStatement?'<div class="section-title">Personal Statement</div><div style="border:1px solid #d1d5db;border-radius:8px;padding:16px 20px;font-size:13px;line-height:1.7;color:#111;page-break-inside:avoid;">'+_sanitizeRichHTML(window._personalStatement)+'</div>':''}
 
 ${(window._vocSecondaries||[]).length?`
 <div class="section-title">Vocational Conditions</div>
-<ul style="font-size:12px;line-height:1.8;">${window._vocSecondaries.map(s=>'<li>'+s+'</li>').join('')}</ul>
-${window._vocNotes?'<div style="margin-top:8px;padding:8px 12px;background:#f8f9fa;border-left:3px solid #0a2357;border-radius:4px;font-size:12px;"><strong>Notes:</strong> '+window._vocNotes+'</div>':''}`:''}
+<ul style="font-size:12px;line-height:1.8;">${window._vocSecondaries.map(s=>'<li>'+_xh(s)+'</li>').join('')}</ul>
+${window._vocNotes?'<div style="margin-top:8px;padding:8px 12px;background:#f8f9fa;border-left:3px solid #0a2357;border-radius:4px;font-size:12px;"><strong>Notes:</strong> '+_xh(window._vocNotes)+'</div>':''}`:''}
 
 ${(function(){
   const smcSels = window._smcSelections || [];
@@ -367,7 +415,7 @@ ${(function(){
     h += '<div style="font-weight:700;color:#0a2357;font-size:13px;">'+claim.label+'</div>';
     claim.fields.forEach(f => {
       const val = d[f.id] || '';
-      if(val) h += '<div style="font-size:11px;margin-top:3px;"><strong style="color:#6b7280;">'+f.label+'</strong> '+val+'</div>';
+      if(val) h += '<div style="font-size:11px;margin-top:3px;"><strong style="color:#6b7280;">'+f.label+'</strong> '+_xh(val)+'</div>';
     });
     h += '</div>';
   });
@@ -394,11 +442,11 @@ ${(function(){
   } else {
     mst.conditions.forEach(c => {
       h += '<div style="border:1px solid #d1d5db;border-radius:6px;padding:10px 14px;margin-bottom:6px;border-left:3px solid #0a2357;">';
-      h += '<span style="font-weight:700;color:#0a2357;">'+c.name+'</span>';
+      h += '<span style="font-weight:700;color:#0a2357;">'+_xh(c.name)+'</span>';
       h += '<span style="float:right;font-weight:800;font-family:monospace;color:#0a2357;">'+c.rating+'%</span>';
       if(c.secondaries && c.secondaries.length){
         c.secondaries.forEach(s => {
-          h += '<div style="margin-top:4px;padding-left:16px;font-size:11px;color:#4b5563;">&#8627; '+s.name+' (secondary) — '+s.rating+'%</div>';
+          h += '<div style="margin-top:4px;padding-left:16px;font-size:11px;color:#4b5563;">&#8627; '+_xh(s.name)+' (secondary) — '+s.rating+'%</div>';
         });
       }
       h += '</div>';
@@ -446,9 +494,9 @@ ${(function(){
 // ── CSV EXPORT ──
 function exportCSV(){
   if(typeof _requireAccess === 'function' && !_requireAccess()) return;
-  const _pk2 = _getPanelKeys();
-  const filteredInj2 = injuries.filter(i => !_pk2.has(i.key));
-  if(!filteredInj2.length && !(window._mentalHealthConditions||[]).length && !(window._headConditions||[]).length){alert('No injuries to export.');return;}
+  const filteredInj2 = _nonPanelInjuries(injuries);
+  const hasBPExport2 = typeof BP_REGISTRY!=='undefined' && Object.values(BP_REGISTRY).some(cfg=>(window[cfg.stateKey]||[]).length>0);
+  if(!filteredInj2.length && !(window._mentalHealthConditions||[]).length && !(window._headConditions||[]).length && !hasBPExport2){alert('No injuries to export.');return;}
   const sorted=[...filteredInj2].sort((a,b)=>new Date(a.date)-new Date(b.date));
 
   const esc = v => {
@@ -460,7 +508,8 @@ function exportCSV(){
   const headers = ['#','Date','Body Area','Severity','Assigned Rating %','Body','Side','Installation','Event','Description','Medical Care','Clinic','Witnesses','Secondary Conditions','Daily Life Impact','Evidence Status','Missing Evidence','Still Being Seen','Notes'];
   const csvRows = [];
   if(window._userId) csvRows.push('Prepared for:,' + esc(window._userId));
-  csvRows.push('Generated:,' + new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}));
+  // esc() the date — the long en-US format contains a comma that would split the cell
+  csvRows.push('Generated:,' + esc(new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})));
   csvRows.push('');
   csvRows.push(headers.join(','));
 
@@ -553,10 +602,11 @@ function exportCSV(){
       bpConds.forEach(c => {
         const profile = cfg.profiles()[c.profile] || cfg.profiles().generic;
         const domainStr = profile.domains.map(d => {
+          if(cfg.nerveSplit && d.id === cfg.nerveSplit.domainId) return null; // separate nerve row below
           const v = c.domains[d.id];
           const lv = d.levels ? d.levels.find(l => l.value === v) : null;
           return d.label.split(':').pop().trim() + '=' + (lv ? lv.label : v + '%');
-        }).join('; ');
+        }).filter(Boolean).join('; ');
         csvRows.push([
           c.condition,
           c.date||'', c.location||'', c.event||'', c.description||'',
@@ -568,6 +618,20 @@ function exportCSV(){
           c.effectiveRating + '%',
           c.manualOverride !== null ? 'Yes' : 'No'
         ].map(esc).join(','));
+        // Separate peripheral-nerve (radiculopathy) rating — its own row/DC/extremity
+        (typeof bpNerveItems === 'function' ? bpNerveItems(cfg, c) : []).forEach(ni => {
+          csvRows.push([
+            ni.name + ' (from ' + c.condition + ')',
+            c.date||'', c.location||'', c.event||'', c.description||'',
+            '', '', '',
+            ni.dc + ' (rated separately)',
+            ni.extremity,
+            cfg.nerveSplit.domainId + '=' + ni.rating + '%',
+            ni.rating + '%',
+            ni.rating + '%',
+            'No'
+          ].map(esc).join(','));
+        });
       });
     });
   }
@@ -666,9 +730,9 @@ function exportCSV(){
 // ── TXT EXPORT ──
 function exportTXT(){
   if(typeof _requireAccess === 'function' && !_requireAccess()) return;
-  const _pk3 = _getPanelKeys();
-  const filteredInj3 = injuries.filter(i => !_pk3.has(i.key));
-  if(!filteredInj3.length && !(window._mentalHealthConditions||[]).length && !(window._headConditions||[]).length){alert('No injuries to export.');return;}
+  const filteredInj3 = _nonPanelInjuries(injuries);
+  const hasBPExport3 = typeof BP_REGISTRY!=='undefined' && Object.values(BP_REGISTRY).some(cfg=>(window[cfg.stateKey]||[]).length>0);
+  if(!filteredInj3.length && !(window._mentalHealthConditions||[]).length && !(window._headConditions||[]).length && !hasBPExport3){alert('No injuries to export.');return;}
   const sorted=[...filteredInj3].sort((a,b)=>new Date(a.date)-new Date(b.date));
   const line = '='.repeat(60);
   const dash = '-'.repeat(40);
@@ -816,6 +880,7 @@ function exportTXT(){
         if(c.medicalCare==='yes') txt += '    Medical Care:   ' + (c.clinicName||'Yes') + '\n';
         if(c.witnesses) txt += '    Witnesses:      ' + c.witnesses + '\n';
         profile.domains.forEach(d => {
+          if(cfg.nerveSplit && d.id === cfg.nerveSplit.domainId) return; // separate nerve line below
           const v = c.domains[d.id];
           if(v > 0){
             const lv = d.levels ? d.levels.find(l => l.value === v) : null;
@@ -823,6 +888,12 @@ function exportTXT(){
           }
         });
         txt += '    Rating: ' + c.effectiveRating + '%' + (c.manualOverride !== null ? ' (manual override)' : '') + '\n\n';
+        // Separate peripheral-nerve (radiculopathy) rating line(s)
+        (typeof bpNerveItems === 'function' ? bpNerveItems(cfg, c) : []).forEach(ni => {
+          const nExt = ni.extremity && ni.extremity !== 'none' ? ' [' + ni.extremity + ']' : '';
+          txt += '  ' + ni.name + nExt + ' [' + ni.dc + ' — rated separately]\n';
+          txt += '    Rating: ' + ni.rating + '%\n\n';
+        });
       });
     });
   }
@@ -830,10 +901,11 @@ function exportTXT(){
   // Personal statement
   if(window._personalStatement){
     txt += 'PERSONAL STATEMENT\n' + line + '\n\n';
-    // Strip HTML tags for plain text
-    const _tmpDiv = document.createElement('div');
-    _tmpDiv.innerHTML = window._personalStatement;
-    txt += (_tmpDiv.textContent || _tmpDiv.innerText || '').trim() + '\n\n';
+    // Strip HTML tags for plain text — via DOMParser, not a live div's
+    // innerHTML: even detached elements load images (onerror fires), so a
+    // tampered save file could execute in the app document
+    const _psDoc = new DOMParser().parseFromString(window._personalStatement, 'text/html');
+    txt += (_psDoc.body.textContent || '').trim() + '\n\n';
   }
 
   // Vocational

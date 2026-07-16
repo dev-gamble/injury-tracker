@@ -4,7 +4,7 @@
 
 A browser-based tool that helps veterans document, organize, and build their VA disability compensation claim. It walks them through logging every service-connected condition, evaluating severity using actual VA rating criteria, tracking secondary conditions, identifying evidence gaps, and generating exportable reports — all without needing a VSO or attorney to get started.
 
-Runs entirely in-browser. No server, no login, no data leaves the device.
+All claim data is processed in-browser and is never uploaded: saved projects are encrypted files downloaded to the user's device. The app itself is served from the ENDEX web application, which includes account sign-in, subscription checks, and visit analytics that record page path, referrer, IP address, browser user agent, approximate location derived from the IP, and the account ID when signed in. No injury or claim content is included in analytics.
 
 ---
 
@@ -54,8 +54,8 @@ Runs entirely in-browser. No server, no login, no data leaves the device.
 
 ### 3. Mental Health Evaluations
 - 30+ VA-recognized mental health diagnoses
-- Domain-based rating: social functioning, occupational functioning, mood, anxiety, impulse control, reality testing, judgment, adaptive functioning
-- Frequency modifiers (less than 25% through more than 75%)
+- Domain-based rating across 5 functional domains: cognition, interpersonal interactions, task completion, navigating environments, and self-care
+- Frequency modifiers (less than 25% of the time / 25% or more of the time)
 - Auto-calculated VA rating with manual override
 
 ### 4. Head & Face Evaluations
@@ -99,11 +99,11 @@ Runs entirely in-browser. No server, no login, no data leaves the device.
 - Reference sidebar with all logged conditions organized by type
 - Click-to-insert condition names into the statement
 - Example narrative with placeholders
-- Auto-saves on input
+- Content is kept in the session while you work — use Save Project to keep it after closing the tab
 
 ### 11. Special Claims
 - **Presumptive Service Connection** — POW, Agent Orange, Gulf War, Burn Pit / PACT Act (auto-connects without nexus proof)
-- **SMC Levels (A through R.2)** — 11 tiers of Special Monthly Compensation
+- **SMC Levels (K through T)** — tiers of Special Monthly Compensation
 - **MST (Military Sexual Trauma)** — Privacy-shielded conditions with dedicated evidence types
 - **Vocational Rehabilitation** — Secondary conditions from service-connected disabilities
 
@@ -129,7 +129,6 @@ Runs entirely in-browser. No server, no login, no data leaves the device.
 ---
 
 ## Tech Stack
-- Pure HTML / CSS / JavaScript — no frameworks, no server, no dependencies
-- Runs entirely in-browser (all data stays on the device)
-- Modular JS architecture (14 files)
-- Also available as a single standalone HTML file
+- Tracker: pure HTML / CSS / JavaScript — no frameworks; all claim data stays on the device
+- Served by a Next.js application that handles accounts, subscriptions, and page delivery
+- Modular JS architecture (15 files)

@@ -10,7 +10,7 @@ let _headPinKey = 'headFace'; // which pin was clicked to open
 function openHeadPanel(pinKey) {
   _headPinKey = pinKey || 'headFace';
   // Mark all existing conditions as committed — panel opens as fresh slate
-  (window._headConditions||[]).forEach(c => { c._committed = true; });
+  (window._headConditions||[]).forEach(c => { c._committed = true; c._wasCommitted = false; });
   const panel = document.getElementById('head-panel');
   const bodyPanel = document.querySelector('.body-panel');
   const sidebar = document.getElementById('sidebar');
@@ -33,7 +33,10 @@ function closeHeadPanel() {
 
 function placeHeadPin() {
   const conds = window._headConditions;
-  const label = conds.length ? conds[0].condition : 'Head & Face';
+  // Name the condition the user is actually placing a pin for — the first
+  // NON-committed one (committed conditions are hidden from the panel)
+  const active = conds.find(c => !c._committed);
+  const label = active ? active.condition : (conds.length ? conds[0].condition : 'Head & Face');
   closeHeadPanel();
   enterPinPlaceMode('headFace', label, true);
 }
@@ -41,7 +44,20 @@ function placeHeadPin() {
 // ── CONDITION MANAGEMENT ─────────────────────────────────────────────────────
 
 function addHeadCondition(name) {
-  if (window._headConditions.find(c => c.condition === name && !c._committed)) return;
+  // Never duplicate a condition — resurface a committed copy instead of
+  // adding a second entry that would double-count in the combined rating
+  const existing = window._headConditions.find(c => c.condition === name);
+  if (existing) {
+    // Resurfaced records own saved evaluation data and a map pin. Remember that
+    // so deselecting returns them to the committed state instead of deleting.
+    if (existing._committed) {
+      existing._committed = false;
+      existing._wasCommitted = true;
+      _patchHeadCondListSelection();
+      renderHeadEvalRegion();
+    }
+    return;
+  }
   const profileKey = getHeadProfileKey(name);
   const profile = HEAD_PROFILES[profileKey];
   const domains = {};
@@ -56,16 +72,34 @@ function addHeadCondition(name) {
     effectiveRating: 0,
     extremity: 'none',
   }, _condInfoDefaults()));
-  renderHeadConditionList();
+  _patchHeadCondListSelection();
   renderHeadEvalRegion();
 }
 
 function removeHeadCondition(id) {
   if(typeof _removeCondPinIfExists === 'function') _removeCondPinIfExists(id);
   window._headConditions = window._headConditions.filter(c => c.id !== id);
-  renderHeadConditionList();
+  _patchHeadCondListSelection();
   renderHeadEvalRegion();
   if (typeof renderRating === 'function') renderRating();
+}
+
+// Drop a condition out of the current selection. A record resurfaced from a
+// previous visit (_wasCommitted) still owns its saved evaluation and its map
+// pin, so it goes back to the committed state — deselecting must never destroy
+// data the user entered in an earlier session. Only conditions created fresh in
+// this session are actually deleted.
+function _deselectHeadCondition(cond) {
+  if(!cond) return;
+  if(cond._wasCommitted){
+    cond._committed = true;
+    cond._wasCommitted = false;
+    _patchHeadCondListSelection();
+    renderHeadEvalRegion();
+    if (typeof renderRating === 'function') renderRating();
+    return;
+  }
+  removeHeadCondition(cond.id);
 }
 
 function toggleHeadCondition(name) {
@@ -73,10 +107,11 @@ function toggleHeadCondition(name) {
   const uncommitted = window._headConditions.filter(c => !c._committed);
   const alreadySelected = uncommitted.find(c => c.condition === name);
   if(alreadySelected){
-    removeHeadCondition(alreadySelected.id);
+    _deselectHeadCondition(alreadySelected);
     return;
   }
-  uncommitted.forEach(c => removeHeadCondition(c.id));
+  // Clear the previous uncommitted selection
+  uncommitted.forEach(c => _deselectHeadCondition(c));
   addHeadCondition(name);
 }
 
@@ -89,9 +124,9 @@ function updateHeadDomain(condId, domainId, value) {
   recalcHeadRating(cond);
   // Targeted DOM update — no full re-render, no scroll jump
   _patchHeadDomainButtons('hd-eval-body-'+condId, domainId, parseInt(value));
-  _patchHeadRating(condId, cond.effectiveRating);
-  // Refresh the cond-list so the rating badge reflects the new value.
-  renderHeadConditionList();
+  _patchHeadRating(condId, cond.effectiveRating, cond.calculatedRating);
+  // Refresh the selected row's badge in place (no rebuild → no scroll jump).
+  _patchHeadCondListSelection();
   if (typeof renderRating === 'function') renderRating();
 }
 
@@ -108,7 +143,7 @@ function _patchHeadDomainButtons(evalBodyId, domainId, newValue){
   });
 }
 
-function _patchHeadRating(condId, effectiveRating){
+function _patchHeadRating(condId, effectiveRating, calculatedRating){
   const evalBody = document.getElementById('hd-eval-body-'+condId);
   if(!evalBody) return;
   const card = evalBody.closest('.mh-eval-card');
@@ -116,10 +151,11 @@ function _patchHeadRating(condId, effectiveRating){
   const badge = card.querySelector('.mh-eval-rating');
   if(badge){
     badge.textContent = effectiveRating + '%';
-    badge.className = 'mh-eval-rating mh-rate-' + effectiveRating;
+    badge.className = 'mh-eval-rating ' + _rateClass(effectiveRating);
   }
+  // The "Calculated Rating" box always shows the CALCULATED value, even under override
   const calcVal = evalBody.querySelector('.hd-calc-val');
-  if(calcVal) calcVal.textContent = effectiveRating + '%';
+  if(calcVal) calcVal.textContent = (calculatedRating !== undefined ? calculatedRating : effectiveRating) + '%';
 }
 
 function setHeadOverride(condId, value) {
@@ -132,7 +168,7 @@ function setHeadOverride(condId, value) {
     cond.manualOverride = parseInt(value);
     cond.effectiveRating = cond.manualOverride;
   }
-  renderHeadConditionList();
+  _patchHeadCondListSelection();
   renderHeadEvalRegion();
   if (typeof renderRating === 'function') renderRating();
 }
@@ -147,7 +183,7 @@ function toggleHeadOverride(condId, checked) {
     cond.manualOverride = null;
     cond.effectiveRating = cond.calculatedRating;
   }
-  renderHeadConditionList();
+  _patchHeadCondListSelection();
   renderHeadEvalRegion();
   if (typeof renderRating === 'function') renderRating();
 }
@@ -174,6 +210,7 @@ function onHeadSearch(val) {
 }
 
 function _buildHeadCondListHTML() {
+  // Only show current session's selection — committed conditions are hidden (fresh slate)
   const currentCond = window._headConditions.find(c => !c._committed);
   const selected = new Set();
   if (currentCond) selected.add(currentCond.condition);
@@ -182,7 +219,7 @@ function _buildHeadCondListHTML() {
   if (!filtered.length) return '<div style="padding:14px;color:var(--muted);font-size:12px;text-align:center;">No conditions match your search.</div>';
   return filtered.map(name => {
     const checked = selected.has(name);
-    const badge = checked && currentCond ? '<span class="mh-cond-badge mh-rate-' + currentCond.effectiveRating + '">' + currentCond.effectiveRating + '%</span>' : '';
+    const badge = checked && currentCond ? '<span class="mh-cond-badge ' + _rateClass(currentCond.effectiveRating) + '">' + currentCond.effectiveRating + '%</span>' : '';
     const escaped = name.replace(/'/g, "\\'");
     const dataName = name.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     return '<div class="mh-cond-item' + (checked ? ' selected' : '') + '" data-cond-name="' + dataName + '" onclick="toggleHeadCondition(\'' + escaped + '\')">' +
@@ -198,6 +235,32 @@ function renderHeadConditionList() {
   if (!list) return;
   list.innerHTML = _buildHeadCondListHTML();
   if (typeof _initCondListScroll === 'function') _initCondListScroll(list);
+}
+
+// Move the selection highlight/badge between existing rows WITHOUT rebuilding
+// the list. Assigning innerHTML clamps the list's own scrollTop to 0 (the
+// "pick a low item and it jumps to the top" bug) and re-flashes a filtered
+// list. A selection or a rating change never alters which rows are present, so
+// patch in place and the scroll position and search box stay put.
+function _patchHeadCondListSelection() {
+  const list = document.getElementById('hd-cond-list');
+  if (!list || !list.querySelector('.mh-cond-item')) { renderHeadConditionList(); return; }
+  const currentCond = window._headConditions.find(c => !c._committed);
+  const selName = currentCond ? currentCond.condition : null;
+  list.querySelectorAll('.mh-cond-item').forEach(row => {
+    const isSel = row.getAttribute('data-cond-name') === selName;
+    row.classList.toggle('selected', isSel);
+    const radio = row.querySelector('input');
+    if (radio) radio.checked = isSel;
+    let badge = row.querySelector('.mh-cond-badge');
+    if (isSel && currentCond) {
+      if (!badge) { badge = document.createElement('span'); row.appendChild(badge); }
+      badge.className = 'mh-cond-badge ' + _rateClass(currentCond.effectiveRating);
+      badge.textContent = currentCond.effectiveRating + '%';
+    } else if (badge) {
+      badge.remove();
+    }
+  });
 }
 
 // ── RENDER PANEL ─────────────────────────────────────────────────────────────
@@ -241,24 +304,36 @@ function renderHeadPanel() {
   h += '</div>'; // mh-body
   const _scrollTop = panel.scrollTop;
   panel.innerHTML = h;
+  const list = document.getElementById('hd-cond-list');
+  if (typeof _initCondListScroll === 'function') _initCondListScroll(list);
   panel.scrollTop = _scrollTop;
+  // Sidebar badges live behind this overlay — keep them current as the user
+  // adds and rates conditions instead of waiting for a pin to be placed
+  if(typeof updateBadges === 'function') updateBadges();
+  if(typeof updateCount === 'function') updateCount();
 }
 
 // Build the HTML for the evaluation region (everything below the cond-list).
+// Split out so updating a condition can re-render only this region instead of
+// rebuilding the panel — that's what keeps the cond-list scroll/search state
+// and hover from twitching on every click.
 function _buildHeadEvalRegionHTML() {
   const conds = window._headConditions;
-  const _visibleConds = conds.filter(c => !c._committed);
   let h = '';
 
+  // Selected conditions evaluation — only current session (non-committed)
+  const _visibleConds = conds.filter(c => !c._committed);
   if (_visibleConds.length) {
     h += '<div class="mh-section-title">Evaluations (' + _visibleConds.length + ' condition' + (_visibleConds.length > 1 ? 's' : '') + ')</div>';
 
     _visibleConds.forEach(cond => {
       const profile = HEAD_PROFILES[cond.profile] || HEAD_PROFILES.generic;
-      const rateClass = 'mh-rate-' + cond.effectiveRating;
+      const rateClass = _rateClass(cond.effectiveRating);
       const overrideActive = cond.manualOverride !== null;
 
       h += '<div class="mh-eval-card">';
+
+      // Card header
       h += '<div class="mh-eval-header" onclick="toggleHeadEvalCard(' + cond.id + ')">' +
         '<div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">' +
           '<span class="mh-eval-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + cond.condition + '</span>' +
@@ -271,20 +346,28 @@ function _buildHeadEvalRegionHTML() {
         '</div>' +
       '</div>';
 
+      // Card body (domains)
       h += '<div class="mh-eval-body" id="hd-eval-body-' + cond.id + '">';
+
+      // Service info fields
       h += _condInfoHTML('head', cond);
 
+      // Profile note
       if (profile.note) {
         h += '<div style="padding:8px 12px;margin-bottom:10px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:11px;color:#92400e;">' + profile.note + '</div>';
       }
 
+      // Domain cards
       profile.domains.forEach(domain => {
         const currentValue = cond.domains[domain.id] || 0;
+
         h += '<div class="mh-domain">' +
           '<div class="mh-domain-header">' +
             '<div class="mh-domain-label">' + domain.label + '</div>' +
             '<div class="mh-domain-desc">' + domain.description + '</div>' +
           '</div>';
+
+        // Level buttons — physical conditions use specific value levels
         h += '<div class="hd-levels">';
         domain.levels.forEach(lv => {
           const isActive = currentValue === lv.value;
@@ -298,9 +381,11 @@ function _buildHeadEvalRegionHTML() {
           '</button>';
         });
         h += '</div>';
-        h += '</div>';
+
+        h += '</div>'; // domain
       });
 
+      // Calculated rating display
       h += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(10,35,87,.04);border-radius:6px;">' +
         '<div>' +
           '<div style="font-size:11px;font-weight:700;color:var(--navy);font-family:var(--fh);text-transform:uppercase;letter-spacing:.5px;">Calculated Rating</div>' +
@@ -308,6 +393,7 @@ function _buildHeadEvalRegionHTML() {
         '</div>' +
       '</div>';
 
+      // Manual override
       h += '<div class="mh-override">' +
         '<label>' +
           '<input type="checkbox" ' + (overrideActive ? 'checked' : '') + ' onchange="toggleHeadOverride(' + cond.id + ',this.checked)">' +
@@ -321,10 +407,12 @@ function _buildHeadEvalRegionHTML() {
         h += '</select>';
       }
       h += '</div>';
+
       h += '</div>'; // eval-body
       h += '</div>'; // eval-card
     });
 
+    // Summary — current session only
     h += '<div class="mh-combined">' +
       '<div class="mh-combined-label">Head & Face Ratings</div>' +
       '<div class="mh-combined-tiles">';
@@ -337,6 +425,7 @@ function _buildHeadEvalRegionHTML() {
     h += '</div>' +
       '<div class="mh-combined-note">Each condition contributes separately to your combined VA rating</div>' +
     '</div>';
+
   } else {
     h += '<div class="mh-empty">' +
       '<div style="font-size:28px;margin-bottom:8px;">&#129504;</div>' +
@@ -346,8 +435,9 @@ function _buildHeadEvalRegionHTML() {
     '</div>';
   }
 
+  // Place Pin / Done buttons
   h += '<div class="mh-done-wrap">';
-  if (_visibleConds.length) {
+  if(_visibleConds.length){
     h += '<button class="mh-done-btn" onclick="placeHeadPin()">' +
       '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="10" r="3"/><path d="M12 2C7.58 2 4 5.58 4 10c0 5.25 8 13 8 13s8-7.75 8-13c0-4.42-3.58-8-8-8z"/></svg>' +
       ' Place Pin on Map' +
@@ -362,8 +452,12 @@ function _buildHeadEvalRegionHTML() {
   return h;
 }
 
+// Render only the section below the cond-list. Falls back to a full panel
+// render if the region doesn't exist yet (e.g., first open).
 function renderHeadEvalRegion() {
   const region = document.getElementById('hd-eval-region');
   if (!region) { renderHeadPanel(); return; }
   region.innerHTML = _buildHeadEvalRegionHTML();
+  if(typeof updateBadges === 'function') updateBadges();
+  if(typeof updateCount === 'function') updateCount();
 }

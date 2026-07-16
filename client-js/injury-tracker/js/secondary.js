@@ -6,6 +6,16 @@ let _sevOpen = {};
 // Per-claim secondary add state: { claimId: { area, side } }
 let _secAddState = {};
 
+// Secondary rendering predates the shared escapeHTML helper's declaration
+// (rating.js loads later), but every call happens after all scripts load. Keep
+// a safe local fallback so restored/custom names never reach innerHTML raw.
+function _secondaryHTML(value){
+  if(typeof escapeHTML === 'function') return escapeHTML(value);
+  return String(value == null ? '' : value)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 // Helper: remove a panel pin from the map if it exists (legacy key-based)
 function _removePanelPinIfExists(key){
   const el = document.getElementById('pin-panel-' + key);
@@ -41,7 +51,7 @@ const COMMON_SECONDARIES = {
   'Migraine headaches': [
     {name:'Major depressive disorder', dc:'DC 9434'},
     {name:'Generalized anxiety disorder', dc:'DC 9400'},
-    {name:'GERD / acid reflux', dc:'DC 7346'},
+    {name:'GERD / acid reflux', dc:'DC 7206'},
     {name:'Cervical strain / sprain', dc:'DC 5237'},
     {name:'Sleep apnea', dc:'DC 6847'},
   ],
@@ -53,7 +63,6 @@ const COMMON_SECONDARIES = {
     {name:'Vertigo / Dizziness', dc:'DC 6204'},
     {name:'Tinnitus, recurrent', dc:'DC 6260'},
     {name:'Vision impairment', dc:'DC 6066'},
-    {name:'Peripheral vestibular disorder', dc:'DC 6204'},
   ],
   'Temporomandibular disorder (TMD)': [
     {name:'Migraine headaches', dc:'DC 8100'},
@@ -76,7 +85,7 @@ const COMMON_SECONDARIES = {
     {name:'Sleep apnea', dc:'DC 6847'},
     {name:'Migraine headaches', dc:'DC 8100'},
     {name:'Hypertension', dc:'DC 7101'},
-    {name:'GERD / acid reflux', dc:'DC 7346'},
+    {name:'GERD / acid reflux', dc:'DC 7206'},
     {name:'Temporomandibular disorder (TMD)', dc:'DC 9905'},
     {name:'Erectile dysfunction', dc:'DC 7522'},
     {name:'Irritable bowel syndrome (IBS)', dc:'DC 7319'},
@@ -88,12 +97,12 @@ const COMMON_SECONDARIES = {
     {name:'Chronic fatigue syndrome', dc:'DC 6354'},
     {name:'Erectile dysfunction', dc:'DC 7522'},
     {name:'Fibromyalgia', dc:'DC 5025'},
-    {name:'GERD / acid reflux', dc:'DC 7346'},
+    {name:'GERD / acid reflux', dc:'DC 7206'},
   ],
   'Generalized anxiety disorder': [
     {name:'Sleep apnea', dc:'DC 6847'},
     {name:'Migraine headaches', dc:'DC 8100'},
-    {name:'GERD / acid reflux', dc:'DC 7346'},
+    {name:'GERD / acid reflux', dc:'DC 7206'},
     {name:'Hypertension', dc:'DC 7101'},
     {name:'Irritable bowel syndrome (IBS)', dc:'DC 7319'},
     {name:'Temporomandibular disorder (TMD)', dc:'DC 9905'},
@@ -106,7 +115,7 @@ const COMMON_SECONDARIES = {
     {name:'Erectile dysfunction', dc:'DC 7522'},
   ],
   'Panic disorder and/or agoraphobia': [
-    {name:'GERD / acid reflux', dc:'DC 7346'},
+    {name:'GERD / acid reflux', dc:'DC 7206'},
     {name:'Migraine headaches', dc:'DC 8100'},
     {name:'Hypertension', dc:'DC 7101'},
     {name:'Irritable bowel syndrome (IBS)', dc:'DC 7319'},
@@ -122,7 +131,7 @@ const COMMON_SECONDARIES = {
   'Knee osteoarthritis': [
     {name:'Hip osteoarthritis', dc:'DC 5003'},
     {name:'Lumbar strain / sprain', dc:'DC 5237'},
-    {name:'Plantar fasciitis', dc:'DC 5276'},
+    {name:'Plantar fasciitis', dc:'DC 5269'},
     {name:'Peripheral neuropathy', dc:'DC 8520'},
     {name:'Major depressive disorder', dc:'DC 9434'},
   ],
@@ -146,12 +155,12 @@ const COMMON_SECONDARIES = {
   ],
   'Patellofemoral syndrome': [
     {name:'Knee osteoarthritis', dc:'DC 5003'},
-    {name:'Plantar fasciitis', dc:'DC 5276'},
+    {name:'Plantar fasciitis', dc:'DC 5269'},
     {name:'Hip osteoarthritis', dc:'DC 5003'},
   ],
   'Patellar tendinitis': [
     {name:'Knee osteoarthritis', dc:'DC 5003'},
-    {name:'Plantar fasciitis', dc:'DC 5276'},
+    {name:'Plantar fasciitis', dc:'DC 5269'},
     {name:'Hip osteoarthritis', dc:'DC 5003'},
   ],
 
@@ -161,7 +170,7 @@ const COMMON_SECONDARIES = {
     {name:'Peripheral neuropathy', dc:'DC 8520'},
     {name:'Erectile dysfunction', dc:'DC 7522'},
     {name:'Bladder condition', dc:'DC 7542'},
-    {name:'Hip osteoarthritis', dc:'DC 5252'},
+    {name:'Hip osteoarthritis', dc:'DC 5003'},
     {name:'Major depressive disorder', dc:'DC 9434'},
   ],
   'Lumbar disc herniation': [
@@ -175,15 +184,15 @@ const COMMON_SECONDARIES = {
     {name:'Peripheral neuropathy', dc:'DC 8520'},
     {name:'Erectile dysfunction', dc:'DC 7522'},
     {name:'Bladder condition', dc:'DC 7542'},
-    {name:'Plantar fasciitis', dc:'DC 5276'},
+    {name:'Plantar fasciitis', dc:'DC 5269'},
     {name:'Major depressive disorder', dc:'DC 9434'},
   ],
   'Degenerative disc disease (lumbar)': [
     {name:'Lumbar radiculopathy / sciatica', dc:'DC 8520'},
     {name:'Peripheral neuropathy', dc:'DC 8520'},
-    {name:'GERD / acid reflux', dc:'DC 7346'},
+    {name:'GERD / acid reflux', dc:'DC 7206'},
     {name:'Erectile dysfunction', dc:'DC 7522'},
-    {name:'Hip osteoarthritis', dc:'DC 5252'},
+    {name:'Hip osteoarthritis', dc:'DC 5003'},
   ],
   'Spinal stenosis (lumbar)': [
     {name:'Lumbar radiculopathy / sciatica', dc:'DC 8520'},
@@ -249,30 +258,30 @@ const COMMON_SECONDARIES = {
   // ── ANKLE & FOOT ──
   'Ankle sprain (chronic)': [
     {name:'Knee osteoarthritis', dc:'DC 5003'},
-    {name:'Plantar fasciitis', dc:'DC 5276'},
-    {name:'Hip osteoarthritis', dc:'DC 5252'},
+    {name:'Plantar fasciitis', dc:'DC 5269'},
+    {name:'Hip osteoarthritis', dc:'DC 5003'},
   ],
   'Ankle instability': [
     {name:'Knee osteoarthritis', dc:'DC 5003'},
-    {name:'Plantar fasciitis', dc:'DC 5276'},
-    {name:'Hip osteoarthritis', dc:'DC 5252'},
+    {name:'Plantar fasciitis', dc:'DC 5269'},
+    {name:'Hip osteoarthritis', dc:'DC 5003'},
   ],
   'Plantar fasciitis': [
     {name:'Knee osteoarthritis', dc:'DC 5003'},
-    {name:'Hip osteoarthritis', dc:'DC 5252'},
+    {name:'Hip osteoarthritis', dc:'DC 5003'},
     {name:'Lumbar strain / sprain', dc:'DC 5237'},
     {name:'Ankle sprain (chronic)', dc:'DC 5271'},
     {name:'Achilles tendinitis / rupture', dc:'DC 5024'},
   ],
   'Flat feet (pes planus)': [
     {name:'Knee osteoarthritis', dc:'DC 5003'},
-    {name:'Hip osteoarthritis', dc:'DC 5252'},
+    {name:'Hip osteoarthritis', dc:'DC 5003'},
     {name:'Lumbar strain / sprain', dc:'DC 5237'},
-    {name:'Plantar fasciitis', dc:'DC 5276'},
+    {name:'Plantar fasciitis', dc:'DC 5269'},
     {name:'Achilles tendinitis / rupture', dc:'DC 5024'},
   ],
   'Achilles tendinitis / rupture': [
-    {name:'Plantar fasciitis', dc:'DC 5276'},
+    {name:'Plantar fasciitis', dc:'DC 5269'},
     {name:'Knee osteoarthritis', dc:'DC 5003'},
     {name:'Ankle instability', dc:'DC 5271'},
   ],
@@ -329,11 +338,11 @@ const COMMON_SECONDARIES = {
     {name:'Hypertension', dc:'DC 7101'},
     {name:'Major depressive disorder', dc:'DC 9434'},
     {name:'Chronic fatigue syndrome', dc:'DC 6354'},
-    {name:'GERD / acid reflux', dc:'DC 7346'},
+    {name:'GERD / acid reflux', dc:'DC 7206'},
     {name:'Erectile dysfunction', dc:'DC 7522'},
   ],
   'Asthma': [
-    {name:'GERD / acid reflux', dc:'DC 7346'},
+    {name:'GERD / acid reflux', dc:'DC 7206'},
     {name:'Rhinitis, allergic or vasomotor', dc:'DC 6522'},
     {name:'Sinusitis, chronic', dc:'DC 6510'},
     {name:'Sleep apnea', dc:'DC 6847'},
@@ -341,7 +350,7 @@ const COMMON_SECONDARIES = {
   'COPD / chronic bronchitis': [
     {name:'Sleep apnea', dc:'DC 6847'},
     {name:'Major depressive disorder', dc:'DC 9434'},
-    {name:'GERD / acid reflux', dc:'DC 7346'},
+    {name:'GERD / acid reflux', dc:'DC 7206'},
     {name:'Hypertension', dc:'DC 7101'},
   ],
 
@@ -353,13 +362,13 @@ const COMMON_SECONDARIES = {
     {name:'Irritable bowel syndrome (IBS)', dc:'DC 7319'},
   ],
   'Irritable bowel syndrome (IBS)': [
-    {name:'GERD / acid reflux', dc:'DC 7346'},
+    {name:'GERD / acid reflux', dc:'DC 7206'},
     {name:'Generalized anxiety disorder', dc:'DC 9400'},
     {name:'Major depressive disorder', dc:'DC 9434'},
     {name:'Chronic fatigue syndrome', dc:'DC 6354'},
   ],
   'Hiatal hernia': [
-    {name:'GERD / acid reflux', dc:'DC 7346'},
+    {name:'GERD / acid reflux', dc:'DC 7206'},
     {name:'Sleep apnea', dc:'DC 6847'},
     {name:'Asthma', dc:'DC 6602'},
   ],
@@ -370,7 +379,7 @@ const COMMON_SECONDARIES = {
     {name:'Erectile dysfunction', dc:'DC 7522'},
     {name:'Hypertension', dc:'DC 7101'},
     {name:'Diabetic retinopathy', dc:'DC 6006'},
-    {name:'Kidney stones', dc:'DC 7541'},
+    {name:'Kidney stones', dc:'DC 7508'},
     {name:'Major depressive disorder', dc:'DC 9434'},
   ],
   'Diabetes mellitus': [
@@ -412,7 +421,7 @@ const COMMON_SECONDARIES = {
     {name:'Generalized anxiety disorder', dc:'DC 9400'},
   ],
   'Peripheral neuropathy': [
-    {name:'Plantar fasciitis', dc:'DC 5276'},
+    {name:'Plantar fasciitis', dc:'DC 5269'},
     {name:'Major depressive disorder', dc:'DC 9434'},
     {name:'Knee osteoarthritis', dc:'DC 5003'},
   ],
@@ -431,12 +440,12 @@ const COMMON_SECONDARIES = {
   // ── LEG ──
   'Shin splints (MTSS)': [
     {name:'Knee osteoarthritis', dc:'DC 5003'},
-    {name:'Plantar fasciitis', dc:'DC 5276'},
+    {name:'Plantar fasciitis', dc:'DC 5269'},
     {name:'Flat feet (pes planus)', dc:'DC 5276'},
   ],
   'Stress fracture (tibia / fibula)': [
     {name:'Knee osteoarthritis', dc:'DC 5003'},
-    {name:'Plantar fasciitis', dc:'DC 5276'},
+    {name:'Plantar fasciitis', dc:'DC 5269'},
     {name:'Lumbar strain / sprain', dc:'DC 5237'},
   ],
 };
@@ -446,14 +455,14 @@ const _CATEGORY_SECONDARIES = {
   knee: [
     {name:'Hip osteoarthritis', dc:'DC 5003'},
     {name:'Lumbar strain / sprain', dc:'DC 5237'},
-    {name:'Plantar fasciitis', dc:'DC 5276'},
+    {name:'Plantar fasciitis', dc:'DC 5269'},
     {name:'Peripheral neuropathy', dc:'DC 8520'},
   ],
   back: [
     {name:'Lumbar radiculopathy / sciatica', dc:'DC 8520'},
     {name:'Peripheral neuropathy', dc:'DC 8520'},
     {name:'Erectile dysfunction', dc:'DC 7522'},
-    {name:'Hip osteoarthritis', dc:'DC 5252'},
+    {name:'Hip osteoarthritis', dc:'DC 5003'},
   ],
   shoulder: [
     {name:'Cervical strain / sprain', dc:'DC 5237'},
@@ -472,8 +481,8 @@ const _CATEGORY_SECONDARIES = {
   ],
   ankle_foot: [
     {name:'Knee osteoarthritis', dc:'DC 5003'},
-    {name:'Hip osteoarthritis', dc:'DC 5252'},
-    {name:'Plantar fasciitis', dc:'DC 5276'},
+    {name:'Hip osteoarthritis', dc:'DC 5003'},
+    {name:'Plantar fasciitis', dc:'DC 5269'},
   ],
   elbow: [
     {name:'Carpal tunnel syndrome', dc:'DC 8515'},
@@ -487,16 +496,16 @@ const _CATEGORY_SECONDARIES = {
   ],
   leg: [
     {name:'Knee osteoarthritis', dc:'DC 5003'},
-    {name:'Plantar fasciitis', dc:'DC 5276'},
+    {name:'Plantar fasciitis', dc:'DC 5269'},
     {name:'Lumbar strain / sprain', dc:'DC 5237'},
   ],
   chest: [
     {name:'Sleep apnea', dc:'DC 6847'},
-    {name:'GERD / acid reflux', dc:'DC 7346'},
+    {name:'GERD / acid reflux', dc:'DC 7206'},
     {name:'Major depressive disorder', dc:'DC 9434'},
   ],
   abdomen: [
-    {name:'GERD / acid reflux', dc:'DC 7346'},
+    {name:'GERD / acid reflux', dc:'DC 7206'},
     {name:'Irritable bowel syndrome (IBS)', dc:'DC 7319'},
     {name:'Major depressive disorder', dc:'DC 9434'},
   ],
@@ -508,7 +517,7 @@ const _CATEGORY_SECONDARIES = {
   mental: [
     {name:'Sleep apnea', dc:'DC 6847'},
     {name:'Migraine headaches', dc:'DC 8100'},
-    {name:'GERD / acid reflux', dc:'DC 7346'},
+    {name:'GERD / acid reflux', dc:'DC 7206'},
     {name:'Hypertension', dc:'DC 7101'},
     {name:'Erectile dysfunction', dc:'DC 7522'},
   ],
@@ -710,6 +719,35 @@ function updatePendingSecFreq(claimId, domainId, freq){
   renderSecondary();
 }
 
+// Map a suggestion-chip condition name to the BP_REGISTRY area it belongs to.
+// Chips carry no body-part context, but the area is needed to assign the
+// extremity codes that drive the 38 CFR 4.26 bilateral factor.
+function _inferSecArea(name){
+  if(typeof BP_REGISTRY === 'undefined') return '';
+  const lower = name.toLowerCase();
+  // Exact match against the area picker lists
+  if(typeof VA_AREA_CONDITIONS !== 'undefined'){
+    for(const area of Object.keys(BP_REGISTRY)){
+      const list = VA_AREA_CONDITIONS[area];
+      if(list && list.some(c => c.toLowerCase() === lower)) return area;
+    }
+  }
+  // Keyword fallback — picks an area with the right upper/lower extremity codes
+  const kw = [
+    [/knee|acl\b|mcl\b|meniscus|patell|chondromalacia/, 'knee'],
+    [/hip\b|trochanteric|labral/, 'hip'],
+    [/ankle|foot|feet|plantar|achilles|heel|bunion|toe\b|tarsal/, 'ankle_foot'],
+    [/thigh|hamstring|quadriceps|calf|shin|varicose/, 'leg'],
+    [/shoulder|rotator|slap\b|bicep/, 'shoulder'],
+    [/elbow|epicondylitis|cubital|forearm/, 'elbow'],
+    [/wrist|hand\b|carpal|quervain|finger|thumb/, 'wrist_hand'],
+  ];
+  for(const [re, area] of kw){
+    if(re.test(lower) && BP_REGISTRY[area]) return area;
+  }
+  return '';
+}
+
 function submitPendingSec(claimId){
   const st = _secAddState[claimId];
   if(!st || !st.pendingSec) return;
@@ -723,29 +761,53 @@ function submitPendingSec(claimId){
   const name = st.pendingSec;
   const secProfile = st.pendingSecProfile || _getSecProfile(name);
   const rating = _calcRatingForProfile(secProfile, st.pendingDomains);
-  const area = st.area || '';
-  const side = st.side || '';
-
-  // Bilateral: create TWO entries (left + right) with proper extremity codes
-  if(side === 'both' && area && typeof BP_REGISTRY !== 'undefined' && BP_REGISTRY[area]){
-    const cfg = BP_REGISTRY[area];
-    const sides = Object.entries(cfg.sideKeys);
-    const leftKey = sides.find(([k])=>k.toLowerCase().startsWith('left'));
-    const rightKey = sides.find(([k])=>k.toLowerCase().startsWith('right'));
-    if(leftKey && rightKey){
-      const leftName = name + ' (Left)';
-      const rightName = name + ' (Right)';
-      // Add left entry
-      if(!ref.secondaries.includes(leftName)) ref.secondaries.push(leftName);
-      ref.secondaryEvals[leftName] = { domains: {...st.pendingDomains}, rating: rating };
-      ref.secondaryRatings[leftName] = rating;
-      ref.secondaryExtremities[leftName] = cfg.extremityMap[leftKey[0]] || 'none';
-      // Add right entry
-      if(!ref.secondaries.includes(rightName)) ref.secondaries.push(rightName);
-      ref.secondaryEvals[rightName] = { domains: {...st.pendingDomains}, rating: rating };
-      ref.secondaryRatings[rightName] = rating;
-      ref.secondaryExtremities[rightName] = cfg.extremityMap[rightKey[0]] || 'none';
+  let area = st.area || '';
+  let side = st.side || '';
+  // The chip flow (side popup / non-sided chips) sets st.secSide — it reflects
+  // the MOST RECENT user choice and overrides any stale dropdown area/side.
+  if(st.secSide !== undefined){
+    if(st.secSide === 'na'){
+      area = ''; side = ''; // non-sided condition — never split or tag it
+    } else {
+      area = _inferSecArea(name);
+      if(area && typeof BP_REGISTRY !== 'undefined' && BP_REGISTRY[area]){
+        if(st.secSide === 'both'){
+          side = 'both';
+        } else {
+          // Popup gives 'left'/'right' — convert to the area's pin key ('leftKnee', …)
+          const match = Object.keys(BP_REGISTRY[area].sideKeys).find(k => k.toLowerCase().startsWith(st.secSide));
+          side = match || '';
+        }
+      } else {
+        area = ''; side = '';
+      }
     }
+  }
+
+  // Bilateral: create TWO entries (left + right) with proper extremity codes.
+  // Only areas that actually have left/right side keys can split — the side
+  // popup offers "Both" for any sided-looking condition, but _inferSecArea can
+  // land on an area with no sides (e.g. a bladder condition → abdomen, whose
+  // keys are Abdomen/Pelvis). Those fall through to the single-entry path
+  // below; without this the evaluated secondary was silently discarded.
+  const bilCfg = (side === 'both' && area && typeof BP_REGISTRY !== 'undefined' && BP_REGISTRY[area]) ? BP_REGISTRY[area] : null;
+  const bilSides = bilCfg ? Object.entries(bilCfg.sideKeys) : [];
+  const leftKey = bilSides.find(([k])=>k.toLowerCase().startsWith('left'));
+  const rightKey = bilSides.find(([k])=>k.toLowerCase().startsWith('right'));
+
+  if(bilCfg && leftKey && rightKey){
+    const leftName = name + ' (Left)';
+    const rightName = name + ' (Right)';
+    // Add left entry
+    if(!ref.secondaries.includes(leftName)) ref.secondaries.push(leftName);
+    ref.secondaryEvals[leftName] = { domains: {...st.pendingDomains}, rating: rating };
+    ref.secondaryRatings[leftName] = rating;
+    ref.secondaryExtremities[leftName] = bilCfg.extremityMap[leftKey[0]] || 'none';
+    // Add right entry
+    if(!ref.secondaries.includes(rightName)) ref.secondaries.push(rightName);
+    ref.secondaryEvals[rightName] = { domains: {...st.pendingDomains}, rating: rating };
+    ref.secondaryRatings[rightName] = rating;
+    ref.secondaryExtremities[rightName] = bilCfg.extremityMap[rightKey[0]] || 'none';
   } else {
     // Single side or non-bilateral area
     if(!ref.secondaries.includes(name)) ref.secondaries.push(name);
@@ -757,9 +819,14 @@ function submitPendingSec(claimId){
     }
   }
 
-  // Clear pending state
+  // Clear pending state — including area/side/secSide so a stale selection
+  // can't contaminate the next add
   delete st.pendingSec;
   delete st.pendingDomains;
+  delete st.pendingSecProfile;
+  delete st.secSide;
+  st.area = '';
+  st.side = '';
   renderSecondary();
   if(typeof renderRating === 'function') renderRating();
 }
@@ -768,6 +835,8 @@ function cancelPendingSec(claimId){
   if(_secAddState[claimId]){
     delete _secAddState[claimId].pendingSec;
     delete _secAddState[claimId].pendingDomains;
+    delete _secAddState[claimId].pendingSecProfile;
+    delete _secAddState[claimId].secSide;
   }
   renderSecondary();
 }
@@ -830,19 +899,28 @@ function renderSecondaryAddDropdowns(claimId, group){
   let h = '';
 
   // ── "Veterans commonly also claim" suggestions ──
+  // Compare on the base name so bilateral entries stored as "Name (Left)"/"(Right)"
+  // still hide their chip/dropdown entry
+  const _secBase = n => String(n).replace(/\s*\((Left|Right)\)\s*$/i,'');
+  const _secBaseSet = new Set(secs.map(_secBase));
   const suggestions = getCommonSecondaries(condName, group);
   if(suggestions && suggestions.length){
-    const available = suggestions.filter(s => !secs.includes(s.name));
+    const available = suggestions.filter(s => !_secBaseSet.has(s.name));
     if(available.length){
       h += '<div class="cr-suggest">';
       h += '<div class="cr-suggest-title">Veterans commonly also claim with ' +
-        '<strong>' + condName + '</strong>:</div>';
+        '<strong>' + _secondaryHTML(condName) + '</strong>:</div>';
       h += '<div class="cr-suggest-chips">';
+      const _pyrRisks = typeof PYRAMIDING_RISKS !== 'undefined' ? PYRAMIDING_RISKS : [];
       available.forEach(s => {
         const escaped = s.name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
-        h += '<button class="cr-suggest-chip" onclick="addSecWithLocationPrompt(\''+claimId+'\',\''+escaped+'\')" title="'+s.dc+'">' +
+        // Flag pairs the app itself warns about under 38 CFR 4.14 (pyramiding)
+        const pyr = _pyrRisks.find(([a,b]) => (a===condName && b===s.name) || (a===s.name && b===condName));
+        const tip = (s.dc + (pyr ? ' — CAUTION (38 CFR 4.14): ' + pyr[2] : '')).replace(/"/g,'&quot;');
+        h += '<button class="cr-suggest-chip" onclick="addSecWithLocationPrompt(\''+claimId+'\',\''+escaped+'\')" title="'+tip+'">' +
           '<span class="cr-suggest-plus">+</span> ' + s.name +
           '<span class="cr-suggest-dc">' + s.dc + '</span>' +
+          (pyr ? '<span style="font-size:9px;font-weight:700;color:#b45309;background:#fffbeb;border:1px solid #fde68a;padding:1px 4px;border-radius:3px;margin-left:4px;" title="'+tip+'">&#9878; 4.14</span>' : '') +
         '</button>';
       });
       h += '</div></div>';
@@ -897,7 +975,7 @@ function renderSecondaryAddDropdowns(claimId, group){
     // Remove mental health conditions from physical body part secondary lists
     const _mhSet = new Set([...(typeof MENTAL_SECONDARIES!=='undefined'?MENTAL_SECONDARIES:[]), ...(typeof VA_MENTAL!=='undefined'?VA_MENTAL:[])]);
     const filteredList = (area !== 'mental' && area !== 'head') ? condList.filter(n => !_mhSet.has(n)) : condList;
-    const available = filteredList.filter(n => !secs.includes(n));
+    const available = filteredList.filter(n => !_secBaseSet.has(n));
 
     if(available.length){
       h += '<div class="cr-add-row">';
@@ -923,7 +1001,7 @@ function renderPendingSecEval(claimId, st){
 
   let h = '<div class="cr-pending-sec">';
   h += '<div class="cr-pending-head">' +
-    '<span class="cr-pending-name">' + st.pendingSec + '</span>' +
+    '<span class="cr-pending-name">' + _secondaryHTML(st.pendingSec) + '</span>' +
     '<span class="cr-rating-badge" style="background:#e0e7ff;color:#3730a3;border:1px solid #c7d2fe;">' + rating + '%</span>' +
   '</div>';
 
@@ -1029,9 +1107,8 @@ function gatherAllClaims(){
   const claims = [];
 
   // Physical injuries from map (skip panel-managed keys — those are in their own state arrays)
-  const _pk = _getPanelKeys();
-  const sorted = [...injuries].sort((a,b)=>new Date(a.date)-new Date(b.date)||a.id-b.id);
-  sorted.filter(i => !_pk.has(i.key)).forEach(i => {
+  const sorted = _nonPanelInjuries(injuries).sort((a,b)=>new Date(a.date)-new Date(b.date)||a.id-b.id);
+  sorted.forEach(i => {
     // Initialize evaluation state if not present
     if(!i.evalDomains){
       i.evalDomains = {};
@@ -1541,8 +1618,8 @@ function renderSecondary(){
       html += '<div class="cr-primary-head">' +
         '<div class="cr-primary-info">' +
           '<span class="cr-dot" style="background:'+sc+';"></span>' +
-          '<div class="cr-primary-name">' + claim.label + '</div>' +
-          (claim.date ? '<span class="cr-date">' + claim.date + '</span>' : '') +
+          '<div class="cr-primary-name">' + _secondaryHTML(claim.label) + '</div>' +
+          (claim.date ? '<span class="cr-date">' + _secondaryHTML(claim.date) + '</span>' : '') +
         '</div>' +
         '<div class="cr-primary-actions">' +
           '<span class="cr-rating-badge" style="background:'+sbg+';color:'+sc+';border:1px solid '+sbd+';">' + displayRating + '%</span>' +
@@ -1579,7 +1656,7 @@ function renderSecondary(){
             '<div class="cr-sec-info">' +
               '<span class="cr-sec-line"></span>' +
               '<span class="cr-sec-dot" style="background:'+ssc+';"></span>' +
-              '<span class="cr-sec-name">' + s + '</span>' +
+              '<span class="cr-sec-name">' + _secondaryHTML(s) + '</span>' +
             '</div>' +
             '<div class="cr-sec-actions">' +
               '<span class="cr-rating-badge cr-rating-sm" style="background:'+ssbg+';color:'+ssc+';border:1px solid '+ssbd+';">' + secRating + '%</span>' +
@@ -1604,8 +1681,8 @@ function renderSecondary(){
       html += renderSecondaryAddDropdowns(claim.id, group);
       // Custom text input
       html += '<div class="cr-custom-row">' +
-        '<input type="text" class="cr-custom-input" id="cr-custom-' + claim.id + '" placeholder="Custom secondary..." oninput="_toggleCustomAddBtn(this)">' +
-        '<button class="cr-custom-btn" disabled onclick="addCustomSecondary(\'' + claim.id + '\')">Add</button>' +
+        '<input type="text" class="cr-custom-input" id="cr-custom-' + claim.id + '" placeholder="Custom secondary...">' +
+        '<button class="cr-custom-btn" onclick="addCustomSecondary(\'' + claim.id + '\')">Add</button>' +
       '</div>';
       html += '</div>';
 
@@ -1647,7 +1724,10 @@ function removeSecondary(claimId, secIdx){
   const removed = ref.secondaries.splice(secIdx, 1)[0];
   if(removed && ref.secondaryEvals) delete ref.secondaryEvals[removed];
   if(removed && ref.secondaryRatings) delete ref.secondaryRatings[removed];
+  if(removed && ref.secondaryExtremities) delete ref.secondaryExtremities[removed];
+  if(removed && ref._secondaryRatings) delete ref._secondaryRatings[removed]; // Rating-tab manual override (name-keyed)
   renderSecondary();
+  if(typeof renderRating === 'function') renderRating();
 }
 
 // Vocational add/remove (shared with special.js)

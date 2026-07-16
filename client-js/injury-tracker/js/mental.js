@@ -49,14 +49,14 @@ function addMentalCondition(name) {
     manualOverride: null,
     effectiveRating: 0
   }, _condInfoDefaults()));
-  renderConditionList();
+  _patchMHCondListSelection();
   renderMHEvalRegion();
 }
 
 function removeMentalCondition(id) {
   if(typeof _removeCondPinIfExists === 'function') _removeCondPinIfExists(id);
   window._mentalHealthConditions = window._mentalHealthConditions.filter(c => c.id !== id);
-  renderConditionList();
+  _patchMHCondListSelection();
   renderMHEvalRegion();
   if (typeof renderRating === 'function') renderRating();
 }
@@ -75,7 +75,7 @@ function updateMHDomain(condId, domainId, level) {
   cond.domains[domainId].level = level;
   if (level === 'none') cond.domains[domainId].frequency = 'less25';
   recalcMHRating(cond);
-  renderConditionList();
+  _patchMHCondListSelection();
   renderMHEvalRegion();
   if (typeof renderRating === 'function') renderRating();
 }
@@ -85,7 +85,7 @@ function updateMHFrequency(condId, domainId, freq) {
   if (!cond) return;
   cond.domains[domainId].frequency = freq;
   recalcMHRating(cond);
-  renderConditionList();
+  _patchMHCondListSelection();
   renderMHEvalRegion();
   if (typeof renderRating === 'function') renderRating();
 }
@@ -100,7 +100,7 @@ function setMHOverride(condId, value) {
     cond.manualOverride = parseInt(value);
     cond.effectiveRating = cond.manualOverride;
   }
-  renderConditionList();
+  _patchMHCondListSelection();
   renderMHEvalRegion();
   if (typeof renderRating === 'function') renderRating();
 }
@@ -115,7 +115,7 @@ function toggleMHOverride(condId, checked) {
     cond.manualOverride = null;
     cond.effectiveRating = cond.calculatedRating;
   }
-  renderConditionList();
+  _patchMHCondListSelection();
   renderMHEvalRegion();
   if (typeof renderRating === 'function') renderRating();
 }
@@ -172,7 +172,7 @@ function renderConditionList() {
   filtered.forEach(name => {
     const checked = selected.has(name);
     const cond = window._mentalHealthConditions.find(c => c.condition === name);
-    const badge = cond ? `<span class="mh-cond-badge mh-rate-${cond.effectiveRating}">${cond.effectiveRating}%</span>` : '';
+    const badge = cond ? `<span class="mh-cond-badge ${_rateClass(cond.effectiveRating)}">${cond.effectiveRating}%</span>` : '';
     const examples = (typeof MH_EXAMPLES !== 'undefined' && MH_EXAMPLES[name]) || '';
     const exHtml = examples ? `<span class="mh-cond-examples">e.g. ${examples}</span>` : '';
     const escapedName = name.replace(/"/g, '&quot;').replace(/'/g, "&#39;");
@@ -186,6 +186,32 @@ function renderConditionList() {
   if (!filtered.length) h = '<div style="padding:14px;color:var(--muted);font-size:12px;text-align:center;">No conditions match your search.</div>';
   list.innerHTML = h;
   if(typeof _initCondListScroll === 'function') _initCondListScroll(list);
+}
+
+// Update the check state/badges on existing rows WITHOUT rebuilding the list.
+// Assigning innerHTML clamps the list's own scrollTop to 0 (the "check an item
+// near the bottom and it jumps to the top" bug) and re-flashes a filtered list.
+// Checking/rating a condition never changes which rows are present (only the
+// search box does), so patch in place and the scroll/search state stay put.
+// Mental is multi-select, so every selected condition keeps its own badge.
+function _patchMHCondListSelection() {
+  const list = document.getElementById('mh-cond-list');
+  if (!list || !list.querySelector('.mh-cond-item')) { renderConditionList(); return; }
+  list.querySelectorAll('.mh-cond-item').forEach(row => {
+    const name = row.getAttribute('data-cond-name');
+    const cond = window._mentalHealthConditions.find(c => c.condition === name);
+    row.classList.toggle('selected', !!cond);
+    const cb = row.querySelector('input');
+    if (cb) cb.checked = !!cond;
+    let badge = row.querySelector('.mh-cond-badge');
+    if (cond) {
+      if (!badge) { badge = document.createElement('span'); row.appendChild(badge); }
+      badge.className = 'mh-cond-badge ' + _rateClass(cond.effectiveRating);
+      badge.textContent = cond.effectiveRating + '%';
+    } else if (badge) {
+      badge.remove();
+    }
+  });
 }
 
 // ── RENDER PANEL ────────────────────────────────────────────────────────────
@@ -233,6 +259,10 @@ function renderMentalPanel() {
 
   renderConditionList();
   panel.scrollTop = _scrollTop;
+  // Sidebar badges live behind this overlay — keep them current as the user
+  // adds and rates conditions instead of waiting for a pin to be placed
+  if(typeof updateBadges === 'function') updateBadges();
+  if(typeof updateCount === 'function') updateCount();
 }
 
 // Build the HTML for the evaluation region (everything below the cond-list).
@@ -248,7 +278,7 @@ function _buildMHEvalRegionHTML() {
 
     conds.forEach(cond => {
       const isHighest = highest && cond.id === highest.id && conds.length > 1;
-      const rateClass = 'mh-rate-' + cond.effectiveRating;
+      const rateClass = _rateClass(cond.effectiveRating);
       const overrideActive = cond.manualOverride !== null;
 
       h += `<div class="mh-eval-card${isHighest ? ' mh-highest' : ''}">`;
@@ -327,13 +357,14 @@ function _buildMHEvalRegionHTML() {
       <div class="mh-combined-note">${conds.length > 1
         ? 'Highest of ' + conds.length + ' evaluated conditions (VA single-rating rule)'
         : 'Based on your evaluation above'}</div>
+      <div class="mh-combined-note" style="margin-top:6px;">Estimate only — these five domains follow the VA's <strong>proposed</strong> updated mental-health criteria, which are not yet in effect. Today the VA rates under the General Rating Formula for Mental Disorders (38 CFR 4.130), based on your overall social and occupational impairment, so your actual rating may differ.</div>
     </div>`;
   } else {
     h += `<div class="mh-empty">
       <div style="font-size:28px;margin-bottom:8px;">&#9881;</div>
       <strong>Select conditions above to begin evaluation</strong><br>
       Check one or more conditions, then rate how each affects you across 5 functional domains.<br>
-      The VA uses these domains to determine your mental health disability rating.
+      These domains follow the VA's proposed updated mental-health criteria and give a realistic estimate — today the VA rates under the General Rating Formula for Mental Disorders (38 CFR 4.130), based on your overall social and occupational impairment.
     </div>`;
   }
 
@@ -359,4 +390,6 @@ function renderMHEvalRegion() {
   const region = document.getElementById('mh-eval-region');
   if (!region) { renderMentalPanel(); return; }
   region.innerHTML = _buildMHEvalRegionHTML();
+  if(typeof updateBadges === 'function') updateBadges();
+  if(typeof updateCount === 'function') updateCount();
 }

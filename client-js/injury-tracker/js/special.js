@@ -64,20 +64,22 @@ const SMC_LEVELS = [
     description: 'You need someone to help you with everyday tasks — bathing, getting dressed, eating, or using the bathroom — because of your service-connected disabilities. Also applies if you are bedridden or blind from service-connected conditions. You do NOT need a 100% rating to qualify — you just need to show you need daily help.' },
   { id: 'smc_l_half', label: 'SMC-L\u00BD: Aid & Attendance + Body Part Loss',
     description: 'You already qualify for Aid & Attendance (SMC-L) AND you\'ve also lost or lost the use of a hand, foot, or eye on top of that. This bumps your payment higher because you have both the daily help need AND a physical loss.' },
-  { id: 'smc_m', label: 'SMC-M: Higher Level of Care',
-    description: 'You need more help than a regular caregiver can provide — like skilled nursing or someone with medical training. This is for veterans whose daily care needs go beyond what family or a basic aide can handle.' },
-  { id: 'smc_m_half', label: 'SMC-M\u00BD: Higher Care + Additional Loss',
-    description: 'You qualify for the higher level of care (SMC-M) AND have additional body part losses on top of your care needs. A step up from M because of the combined severity.' },
-  { id: 'smc_n', label: 'SMC-N: Multiple Losses + Aid & Attendance',
-    description: 'You need Aid & Attendance AND have lost or lost use of multiple body parts — such as two hands, two feet, one of each, or a combination with blindness. The payment is higher because of the combined effect of multiple losses plus needing daily help.' },
-  { id: 'smc_n_half', label: 'SMC-N\u00BD: Severe Multiple Losses',
-    description: 'You have losses and care needs that go beyond N level. Multiple severe body part losses plus Aid & Attendance needs that are especially impactful.' },
+  { id: 'smc_m', label: 'SMC-M: Severe Anatomical Loss',
+    description: 'You\'ve lost (or lost the use of) both hands, both legs at knee level, one arm and one leg at levels the schedule specifies, or you are blind in both eyes with only light perception. This is a statutory level based on WHAT was lost — not on how much daily care you need.' },
+  { id: 'smc_m_half', label: 'SMC-M\u00BD: Anatomical Loss + Additional Severity',
+    description: 'Your losses fall between the M and N levels \u2014 for example a combination of amputations or loss of use at higher anatomical points, or blindness combined with another qualifying loss.' },
+  { id: 'smc_n', label: 'SMC-N: Greater Anatomical Loss',
+    description: 'You\'ve lost (or lost the use of) both arms at elbow level, both legs at hip/upper-thigh level, or you are blind with no light perception in both eyes. Higher than M because the losses are at more severe anatomical points.' },
+  { id: 'smc_n_half', label: 'SMC-N\u00BD: Between N and O',
+    description: 'Your combination of severe losses goes beyond the N level but doesn\'t yet reach O \u2014 typically multiple amputations at high anatomical points or blindness combined with other major losses.' },
   { id: 'smc_o', label: 'SMC-O: Maximum Regular SMC',
     description: 'The highest regular SMC level. This is for veterans with multiple severe body part losses or conditions so severe they require the most intensive ongoing care. This is rare and reserved for the most seriously disabled veterans.' },
-  { id: 'smc_r1', label: 'SMC-R.1: Higher A&A (TBI / Severe Conditions)',
-    description: 'You need regular daily help specifically because of a traumatic brain injury (TBI) or conditions so severe that standard Aid & Attendance isn\'t enough. This level recognizes that some conditions require a higher, more specialized type of daily assistance.' },
-  { id: 'smc_r2', label: 'SMC-R.2: Hospitalization / Nursing Home Level',
-    description: 'You need ongoing hospitalization or nursing home-level care because of your service-connected conditions. This is the highest SMC payment level — for veterans who essentially need institutional-level medical care on a permanent basis.' },
+  { id: 'smc_r1', label: 'SMC-R.1: Higher Aid & Attendance',
+    description: 'You are already at the SMC-O (or maximum SMC-P) level AND you need regular Aid & Attendance on top of it. This adds a higher A&A payment for veterans whose entitled level already reflects the most severe combinations of loss.' },
+  { id: 'smc_r2', label: 'SMC-R.2: Higher Level of Care',
+    description: 'You qualify for R.1-level need AND require daily personal health-care services (like skilled nursing) in your home, provided or supervised by a licensed professional — care you would otherwise need to be institutionalized to receive. This is the highest SMC payment level.' },
+  { id: 'smc_t', label: 'SMC-T: TBI Aid & Attendance',
+    description: 'You need daily Aid & Attendance because of residuals of a traumatic brain injury (TBI), you aren\'t eligible for a higher A&A level, and without in-home care you would need hospitalization, nursing home, or institutional care. Paid at the same rate as SMC-R.2.' },
   { id: 'smc_s', label: 'SMC-S: Housebound',
     description: 'One of your conditions is rated at 100% AND your other conditions combine to at least 60% on their own (without the 100% condition). OR your disabilities physically keep you confined to your home and immediate area. This is extra money on top of your 100% rating.' },
 ];
@@ -305,12 +307,8 @@ function updatePresumptiveField(claimId, fieldId, value){
   window._presumptiveData[claimId][fieldId] = value;
 }
 
-function addCustomVocSpecial(){
-  const input = document.getElementById('sp-custom-voc');
-  const val = input ? input.value.trim() : ''; if(!val) return;
-  if(!window._vocSecondaries.includes(val)) window._vocSecondaries.push(val);
-  renderSpecial();
-}
+// (addCustomVocSpecial removed — custom vocational entry lives in the
+// Notes & Statement tab via ps-custom-voc / addCustomVocFromStatement)
 
 function updateSpecialCount(){
   const el = document.getElementById('sp-tab');
@@ -319,7 +317,7 @@ function updateSpecialCount(){
   const specCount = Object.values(window._specialClaims||{}).filter(Boolean).length;
   const smcCount = (window._smcSelections||[]).length;
   const presumCount = Object.values(window._presumptiveData||{}).filter(d => d.selected).length;
-  const mstConds = window._mstData.conditions||[];
+  const mstConds = (window._mstData && window._mstData.conditions)||[];
   const mstCondCount = mstConds.length;
   const mstSecCount = mstConds.reduce((sum,c) => sum + (c.secondaries ? c.secondaries.length : 0), 0);
   const total = vocCount + specCount + smcCount + presumCount + mstCondCount + mstSecCount;
@@ -392,7 +390,7 @@ function _renderMSTSection(){
       '<div class="cr-primary-actions">' +
         '<span class="cr-rating-badge" style="background:' + sevBg + ';color:' + sevColor + ';border:1px solid ' + sevBd + ';">' + cond.rating + '%</span>' +
         '<select style="padding:4px 6px;border-radius:5px;border:1px solid var(--border);font-family:var(--fm);font-size:11px;color:var(--navy);cursor:pointer;" onchange="updateMSTCondRating(' + i + ',this.value)" onclick="event.stopPropagation()">';
-    [0,10,20,30,40,50,60,70,80,100].forEach(v => {
+    [0,10,20,30,40,50,60,70,80,90,100].forEach(v => {
       h += '<option value="'+v+'"'+(v===cond.rating?' selected':'')+'>'+v+'%</option>';
     });
     h += '</select>' +
@@ -422,7 +420,7 @@ function _renderMSTSection(){
             '<div class="cr-sec-actions">' +
               '<span class="cr-rating-badge cr-rating-sm" style="background:' + secBg + ';color:' + secColor + ';border:1px solid ' + secBd + ';">' + sec.rating + '%</span>' +
               '<select style="padding:3px 5px;border-radius:4px;border:1px solid var(--border);font-family:var(--fm);font-size:10px;color:var(--navy);cursor:pointer;" onchange="updateMSTSecondaryRating('+i+','+j+',this.value)" onclick="event.stopPropagation()">';
-        [0,10,20,30,40,50,60,70,80,100].forEach(v => {
+        [0,10,20,30,40,50,60,70,80,90,100].forEach(v => {
           h += '<option value="'+v+'"'+(v===sec.rating?' selected':'')+'>'+v+'%</option>';
         });
         h += '</select>' +
@@ -449,8 +447,8 @@ function _renderMSTSection(){
       h += '</div></div>';
     }
     h += '<div class="cr-custom-row">' +
-      '<input type="text" class="cr-custom-input" id="mst-sec-custom-'+i+'" placeholder="Custom secondary..." oninput="_toggleCustomAddBtn(this)">' +
-      '<button class="cr-custom-btn" disabled onclick="addCustomMSTSecondary('+i+')">Add</button>' +
+      '<input type="text" class="cr-custom-input" id="mst-sec-custom-'+i+'" placeholder="Custom secondary...">' +
+      '<button class="cr-custom-btn" onclick="addCustomMSTSecondary('+i+')">Add</button>' +
     '</div>';
     h += '</div>';
 
@@ -459,8 +457,8 @@ function _renderMSTSection(){
 
   // Custom condition input
   h += '<div class="cr-custom-row" style="margin-top:10px;">' +
-    '<input type="text" class="cr-custom-input" id="mst-custom-cond" placeholder="Other condition not listed..." oninput="_toggleCustomAddBtn(this)">' +
-    '<button class="cr-custom-btn" disabled onclick="addCustomMSTCondition()">Add</button>' +
+    '<input type="text" class="cr-custom-input" id="mst-custom-cond" placeholder="Other condition not listed...">' +
+    '<button class="cr-custom-btn" onclick="addCustomMSTCondition()">Add</button>' +
   '</div>';
   h += '</div>';
 

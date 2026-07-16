@@ -110,7 +110,10 @@ function combineVARatings(ratings){
   const sorted = [...ratings].sort((a,b)=>b-a);
   let combined = sorted[0];
   for(let i=1; i<sorted.length; i++){
-    combined = combined + (sorted[i]/100) * (100 - combined);
+    // Each pairwise result is rounded to the nearest whole number — this matches
+    // the official 38 CFR 4.25 Combined Ratings Table, which is applied
+    // iteratively using its integer values
+    combined = Math.round(combined + (sorted[i]/100) * (100 - combined));
   }
   return combined;
 }
@@ -129,22 +132,40 @@ function buildRatingItems(){
   // they're already covered by the single MH rating from the MH panel
   const mhNames = new Set((typeof VA_MENTAL !== 'undefined' ? VA_MENTAL : []).map(n=>n.toLowerCase()));
   const mhSecondaryNames = new Set((typeof MENTAL_SECONDARIES !== 'undefined' ? MENTAL_SECONDARIES : []).map(n=>n.toLowerCase()));
+  const customMentalPrimaries = [];
 
   // Skip injuries whose keys are managed by evaluation panels
-  const _pk = _getPanelKeys();
-  const sorted = [...injuries].filter(i => !_pk.has(i.key)).sort((a,b)=>new Date(a.date)-new Date(b.date)||a.id-b.id);
+  const sorted = _nonPanelInjuries(injuries).sort((a,b)=>new Date(a.date)-new Date(b.date)||a.id-b.id);
   sorted.forEach(inj => {
     const ext = getExtremity(inj.key);
     const suggested = getSuggestedRating(inj.label);
-    _ratingItems.push({
-      id: 'p-'+inj.id,
-      injId: inj.id,
-      name: inj.label,
-      rating: inj._assignedRating !== undefined ? inj._assignedRating : (suggested !== null ? suggested : 10),
-      extremity: ext,
-      type: 'primary',
-      suggested: suggested,
-    });
+    const assigned = inj._assignedRating !== undefined ? inj._assignedRating : (suggested !== null ? suggested : 10);
+    const labelLower = typeof inj.label === 'string' ? inj.label.toLowerCase().trim() : '';
+    const isMentalPrimary = inj.key === 'mental' || mhNames.has(labelLower) || mhSecondaryNames.has(labelLower);
+    if(isMentalPrimary){
+      // A mental condition logged from a custom map pin is still subject to the
+      // VA single-rating rule. Keep it out of the ordinary primary list and add
+      // it to the unified MH pool below, where duplicate diagnoses collapse to
+      // the single highest rating alongside panel, MST, and secondary entries.
+      customMentalPrimaries.push({
+        rating: assigned,
+        name: inj.label,
+        source: 'pin',
+        ref: inj,
+        suggested: suggested,
+        evaluated: inj._assignedRating !== undefined,
+      });
+    } else {
+      _ratingItems.push({
+        id: 'p-'+inj.id,
+        injId: inj.id,
+        name: inj.label,
+        rating: assigned,
+        extremity: ext,
+        type: 'primary',
+        suggested: suggested,
+      });
+    }
     // Secondary conditions — skip MH conditions (they go through the MH panel)
     if(inj.secondaries && inj.secondaries.length){
       const injSecExtremities = inj.secondaryExtremities || {};
@@ -153,22 +174,34 @@ function buildRatingItems(){
         // MH secondaries go to the MH display section, not into the combined calc
         if(mhNames.has(secLower) || mhSecondaryNames.has(secLower)){
           const secSuggested = getSuggestedRating(sec);
+          // Did the user actually evaluate this secondary, or is the number
+          // only a SUGGESTED_RATINGS guess? CSV-imported and legacy-saved
+          // injuries carry secondary NAMES with no ratings at all.
+          const evaluated = (inj.secondaryRatings && inj.secondaryRatings[sec] !== undefined) ||
+                            (inj._secondaryRatings && (inj._secondaryRatings[sec] !== undefined || inj._secondaryRatings[si] !== undefined));
           const evalRating = (inj.secondaryRatings && inj.secondaryRatings[sec] !== undefined) ? inj.secondaryRatings[sec] :
+                             (inj._secondaryRatings && inj._secondaryRatings[sec] !== undefined) ? inj._secondaryRatings[sec] :
                              (inj._secondaryRatings && inj._secondaryRatings[si] !== undefined) ? inj._secondaryRatings[si] :
                              (secSuggested !== null ? secSuggested : 0);
-          _mhSecondaryDisplay.push({ name: sec, rating: evalRating, parentName: inj.label });
+          _mhSecondaryDisplay.push({ name: sec, rating: evalRating, parentName: inj.label, evaluated: !!evaluated });
           return;
         }
 
         const secSuggested = getSuggestedRating(sec);
         const secId = 's-'+inj.id+'-'+si;
-        const existing = inj._secondaryRatings && inj._secondaryRatings[si];
+        // Manual Rating-tab override — name-keyed (legacy saves used the array index)
+        const overrideVal = inj._secondaryRatings ?
+          (inj._secondaryRatings[sec] !== undefined ? inj._secondaryRatings[sec] : inj._secondaryRatings[si]) : undefined;
+        // Rating produced by the Secondary-tab evaluation questionnaire (name-keyed)
+        const evalVal = (inj.secondaryRatings && inj.secondaryRatings[sec] !== undefined) ? inj.secondaryRatings[sec] : undefined;
         _ratingItems.push({
           id: secId,
           injId: inj.id,
           secIndex: si,
           name: sec,
-          rating: existing !== undefined ? existing : (secSuggested !== null ? secSuggested : 10),
+          rating: overrideVal !== undefined ? overrideVal :
+                  evalVal !== undefined ? evalVal :
+                  (secSuggested !== null ? secSuggested : 10),
           extremity: injSecExtremities[sec] || 'none',
           type: 'secondary',
           parentId: inj.id,
@@ -188,12 +221,14 @@ function buildRatingItems(){
       const secLower = sec.toLowerCase();
       if(mhNames.has(secLower) || mhSecondaryNames.has(secLower)){
         const secSuggested = getSuggestedRating(sec);
-        const rating = secRatings[sec] || (secSuggested !== null ? secSuggested : 0);
-        _mhSecondaryDisplay.push({ name: sec, rating: rating, parentName: ref.condition || '' });
+        // !== undefined (not ||) so an explicit 0% rating is respected
+        const rating = secRatings[sec] !== undefined ? secRatings[sec] : (secSuggested !== null ? secSuggested : 0);
+        _mhSecondaryDisplay.push({ name: sec, rating: rating, parentName: ref.condition || '', evaluated: secRatings[sec] !== undefined });
         return;
       }
       const secSuggested = getSuggestedRating(sec);
-      const rating = secRatings[sec] || (secSuggested !== null ? secSuggested : 10);
+      // !== undefined (not ||) so an explicit 0% rating is respected
+      const rating = secRatings[sec] !== undefined ? secRatings[sec] : (secSuggested !== null ? secSuggested : 10);
       _ratingItems.push({
         id: 'es-' + parentId + '-' + si,
         name: sec,
@@ -239,6 +274,22 @@ function buildRatingItems(){
             suggested: cond.calculatedRating,
           });
         }
+        // Radiculopathy / nerve involvement is a SEPARATE peripheral-nerve rating
+        // (e.g. DC 8520 for the leg) — it is NOT part of the spine/neck % above.
+        // Emit it as its own line so it combines per 38 CFR 4.25 and can feed the
+        // bilateral factor via its own limb extremity. Chosen side lives on radSide.
+        if(typeof bpNerveItems === 'function'){
+          bpNerveItems(cfg, cond).forEach(ni => {
+            _ratingItems.push({
+              id: ni.id,
+              name: ni.name,
+              rating: ni.rating,
+              extremity: ni.extremity,
+              type: 'radiculopathy',
+              suggested: ni.rating,
+            });
+          });
+        }
         _pushSecondaries('bp-' + cond.id, cond);
       });
     });
@@ -257,11 +308,16 @@ function buildRatingItems(){
     'other condition related to mst'
   ]);
 
+  // Push MH panel conditions' secondaries first so any MH-named ones land in
+  // _mhSecondaryDisplay before the pool is built below
+  mhConds.forEach(c => _pushSecondaries('mh-' + c.id, c));
+
   // Build unified pool of all MH ratings (panel + MST)
   const _mhPool = [];
   mhConds.forEach(c => {
     _mhPool.push({ rating: c.effectiveRating, name: c.condition, source:'mh', ref:c, suggested: c.calculatedRating });
   });
+  _mhPool.push(...customMentalPrimaries);
   if(mstData.conditions && mstData.conditions.length){
     mstData.conditions.forEach((cond, i) => {
       if(_MST_MH_NAMES.has(cond.name.toLowerCase())){
@@ -270,13 +326,32 @@ function buildRatingItems(){
       }
     });
   }
+  // MH conditions entered as secondaries to other claims also compete for the
+  // single MH rating — otherwise a veteran whose only MH claim is e.g.
+  // "Depression due to chronic pain" (secondary to a knee) would get 0%.
+  _mhSecondaryDisplay.forEach((s, i) => {
+    _mhPool.push({ rating: s.rating, name: s.name, source:'sec', index:i, suggested: null, evaluated: s.evaluated !== false });
+  });
 
-  // Apply single highest MH rating across all sources
+  // Apply single highest MH rating across all sources.
+  //
+  // A secondary the user never evaluated carries only a SUGGESTED_RATINGS guess
+  // (e.g. 'major depressive disorder' → 50), so it must not outrank a rating the
+  // veteran actually worked through in the MH panel. Guesses compete only when
+  // nothing has been evaluated at all — that still covers the case this pool
+  // exists for: an MH claim that lives solely as a secondary to another injury.
   if(_mhPool.length){
-    const highest = _mhPool.reduce((best, item) => item.rating > best.rating ? item : best, _mhPool[0]);
+    // "> 0" matters: an MH condition the user added but hasn't rated yet sits at
+    // 0%, and it shouldn't suppress the guess and leave them with no MH line at
+    // all — it just shouldn't be beaten by one.
+    const evaluated = _mhPool.filter(item => item.evaluated !== false && item.rating > 0);
+    const contenders = evaluated.length ? evaluated : _mhPool;
+    const highest = contenders.reduce((best, item) => item.rating > best.rating ? item : best, contenders[0]);
     if(highest.rating > 0){
       _ratingItems.push({
-        id: highest.source === 'mh' ? 'mh-' + highest.ref.id : 'mst-mh-' + highest.index,
+        id: highest.source === 'mh' ? 'mh-' + highest.ref.id :
+            highest.source === 'pin' ? 'mh-pin-' + highest.ref.id :
+            highest.source === 'sec' ? 'mh-sec-' + highest.index : 'mst-mh-' + highest.index,
         name: 'Mental Health (' + highest.name + ')',
         rating: highest.rating,
         extremity: 'none',
@@ -285,8 +360,6 @@ function buildRatingItems(){
         isMSTPrivate: highest.isMSTPrivate || false,
       });
     }
-    // MH secondaries from panel conditions
-    mhConds.forEach(c => _pushSecondaries('mh-' + c.id, c));
     // MH secondaries from MST mental health conditions
     if(mstData.conditions && mstData.conditions.length){
       mstData.conditions.forEach((cond, i) => {
@@ -357,11 +430,13 @@ function saveRatingToInjury(itemId, rating){
       if(!item._evalRef.secondaryRatings) item._evalRef.secondaryRatings = {};
       item._evalRef.secondaryRatings[item._secName] = rating;
     } else {
-      // Physical injury secondaries
+      // Physical injury secondaries — keyed by condition NAME, not array index
+      // (indexes shift when a secondary is removed, silently moving the override)
       const inj = injuries.find(i=>i.id===item.injId);
       if(inj){
         if(!inj._secondaryRatings) inj._secondaryRatings = {};
-        inj._secondaryRatings[item.secIndex] = rating;
+        inj._secondaryRatings[item.name] = rating;
+        if(item.secIndex !== undefined) delete inj._secondaryRatings[item.secIndex]; // drop legacy index key
       }
     }
   } else if(item.type==='vocational'){
@@ -435,7 +510,7 @@ const PYRAMIDING_RISKS = [
   ['Asthma', 'COPD / chronic bronchitis', 'The VA generally rates only one respiratory condition based on pulmonary function tests. Both use the same PFT criteria.'],
 
   // ── GI ──
-  ['GERD / acid reflux', 'Hiatal hernia', 'GERD is often caused by a hiatal hernia. The VA rates both under DC 7346 and will not give separate ratings.'],
+  ['GERD / acid reflux', 'Hiatal hernia', 'GERD is often caused by a hiatal hernia. The VA rates them together under the digestive schedule (GERD is DC 7206 since the May 2024 update) and will not give separate ratings for the same symptoms.'],
 
   // ── IMPORTANT: WHAT IS NOT PYRAMIDING ──
   // Radiculopathy (nerve pain) CAN be rated separately from the spine condition — musculoskeletal vs neurological
@@ -443,13 +518,20 @@ const PYRAMIDING_RISKS = [
   // Tinnitus + hearing loss CAN both be rated — different diagnostic codes
 ];
 
+// Strip the "(Left)"/"(Right)" suffix bilateral secondaries carry so
+// name-based matching (duplicates, pyramiding) still works for them
+function _condBaseName(n){
+  return String(n).replace(/\s*\((Left|Right)\)\s*$/i, '');
+}
+
 function _detectRatingWarnings(){
   const warnings = [];
   // Get all rated conditions from _ratingItems only (already contains all sources)
   const allConds = [];
   _ratingItems.forEach(item => {
     if(item.rating > 0){
-      allConds.push({ name: item.name, extremity: item.extremity||'none', source: item.type||'unknown', id: item.id });
+      // matchName: the real (unshielded) name for matching — display still uses the shielded name
+      allConds.push({ name: item.name, matchName: _condBaseName(item._realName || item.name), extremity: item.extremity||'none', source: item.type||'unknown', id: item.id });
     }
   });
 
@@ -458,7 +540,7 @@ function _detectRatingWarnings(){
   const seen = {};
   allConds.forEach(c => {
     if(c.source === 'mental') return; // MH already uses single-rating rule
-    const key = c.name.toLowerCase() + '|' + c.extremity;
+    const key = c.matchName.toLowerCase() + '|' + c.extremity;
     if(!seen[key]) seen[key] = [];
     seen[key].push(c);
   });
@@ -482,9 +564,9 @@ function _detectRatingWarnings(){
     const aLower = condA.toLowerCase();
     const bLower = condB.toLowerCase();
     allConds.forEach(c1 => {
-      if(c1.name.toLowerCase() !== aLower) return;
+      if(c1.matchName.toLowerCase() !== aLower) return;
       allConds.forEach(c2 => {
-        if(c2.name.toLowerCase() !== bLower) return;
+        if(c2.matchName.toLowerCase() !== bLower) return;
         // Same extremity (or both 'none' for non-extremity conditions)
         if(c1.extremity === c2.extremity){
           // Avoid duplicate warnings
@@ -522,9 +604,16 @@ function calculateVARating(){
   const hasUpperBil = upperLeft.length > 0 && upperRight.length > 0;
   const hasLowerBil = lowerLeft.length > 0 && lowerRight.length > 0;
 
-  // ── OPTION A: Every condition is its own step. Bilateral bonus added at the end. ──
-  // Sort ALL conditions highest to lowest — no grouping, no lumping.
-  const allItems = [...items].sort((a,b)=>b.rating-a.rating);
+  // Per 38 CFR 4.26(b): ALL qualifying bilateral disabilities form ONE group.
+  // Combine the group's ratings (4.25), ADD 10% of that value (not combined),
+  // round to the nearest whole number, and treat the result as a SINGLE rating
+  // that enters the final combination in order of severity.
+  const bilateralItems = [
+    ...(hasUpperBil ? [...upperLeft, ...upperRight] : []),
+    ...(hasLowerBil ? [...lowerLeft, ...lowerRight] : []),
+  ];
+  const bilateralIds = new Set(bilateralItems.map(d=>d.id));
+  const nonBilateralItems = items.filter(d=>!bilateralIds.has(d.id));
 
   let log = '';
   log += 'STEP-BY-STEP VA COMBINED RATING\n';
@@ -532,91 +621,88 @@ function calculateVARating(){
 
   log += 'RATED CONDITIONS:\n';
   log += '-'.repeat(44) + '\n';
-  allItems.forEach((d,i)=>{
+  [...items].sort((a,b)=>b.rating-a.rating).forEach((d,i)=>{
     const tag = d.extremity!=='none' ? ` [${d.extremity}]` : '';
     const typeTag = d.type==='secondary' ? ' (Secondary)' : d.type==='vocational' ? ' (Vocational)' : '';
     log += `  ${i+1}. ${d.rating}% — ${d.name}${tag}${typeTag}\n`;
   });
   log += '\n';
 
-  // Combine all conditions one by one using VA math (38 CFR 4.25)
-  let combined = allItems[0].rating;
-  const steps = [{name:allItems[0].name, rating:allItems[0].rating, running:combined, extremity:allItems[0].extremity}];
-  log += `Start with highest: ${allItems[0].rating}% (${allItems[0].name})\n`;
-
-  for(let i=1; i<allItems.length; i++){
-    const rem = 100 - combined;
-    const add = (allItems[i].rating/100) * rem;
-    combined += add;
-    steps.push({name:allItems[i].name, rating:allItems[i].rating, add:add, running:combined, extremity:allItems[i].extremity});
-    log += `  + ${allItems[i].rating}% (${allItems[i].name}) of ${rem.toFixed(2)} remaining = ${add.toFixed(2)}\n`;
-    log += `  = ${combined.toFixed(2)}%\n`;
-  }
-
-  log += `\nCombined before bilateral: ${combined.toFixed(2)}%\n`;
-
-  // Now calculate and apply bilateral factor bonus
-  let bilateralFactorTotal = 0;
+  const steps = [];
   const bilateralGroups = []; // for UI display
+  let bilateralFactorTotal = 0;
+  let bilateralValue = 0;
 
-  if(hasUpperBil){
-    const group = [...upperLeft, ...upperRight];
-    const groupRatings = group.map(d=>d.rating);
+  // Ratings that enter the final 4.25 combination
+  const combineList = nonBilateralItems.map(d=>({name:d.name, rating:d.rating, extremity:d.extremity}));
+
+  if(bilateralItems.length){
+    const groupRatings = bilateralItems.map(d=>d.rating);
     const groupCombined = combineVARatings(groupRatings);
-    const bf = groupCombined * 0.10;
-    bilateralFactorTotal += bf;
+    bilateralValue = Math.min(100, Math.round(groupCombined * 1.1));
+    bilateralFactorTotal = bilateralValue - groupCombined;
+
     bilateralGroups.push({
-      label: 'Upper Extremities (Arms/Shoulders)',
-      conditions: group.map(d=>({name:d.name, rating:d.rating, ext:d.extremity})),
+      label: hasUpperBil && hasLowerBil ? 'Bilateral Conditions (Arms & Legs)' :
+             hasUpperBil ? 'Upper Extremities (Arms/Shoulders)' : 'Lower Extremities (Legs/Knees/Ankles)',
+      conditions: bilateralItems.map(d=>({name:d.name, rating:d.rating, ext:d.extremity})),
       groupCombined: groupCombined,
-      bonus: bf,
+      bonus: bilateralFactorTotal,
+      value: bilateralValue,
     });
-    log += `\nUPPER BILATERAL (38 CFR 4.26):\n`;
-    group.forEach(d=>{ log += `  ${d.rating}% — ${d.name} [${d.extremity}]\n`; });
-    log += `  Group combined: ${groupCombined.toFixed(2)}%\n`;
-    log += `  10% bonus: ${groupCombined.toFixed(2)} × 0.10 = +${bf.toFixed(2)}%\n`;
-  }
 
-  if(hasLowerBil){
-    const group = [...lowerLeft, ...lowerRight];
-    const groupRatings = group.map(d=>d.rating);
-    const groupCombined = combineVARatings(groupRatings);
-    const bf = groupCombined * 0.10;
-    bilateralFactorTotal += bf;
-    bilateralGroups.push({
-      label: 'Lower Extremities (Legs/Knees/Ankles)',
-      conditions: group.map(d=>({name:d.name, rating:d.rating, ext:d.extremity})),
+    log += 'BILATERAL GROUP (38 CFR 4.26):\n';
+    bilateralItems.forEach(d=>{ log += `  ${d.rating}% — ${d.name} [${d.extremity}]\n`; });
+    log += `  Group combined (4.25): ${groupCombined.toFixed(2)}%\n`;
+    log += `  + 10% bilateral factor: ${groupCombined.toFixed(2)} × 1.10 = ${(groupCombined*1.1).toFixed(2)}%\n`;
+    log += `  Rounded to whole: ${bilateralValue}% — treated as ONE rating below\n\n`;
+
+    steps.push({
+      name: 'Bilateral Group (38 CFR 4.26)',
+      rating: bilateralValue,
+      isBilateralStep: true,
       groupCombined: groupCombined,
-      bonus: bf,
+      bonus: bilateralFactorTotal,
     });
-    log += `\nLOWER BILATERAL (38 CFR 4.26):\n`;
-    group.forEach(d=>{ log += `  ${d.rating}% — ${d.name} [${d.extremity}]\n`; });
-    log += `  Group combined: ${groupCombined.toFixed(2)}%\n`;
-    log += `  10% bonus: ${groupCombined.toFixed(2)} × 0.10 = +${bf.toFixed(2)}%\n`;
+
+    combineList.push({name:'Bilateral Group (38 CFR 4.26)', rating:bilateralValue, extremity:'none', isBilateralGroup:true});
   }
 
-  // Add bilateral bonus to the combined total
-  if(bilateralFactorTotal > 0){
-    log += `\nTotal bilateral bonus: +${bilateralFactorTotal.toFixed(2)}%\n`;
-    combined += bilateralFactorTotal;
-    log += `Combined with bilateral: ${combined.toFixed(2)}%\n`;
-    steps.push({name:'Bilateral Factor Bonus (38 CFR 4.26)', rating:null, add:bilateralFactorTotal, running:combined, isBilateralStep:true});
+  // Combine everything (bilateral group + remaining conditions) per 38 CFR 4.25,
+  // highest to lowest
+  combineList.sort((a,b)=>b.rating-a.rating);
+
+  let combined = combineList[0].rating;
+  steps.push({name:combineList[0].name, rating:combineList[0].rating, running:combined, extremity:combineList[0].extremity, isFirst:true, isBilateralGroup:combineList[0].isBilateralGroup});
+  log += `Start with highest: ${combineList[0].rating}% (${combineList[0].name})\n`;
+
+  for(let i=1; i<combineList.length; i++){
+    const rem = 100 - combined;
+    const add = (combineList[i].rating/100) * rem;
+    // Round each pairwise result to the nearest whole number, matching the
+    // official 38 CFR 4.25 Combined Ratings Table (applied iteratively)
+    const next = Math.round(combined + add);
+    steps.push({name:combineList[i].name, rating:combineList[i].rating, add:add, prev:combined, running:next, extremity:combineList[i].extremity, isBilateralGroup:combineList[i].isBilateralGroup});
+    log += `  + ${combineList[i].rating}% (${combineList[i].name}) of ${rem.toFixed(2)} remaining = +${add.toFixed(2)}\n`;
+    log += `  = ${(combined+add).toFixed(2)} → ${next}% (combined table value)\n`;
+    combined = next;
   }
 
+  combined = Math.min(100, combined); // a combined rating can never exceed 100%
   const whole = Math.round(combined);
-  const final10 = Math.round(whole/10)*10;
+  const final10 = Math.min(100, Math.round(whole/10)*10);
   log += '\n' + '-'.repeat(44) + '\n';
   log += `Exact: ${combined.toFixed(2)}%\n`;
   log += `Rounded to whole: ${whole}%\n`;
   log += `Final (nearest 10): ${final10}%\n`;
-  if(bilateralFactorTotal>0) log += `Bilateral factor contributed: ${bilateralFactorTotal.toFixed(2)}%\n`;
+  if(bilateralItems.length) log += `Bilateral factor contributed: +${bilateralFactorTotal.toFixed(2)}% (group ${bilateralGroups[0].groupCombined.toFixed(2)}% → ${bilateralValue}%)\n`;
 
   return {
     combined: combined,
     rounded: final10,
     items: items,
     breakdown: log,
-    bilateral: hasUpperBil || hasLowerBil,
+    bilateral: bilateralItems.length > 0,
     bilateralFactor: bilateralFactorTotal,
     steps: steps,
     bilateralGroups: bilateralGroups,
@@ -640,8 +726,6 @@ function renderRating(){
 
   const hasBPConds = typeof BP_REGISTRY!=='undefined' && Object.values(BP_REGISTRY).some(cfg=>(window[cfg.stateKey]||[]).length>0);
   if(!_ratingItems.length && !(window._mentalHealthConditions && window._mentalHealthConditions.length) && !(window._headConditions && window._headConditions.length) && !hasBPConds){
-    // No conditions at all — show the same friendly empty state to everyone.
-    // Locked users with zero data have nothing to preview anyway.
     c.innerHTML = '<div class="empty">No injuries logged yet.<br>Add injuries from the Body Map tab to calculate your combined VA rating.</div>';
     updateRatingCount();
     return;
@@ -657,9 +741,9 @@ function renderRating(){
       const icon = w.type === 'duplicate' ? '&#9888;' : '&#9878;';
       const cls = w.type === 'duplicate' ? 'rc-warn-dup' : 'rc-warn-pyr';
       html += '<div class="rc-warning ' + cls + '">' +
-        '<div class="rc-warning-header">' + icon + ' ' + w.title + '</div>' +
-        '<div class="rc-warning-cond">' + w.condition + '</div>' +
-        '<div class="rc-warning-msg">' + w.message + '</div>' +
+        '<div class="rc-warning-header">' + icon + ' ' + escapeHTML(w.title) + '</div>' +
+        '<div class="rc-warning-cond">' + escapeHTML(w.condition) + '</div>' +
+        '<div class="rc-warning-msg">' + escapeHTML(w.message) + '</div>' +
       '</div>';
     });
     html += '<div style="padding:10px 14px;font-size:11px;color:var(--navy);background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;margin-top:8px;line-height:1.6;">' +
@@ -673,7 +757,7 @@ function renderRating(){
   html += `<div class="rc-info">
     <strong>How VA combined ratings work</strong> <span class="tip" data-tip="The VA doesn't just add your percentages together. Each rating is applied to what's left of your 'whole person.' Think of it like this: if you're 50% disabled, you have 50% of a whole person left. Your next rating only applies to that remaining 50%.">?</span>: Ratings are not added together. Each rating is applied to the remaining "whole person" percentage.
     Example: 50% + 30% = 50 + (30% &times; 50 remaining) = 65%, rounded to 70%.
-    Bilateral factor <span class="tip" data-tip="If the same type of condition affects both sides of your body (e.g., both knees, both shoulders), the VA adds a 10% bonus to those conditions before combining them with your other ratings.">?</span> (10%) is auto-applied when paired extremities are both rated.
+    Bilateral factor <span class="tip" data-tip="If you have rated conditions on both sides of paired extremities (both arms or both legs), the VA combines those conditions, adds a 10% bonus, and treats the result as one rating. The conditions don't have to be the same — a left knee problem and a right ankle problem both count.">?</span> (10%) is auto-applied when paired extremities are both rated.
   </div>`;
 
   // Primary injuries section
@@ -693,7 +777,7 @@ function renderRating(){
       html += `<div class="rc-card">
         <div class="rc-card-header">
           <span class="rc-num" style="background:${sc};">${num}</span>
-          <span class="rc-name">${item.name}</span>
+          <span class="rc-name">${escapeHTML(item.name)}</span>
           ${extTag}
           ${sugTxt}
           <span class="rc-pct-box">
@@ -711,7 +795,7 @@ function renderRating(){
           html += `<div class="rc-sec-item">
             <div class="rc-sec-header">
               <span class="rc-sec-dot">&#8627;</span>
-              <span class="rc-sec-name">${sec.name}</span>
+              <span class="rc-sec-name">${escapeHTML(sec.name)}</span>
               ${secExtTag}
               ${secSugTxt}
               <span class="rc-pct-box">
@@ -737,7 +821,7 @@ function renderRating(){
       const secExtTag = sec.extremity && sec.extremity !== 'none' ? '<span class="rc-ext-tag">'+sec.extremity+'</span>' : '';
       sh += '<div class="rc-sec-item"><div class="rc-sec-header">' +
         '<span class="rc-sec-dot">&#8627;</span>' +
-        '<span class="rc-sec-name">'+sec.name+'</span>' +
+        '<span class="rc-sec-name">'+escapeHTML(sec.name)+'</span>' +
         secExtTag +
         secSugTxt +
         '<span class="rc-pct-box"><input type="number" min="0" max="100" step="10" value="'+sec.rating+'" onchange="onRatingChange(\''+sec.id+'\',this.value)" class="rc-pct-input" title="Override rating %"><span class="rc-pct-sign">%</span></span>' +
@@ -767,7 +851,7 @@ function renderRating(){
       html += '<div class="rc-card" style="border-left:3px solid ' + (inRating ? 'var(--navy)' : 'var(--border)') + ';">' +
         '<div class="rc-card-header">' +
           '<span class="rc-num" style="background:var(--navy);">&#129504;</span>' +
-          '<span class="rc-name">' + cond.condition + '</span>' +
+          '<span class="rc-name">' + escapeHTML(cond.condition) + '</span>' +
           '<span style="font-size:9px;font-weight:600;font-family:var(--fh);color:var(--muted);background:var(--bg);border:1px solid var(--border);padding:2px 6px;border-radius:3px;">' + profileLabel + '</span>' +
           (cond.manualOverride !== null ? '<span style="font-size:9px;font-weight:700;font-family:var(--fh);color:#7c3aed;background:#f5f3ff;border:1px solid #ddd6fe;padding:2px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.5px;">Manual</span>' : '') +
           '<span class="rc-pct-box"><input type="number" min="0" max="100" step="10" value="' + cond.effectiveRating + '" onchange="onEvalRatingChange(\'head\',' + cond.id + ',this.value)" class="rc-pct-input" title="Override rating %"><span class="rc-pct-sign">%</span></span>' +
@@ -796,6 +880,8 @@ function renderRating(){
         const profile = cfg.profiles()[cond.profile] || cfg.profiles().generic;
         const profileLabel = profile.label.split('(')[0].trim();
         const domainSummary = profile.domains.map(d => {
+          // The nerve/radiculopathy domain is shown as its own separate card below.
+          if(cfg.nerveSplit && d.id === cfg.nerveSplit.domainId) return null;
           const v = cond.domains[d.id];
           if(!v) return null;
           return d.label.split(':').pop().trim() + ': ' + v + '%';
@@ -806,7 +892,7 @@ function renderRating(){
         html += '<div class="rc-card" style="border-left:3px solid ' + (inRating ? 'var(--navy)' : 'var(--border)') + ';">' +
           '<div class="rc-card-header">' +
             '<span class="rc-num" style="background:var(--navy);">&#9881;</span>' +
-            '<span class="rc-name">' + cond.condition + '</span>' +
+            '<span class="rc-name">' + escapeHTML(cond.condition) + '</span>' +
             extTag +
             '<span style="font-size:9px;font-weight:600;font-family:var(--fh);color:var(--muted);background:var(--bg);border:1px solid var(--border);padding:2px 6px;border-radius:3px;">' + profileLabel + '</span>' +
             (cond.manualOverride !== null ? '<span style="font-size:9px;font-weight:700;font-family:var(--fh);color:#7c3aed;background:#f5f3ff;border:1px solid #ddd6fe;padding:2px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.5px;">Manual</span>' : '') +
@@ -820,6 +906,26 @@ function renderRating(){
             '</div>' +
           '</div>' +
         '</div>';
+        // Separate peripheral-nerve (radiculopathy) rating line(s) — rated apart
+        // from this joint's musculoskeletal %, so show them as their own cards.
+        if(cfg.nerveSplit && cond.domains && (cond.domains[cfg.nerveSplit.domainId] || 0) > 0){
+          _ratingItems.filter(r => String(r.id).indexOf('bp-' + cond.id + '-nerve') === 0).forEach(ni => {
+            const eTag = ni.extremity && ni.extremity !== 'none' ? '<span class="rc-ext-tag">'+ni.extremity+'</span>' : '';
+            const noSide = !ni.extremity || ni.extremity === 'none';
+            html += '<div class="rc-card" style="border-left:3px solid #2563eb;margin-left:18px;">' +
+              '<div class="rc-card-header">' +
+                '<span class="rc-num" style="background:#2563eb;">&#9889;</span>' +
+                '<span class="rc-name">' + ni.name + '</span>' + eTag +
+                '<span style="font-size:9px;font-weight:600;font-family:var(--fh);color:var(--muted);background:var(--bg);border:1px solid var(--border);padding:2px 6px;border-radius:3px;">' + cfg.nerveSplit.dc + '</span>' +
+                '<span class="rc-pct-box"><span class="rc-pct-input" style="display:inline-block;min-width:34px;text-align:right;">' + ni.rating + '</span><span class="rc-pct-sign">%</span></span>' +
+              '</div>' +
+              '<div style="padding:8px 16px 12px;font-size:12px;color:var(--muted);">' +
+                'Rated separately from the ' + cfg.title.split(' ')[0].toLowerCase() + ' (neurological, ' + cfg.nerveSplit.dc + '). Combines into your total on its own.' +
+                (noSide ? ' <span style="color:#92400e;font-weight:600;">Pick a side in the ' + cfg.title.split(' ')[0] + ' panel so it can count toward the bilateral factor.</span>' : '') +
+              '</div>' +
+            '</div>';
+          });
+        }
         html += _renderEvalSecs('bp-' + cond.id);
       });
     });
@@ -860,9 +966,9 @@ function renderRating(){
     html += '<div style="font-size:13px;font-weight:800;font-family:var(--fh);color:var(--navy);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;">Why one rating for all mental health?</div>';
     html += '<p style="margin:0 0 8px;">The VA treats <strong>all mental health conditions as one disability</strong> under 38 CFR 4.130. This means even if you have multiple diagnoses — ';
     if(_allMHNames.length > 1){
-      html += _allMHNames.slice(0,-1).join(', ') + ' and ' + _allMHNames[_allMHNames.length-1];
+      html += _allMHNames.slice(0,-1).map(escapeHTML).join(', ') + ' and ' + escapeHTML(_allMHNames[_allMHNames.length-1]);
     } else if(_allMHNames.length === 1){
-      html += _allMHNames[0];
+      html += escapeHTML(_allMHNames[0]);
     } else {
       html += 'PTSD, depression, anxiety, etc.';
     }
@@ -876,12 +982,12 @@ function renderRating(){
       html += '<div style="font-size:11px;margin-bottom:4px;">You have <strong>' + _allMHNames.length + ' mental health diagnoses</strong>. The VA evaluates them together:</div>';
       _allMHNames.forEach(n => {
         const isHighest = n === _highestMHName;
-        html += '<div style="padding:2px 0;font-size:11px;">' + (isHighest ? '&#9733; ' : '&bull; ') + '<span' + (isHighest ? ' style="font-weight:700;color:var(--navy);"' : '') + '>' + n + '</span>' + (isHighest ? ' <span style="font-size:10px;color:var(--red);font-weight:700;">&larr; highest evaluated rating</span>' : '') + '</div>';
+        html += '<div style="padding:2px 0;font-size:11px;">' + (isHighest ? '&#9733; ' : '&bull; ') + '<span' + (isHighest ? ' style="font-weight:700;color:var(--navy);"' : '') + '>' + escapeHTML(n) + '</span>' + (isHighest ? ' <span style="font-size:10px;color:var(--red);font-weight:700;">&larr; highest evaluated rating</span>' : '') + '</div>';
       });
       html += '<div style="margin-top:6px;font-size:12px;font-weight:700;color:var(--navy);">Combined MH rating: <span style="font-size:16px;">' + _highestMHRating + '%</span></div>';
       html += '<div style="font-size:10px;color:var(--muted);margin-top:2px;">The highest evaluated condition sets the overall mental health rating.</div>';
     } else if(_allMHNames.length === 1){
-      html += '<div style="font-size:11px;">Single diagnosis: <strong>' + _allMHNames[0] + '</strong> at <strong>' + _highestMHRating + '%</strong></div>';
+      html += '<div style="font-size:11px;">Single diagnosis: <strong>' + escapeHTML(_allMHNames[0]) + '</strong> at <strong>' + _highestMHRating + '%</strong></div>';
     } else {
       html += '<div style="font-size:11px;color:var(--muted);">No mental health conditions evaluated yet.</div>';
     }
@@ -891,10 +997,10 @@ function renderRating(){
     html += '<strong>Good to know:</strong> Even though the VA only gives one MH rating, <em>list every diagnosis</em> on your claim. Each diagnosis is documented in your record and can support a higher single rating. ';
     html += 'If your PTSD alone rates at 50%, but adding depression and anxiety symptoms shows greater overall impairment, the combined picture could push you to 70%.';
     if(_mstMHNames.length){
-      html += '<br><br><strong>MST note:</strong> Your MST-caused mental health condition' + (_mstMHNames.length > 1 ? 's' : '') + ' (' + _mstMHNames.join(', ') + ') ' + (_mstMHNames.length > 1 ? 'are' : 'is') + ' included in this single rating — not rated separately.';
+      html += '<br><br><strong>MST note:</strong> Your MST-caused mental health condition' + (_mstMHNames.length > 1 ? 's' : '') + ' (' + _mstMHNames.map(escapeHTML).join(', ') + ') ' + (_mstMHNames.length > 1 ? 'are' : 'is') + ' included in this single rating — not rated separately.';
     }
     if(_mhSecNames.length){
-      html += '<br><br><strong>Secondaries:</strong> Mental health conditions claimed as secondary to a physical injury (' + _mhSecNames.join(', ') + ') are absorbed into this single MH rating. They won\'t be double-counted in your combined VA math.';
+      html += '<br><br><strong>Secondaries:</strong> Mental health conditions claimed as secondary to a physical injury (' + _mhSecNames.map(escapeHTML).join(', ') + ') are absorbed into this single MH rating. They won\'t be double-counted in your combined VA math.';
     }
     html += '</div>';
     html += '</div>';
@@ -902,14 +1008,17 @@ function renderRating(){
       const isHighest = mhItems.length && mhItems[0].id === 'mh-' + cond.id;
       const borderColor = isHighest ? 'var(--red)' : 'var(--border)';
       const domainSummary = MH_DOMAINS.map(d => {
-        const lv = cond.domains[d.id].level;
-        return lv !== 'none' ? d.label.split(' ')[0] + ': ' + MH_IMPAIRMENT_LABELS[lv] : null;
+        // A condition saved before this domain existed simply has no entry for
+        // it — treat that as unanswered rather than throwing and blanking the
+        // whole rating tab.
+        const lv = (cond.domains[d.id] || {}).level;
+        return lv && lv !== 'none' ? d.label.split(' ')[0] + ': ' + MH_IMPAIRMENT_LABELS[lv] : null;
       }).filter(Boolean).join(', ') || 'Not evaluated';
 
       html += `<div class="rc-card" style="border-left:3px solid ${borderColor};">
         <div class="rc-card-header">
           <span class="rc-num" style="background:var(--navy);">&#9881;</span>
-          <span class="rc-name">${cond.condition}</span>
+          <span class="rc-name">${escapeHTML(cond.condition)}</span>
           ${isHighest ? '<span style="font-size:9px;font-weight:700;font-family:var(--fh);color:var(--red);background:#fef2f2;border:1px solid #fecaca;padding:2px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.5px;">Active Rating</span>' : ''}
           ${cond.manualOverride !== null ? '<span style="font-size:9px;font-weight:700;font-family:var(--fh);color:#7c3aed;background:#f5f3ff;border:1px solid #ddd6fe;padding:2px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.5px;">Manual</span>' : ''}
           <span class="rc-pct-box"><input type="number" min="0" max="100" step="10" value="${cond.effectiveRating}" onchange="onEvalRatingChange('mental',${cond.id},this.value)" class="rc-pct-input" title="Override rating %"><span class="rc-pct-sign">%</span></span>
@@ -947,15 +1056,20 @@ function renderRating(){
     // MH conditions appearing as secondaries to other claims
     if(_mhSecondaryDisplay.length){
       html += '<div style="margin-top:12px;font-size:11px;font-weight:700;font-family:var(--fh);color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:0 4px;">Mental Health Secondaries</div>';
-      _mhSecondaryDisplay.forEach(sec => {
-        html += '<div class="rc-card" style="border-left:3px solid var(--border);">' +
+      _mhSecondaryDisplay.forEach((sec, i) => {
+        const isHighest = mhItems.length && mhItems[0].id === 'mh-sec-' + i;
+        html += '<div class="rc-card" style="border-left:3px solid ' + (isHighest ? 'var(--red)' : 'var(--border)') + ';">' +
           '<div class="rc-card-header">' +
             '<span class="rc-sec-dot">&#8627;</span>' +
             '<span class="rc-name">' + escapeHTML(sec.name) + '</span>' +
             '<span style="font-size:9px;font-weight:600;font-family:var(--fh);color:var(--muted);background:var(--bg);border:1px solid var(--border);padding:2px 6px;border-radius:3px;">Secondary to ' + escapeHTML(sec.parentName) + '</span>' +
+            (isHighest ? '<span style="font-size:9px;font-weight:700;font-family:var(--fh);color:var(--red);background:#fef2f2;border:1px solid #fecaca;padding:2px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.5px;">Active Rating</span>' : '') +
             '<span class="rc-pct-box"><span style="font-size:13px;font-weight:700;font-family:var(--fm);color:var(--navy);">' + sec.rating + '%</span></span>' +
           '</div>' +
-          '<div style="padding:4px 16px 8px;font-size:11px;color:var(--muted);font-style:italic;">Absorbed into single MH rating per VA rules — not double-counted in combined calculation.</div>' +
+          '<div style="padding:4px 16px 8px;font-size:11px;color:var(--muted);font-style:italic;">' +
+            (isHighest ? 'This is the highest evaluated MH condition — it sets your single MH rating.' :
+             'Absorbed into single MH rating per VA rules — not double-counted in combined calculation.') +
+          '</div>' +
         '</div>';
       });
     }
@@ -1080,17 +1194,16 @@ function renderRating(){
 
     let stepNum = 0;
     result.steps.forEach((step, i) => {
-      // Bilateral bonus step
+      // Bilateral group step — computed BEFORE the final combination (38 CFR 4.26)
       if(step.isBilateralStep){
-        const prevRunning = step.running - step.add;
         stepNum++;
         html += '<div class="rc-step" style="border-left:3px solid #7c3aed;">' +
-          '<div class="rc-step-label" style="font-size:10px;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;font-family:var(--fh);margin-bottom:2px;">Step ' + stepNum + ' — Bilateral Factor Bonus (38 CFR 4.26)</div>' +
+          '<div class="rc-step-label" style="font-size:10px;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;font-family:var(--fh);margin-bottom:2px;">Step ' + stepNum + ' — Bilateral Factor (38 CFR 4.26)</div>' +
           '<div style="font-size:11px;color:#374151;padding:4px 0 0;line-height:1.6;">' +
-            'You have conditions on <strong>both sides</strong> of paired extremities, so the VA adds a 10% bonus.<br>' +
-            'The bonus is calculated on the combined value of each bilateral group:' +
+            'You have conditions on <strong>both sides</strong> of paired extremities. ' +
+            'The VA combines those conditions <strong>first</strong>, adds a 10% bonus, and treats the result as <strong>one rating</strong>:' +
           '</div>';
-        // Show each bilateral group breakdown
+        // Show the bilateral group breakdown
         if(result.bilateralGroups){
           result.bilateralGroups.forEach(g => {
             html += '<div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:6px;padding:8px 10px;margin:6px 0;font-size:11px;">' +
@@ -1099,17 +1212,14 @@ function renderRating(){
               html += '<div style="padding:1px 0;">&bull; ' + escapeHTML(c.name) + ' — ' + c.rating + '% [' + c.ext + ']</div>';
             });
             html += '<div style="margin-top:4px;font-family:var(--fm);background:#ede9fe;padding:2px 6px;border-radius:3px;display:inline-block;">' +
-              'Group combined: ' + g.groupCombined.toFixed(2) + '% &times; 10% = <strong>+' + g.bonus.toFixed(2) + '%</strong>' +
+              'Group combined: ' + g.groupCombined.toFixed(2) + '% + 10% bonus = <strong>' + g.value + '%</strong>' +
             '</div>';
             html += '</div>';
           });
         }
         html += '<div style="font-size:11px;color:#374151;padding:4px 0 0;line-height:1.6;">' +
-          '<span style="font-family:var(--fm);background:#f3f4f6;padding:2px 6px;border-radius:3px;display:inline-block;margin:3px 0;">' +
-            'Previous ' + prevRunning.toFixed(2) + '% + ' + step.add.toFixed(2) + '% bonus = <strong>' + step.running.toFixed(2) + '%</strong>' +
-          '</span>' +
+          'This <strong>' + step.rating + '%</strong> now enters the combination below as a single rating, in order of severity.' +
         '</div>' +
-        '<div class="rc-step-running">Combined so far: ' + step.running.toFixed(2) + '%</div>' +
         '</div>';
         return;
       }
@@ -1117,7 +1227,7 @@ function renderRating(){
       stepNum++;
       const extTag = step.extremity && step.extremity !== 'none' ? ' <span style="font-size:9px;font-weight:700;color:#7c3aed;background:#f5f3ff;border:1px solid #ddd6fe;padding:1px 5px;border-radius:3px;">' + step.extremity + '</span>' : '';
 
-      if(i === 0){
+      if(step.isFirst){
         // First condition
         html += '<div class="rc-step">' +
           '<div class="rc-step-label" style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-family:var(--fh);margin-bottom:2px;">Step ' + stepNum + ' — Start with your highest-rated condition</div>' +
@@ -1134,7 +1244,7 @@ function renderRating(){
           '<div class="rc-step-running">Combined so far: ' + step.running.toFixed(2) + '%</div>' +
         '</div>';
       } else {
-        const prevRunning = step.running - step.add;
+        const prevRunning = step.prev !== undefined ? step.prev : (step.running - step.add);
         const remaining = 100 - prevRunning;
         html += '<div class="rc-step">' +
           '<div class="rc-step-label" style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-family:var(--fh);margin-bottom:2px;">Step ' + stepNum + ' — Apply next condition</div>' +
@@ -1149,9 +1259,9 @@ function renderRating(){
             '<span style="font-family:var(--fm);background:#f3f4f6;padding:2px 6px;border-radius:3px;display:inline-block;margin:3px 0;">' +
               step.rating + '% &times; ' + remaining.toFixed(2) + '% = <strong>' + step.add.toFixed(2) + '%</strong> additional disability' +
             '</span><br>' +
-            'Previous ' + prevRunning.toFixed(2) + '% + ' + step.add.toFixed(2) + '% = <strong>' + step.running.toFixed(2) + '%</strong>' +
+            'Previous ' + prevRunning.toFixed(2) + '% + ' + step.add.toFixed(2) + '% = ' + (prevRunning + step.add).toFixed(2) + '% &rarr; <strong>' + step.running.toFixed(0) + '%</strong> (combined ratings table value)' +
           '</div>' +
-          '<div class="rc-step-running">Combined so far: ' + step.running.toFixed(2) + '%</div>' +
+          '<div class="rc-step-running">Combined so far: ' + step.running.toFixed(0) + '%</div>' +
         '</div>';
       }
     });
@@ -1210,16 +1320,28 @@ function renderRating(){
 }
 
 function escapeHTML(str){
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // Quotes must be escaped too — callers interpolate into double-quoted
+  // attributes (onclick, title), where a bare " breaks out of the attribute
+  // even when < and > are neutralized
+  return String(str == null ? '' : str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// Clamp user-typed ratings to 0-100; a cleared field (NaN) becomes 0 instead of
+// silently dropping the condition from the calculation
+function _sanitizeRatingInput(val){
+  const v = parseInt(val, 10);
+  return isNaN(v) ? 0 : Math.max(0, Math.min(100, v));
 }
 
 function onRatingChange(itemId, val){
-  saveRatingToInjury(itemId, parseInt(val));
+  saveRatingToInjury(itemId, _sanitizeRatingInput(val));
   renderRating();
 }
 
 function onEvalRatingChange(type, condId, val){
-  const v = parseInt(val) || 0;
+  const v = _sanitizeRatingInput(val);
   if(type === 'mental'){
     const cond = (window._mentalHealthConditions||[]).find(c=>c.id===condId);
     if(cond){ cond.manualOverride = v; cond.effectiveRating = v; }
@@ -1244,6 +1366,8 @@ function updateRatingCount(){
   const result = calculateVARating();
   el.textContent = result.rounded > 0 ? `Rating (${result.rounded}%)` : 'Rating';
 }
+
+// ── EXPORT HELPERS ──
 
 // Locked-preview transform.
 //
@@ -1329,7 +1453,6 @@ function _applyRatingPreview(container){
   container.appendChild(wrap);
 }
 
-// ── EXPORT HELPERS ──
 function getRatingBreakdown(){
   buildRatingItems();
   return calculateVARating();

@@ -21,6 +21,11 @@ const BP_REGISTRY = {
     calcRating: calculateSpineRating,
     sideKeys: {upperBack:'Upper',spine:'Mid',lowerBack:'Lower'},
     extremityMap: {},
+    // Nerve pain that radiates into the legs (radiculopathy/sciatica, DC 8520) is
+    // a SEPARATE peripheral-nerve rating — it must not be folded into the spine %.
+    nerveSplit: { domainId:'radiculopathy', dc:'DC 8520',
+      label:'Radiculopathy / Sciatica (nerve)',
+      sides:[['LL','Left Leg'],['RL','Right Leg']] },
     note: 'Back conditions are rated based on how far you can bend and move your spine. Nerve pain that shoots down your legs (radiculopathy/sciatica) is rated as a separate condition.',
   },
   shoulder: {
@@ -41,6 +46,11 @@ const BP_REGISTRY = {
     calcRating: calculateNeckRating,
     sideKeys: {neck:'Neck'},
     extremityMap: {},
+    // Cervical radiculopathy radiating into the arms is a SEPARATE peripheral-nerve
+    // rating (upper radicular group, DC 8510-8513) — not folded into the neck %.
+    nerveSplit: { domainId:'radiculopathy', dc:'DC 8510',
+      label:'Cervical Radiculopathy (nerve)',
+      sides:[['LU','Left Arm'],['RU','Right Arm']] },
     note: 'Neck conditions are rated on how far you can turn and tilt your head. Nerve pain, numbness, or tingling that travels down your arms (radiculopathy) is rated as a separate condition.',
   },
   hip: {
@@ -276,7 +286,7 @@ function openBPPanel(regionId, pinKey){
   _bpSearch = '';
   // Mark all existing conditions as committed (from previous sessions)
   // so they are hidden from the fresh condition list
-  (window[cfg.stateKey]||[]).forEach(c => { c._committed = true; });
+  (window[cfg.stateKey]||[]).forEach(c => { c._committed = true; c._wasCommitted = false; });
   const panel = document.getElementById(cfg.panelId);
   const bodyPanel = document.querySelector('.body-panel');
   const sidebar = document.getElementById('sidebar');
@@ -302,7 +312,10 @@ function placeBPPin(regionId){
   const cfg = BP_REGISTRY[regionId];
   if(!cfg) return;
   const conds = window[cfg.stateKey] || [];
-  const label = conds.length ? conds[0].condition : cfg.title;
+  // Name the condition the user is actually placing a pin for — the first
+  // NON-committed one (committed conditions are hidden from the panel)
+  const active = conds.find(c => !c._committed);
+  const label = active ? active.condition : (conds.length ? conds[0].condition : cfg.title);
   // Determine the pin key — use the original clicked key or first sideKey (not 'both')
   const key = (_bpPinKey && _bpPinKey !== 'both') ? _bpPinKey : Object.keys(cfg.sideKeys)[0] || regionId;
   closeBPPanel(regionId);
@@ -316,8 +329,23 @@ function _addBPCondSide(regionId, name, pinKey){
   if(!cfg) return;
   const conds = window[cfg.stateKey];
   const ext = cfg.extremityMap[pinKey] || 'none';
-  // Only block exact duplicate if there's already an uncommitted one (current session)
-  if(conds.find(c=>c.condition===name && c.extremity===ext && !c._committed)) return;
+  const sideLabel = cfg.sideKeys[pinKey] || '';
+  // Never create an exact duplicate (same condition + same side) — it would be
+  // double-counted in the combined rating. If a committed one exists from a
+  // previous visit, resurface it (with its data intact) instead of adding anew.
+  //
+  // The identity is condition + extremity + sideLabel. extremity alone is not
+  // enough: on panels whose segments aren't left/right (back Upper/Mid/Lower,
+  // abdomen/pelvis) every segment maps to extremity 'none', so matching on
+  // extremity would make the same condition on a different segment collide
+  // with — and resurface — the entry from the first segment.
+  const existing = conds.find(c=>c.condition===name && c.extremity===ext && (c.sideLabel||'')===sideLabel);
+  if(existing){
+    // Resurfaced records own saved evaluation data and a map pin. Remember that
+    // so deselecting returns them to the committed state instead of deleting.
+    if(existing._committed){ existing._committed = false; existing._wasCommitted = true; }
+    return;
+  }
   const profileKey = cfg.getProfileKey(name);
   const profile = cfg.profiles()[profileKey];
   const domains = {};
@@ -347,7 +375,7 @@ function addBPCondition(regionId, name){
   } else {
     _addBPCondSide(regionId, name, _bpPinKey);
   }
-  renderBPCondList(regionId);
+  _patchBPCondListSelection(regionId);
   renderBPEvalRegion(regionId);
 }
 
@@ -363,25 +391,62 @@ function removeBPCondition(regionId, id){
   // Remove individual condition pin
   if(typeof _removeCondPinIfExists === 'function') _removeCondPinIfExists(id);
   window[cfg.stateKey] = window[cfg.stateKey].filter(c=>c.id!==id);
-  renderBPCondList(regionId);
+  _patchBPCondListSelection(regionId);
   renderBPEvalRegion(regionId);
   if(typeof renderRating==='function') renderRating();
+}
+
+// Drop a condition out of the current selection. Deselecting must never destroy
+// data from an earlier session, so only conditions created fresh in THIS session
+// are actually deleted:
+//   - still committed  → not part of the current selection at all; leave it be.
+//     (The bilateral deselect below follows pairIds, and the other half of a pair
+//     logged in a past session is still committed — deleting it would wipe a
+//     knee the user never even touched today.)
+//   - resurfaced (_wasCommitted) → owns saved evaluation data and a map pin;
+//     put it back in the committed state, exactly as it was.
+//   - created this session → safe to remove.
+function _deselectBPCondition(regionId, cond){
+  const cfg = BP_REGISTRY[regionId];
+  if(!cfg || !cond) return;
+  if(cond._committed) return;
+  if(cond._wasCommitted){
+    cond._committed = true;
+    cond._wasCommitted = false;
+    return;
+  }
+  // Removing one half of a pair leaves the other half linked to an id that no
+  // longer exists — unlink it, the same way removeBPCondition does.
+  if(cond.bilateralPairId){
+    const pair = window[cfg.stateKey].find(c => c.id === cond.bilateralPairId);
+    if(pair){ pair.bilateralLinked = false; pair.bilateralPairId = null; pair.bilateralSource = false; }
+  }
+  if(typeof _removeCondPinIfExists === 'function') _removeCondPinIfExists(cond.id);
+  window[cfg.stateKey] = window[cfg.stateKey].filter(x => x.id !== cond.id);
 }
 
 function toggleBPCondition(regionId, name){
   const cfg = BP_REGISTRY[regionId];
   const conds = window[cfg.stateKey];
+  // Single-select: only one non-committed condition at a time
+  // Remove any current non-committed condition before adding new one
   const uncommitted = conds.filter(c => !c._committed);
   const alreadySelected = uncommitted.find(c => c.condition === name);
 
   if(alreadySelected){
-    // Deselect — let removeBPCondition handle list refresh.
-    removeBPCondition(regionId, alreadySelected.id);
+    // Deselect — handle BOTH sides of a bilateral pair, not just the first
+    // match, so no orphaned half is left behind
+    const ids = [alreadySelected.id];
+    if(alreadySelected.bilateralPairId) ids.push(alreadySelected.bilateralPairId);
+    ids.forEach(cid => _deselectBPCondition(regionId, window[cfg.stateKey].find(c => c.id === cid)));
+    _patchBPCondListSelection(regionId);
+    renderBPEvalRegion(regionId);
+    if(typeof renderRating==='function') renderRating();
     return;
   }
 
-  // Drop the previous uncommitted selection (single-select panels).
-  uncommitted.forEach(c => { window[cfg.stateKey] = window[cfg.stateKey].filter(x => x.id !== c.id); });
+  // Clear the previous uncommitted selection
+  uncommitted.forEach(c => _deselectBPCondition(regionId, c));
 
   // For bilateral panels, always ask Left / Right / Both via popup
   if(_hasBilateralSides(regionId)){
@@ -407,7 +472,7 @@ function toggleBPCondition(regionId, name){
           _bpPinKey = chosenKey;
           _addBPCondSide(regionId, name, chosenKey);
         }
-        renderBPCondList(regionId);
+        _patchBPCondListSelection(regionId);
         renderBPEvalRegion(regionId);
       });
       return;
@@ -424,12 +489,24 @@ function updateBPDomain(regionId, condId, domainId, value){
   const conds = window[cfg.stateKey];
   const cond = conds.find(c=>c.id===condId);
   if(!cond) return;
+  const prevValue = cond.domains[domainId] || 0;
   cond.domains[domainId] = parseInt(value);
   cond.calculatedRating = cfg.calcRating(cond.domains);
   if(cond.manualOverride===null) cond.effectiveRating = cond.calculatedRating;
 
   // Bilateral sync: source → target auto-syncs; editing target unlinks
   let needsFullRender = false;
+
+  // The nerve "Which side?" picker only exists in the eval HTML while the
+  // nerve domain is > 0, so crossing that threshold has to rebuild the eval
+  // region — a targeted button patch would leave the picker missing (or
+  // stranded). Back and neck are never bilaterally linked, so nothing else
+  // would re-render them and the user could never pick a side for their
+  // radiculopathy rating.
+  if(cfg.nerveSplit && domainId === cfg.nerveSplit.domainId &&
+     (prevValue > 0) !== (parseInt(value) > 0)){
+    needsFullRender = true;
+  }
   if(cond.bilateralLinked && cond.bilateralPairId){
     const pair = conds.find(c=>c.id===cond.bilateralPairId);
     if(pair && pair.bilateralLinked){
@@ -447,16 +524,65 @@ function updateBPDomain(regionId, condId, domainId, value){
   }
 
   if(needsFullRender){
-    // Bilateral linked-state changed (paired card needs to update or unlink) —
-    // refresh just the eval region, not the panel.
     renderBPEvalRegion(regionId);
+    _patchCondListBadge(regionId);
   } else {
     _patchDomainButtons('bp-eval-'+condId, domainId, parseInt(value));
     _patchRating(condId, cond.effectiveRating, cond.calculatedRating);
+    _patchCondListBadge(regionId);
   }
-  // Refresh the cond-list so the rating badge reflects the new value.
-  renderBPCondList(regionId);
   if(typeof renderRating==='function') renderRating();
+}
+
+// The checklist row for the selected condition carries the same rating badge as
+// the eval card. Patch it in place after a targeted domain update — otherwise it
+// keeps showing the pre-click percentage until some unrelated full re-render.
+// Reads the same source of truth renderBPCondList does (first uncommitted cond),
+// so the two can't disagree.
+function _patchCondListBadge(regionId){
+  const cfg = BP_REGISTRY[regionId];
+  if(!cfg) return;
+  const list = document.getElementById('bp-cond-list-'+regionId);
+  if(!list) return;
+  const currentCond = (window[cfg.stateKey] || []).find(c => !c._committed);
+  const badge = list.querySelector('.mh-cond-item.selected .mh-cond-badge');
+  if(!badge || !currentCond) return;
+  badge.textContent = currentCond.effectiveRating + '%';
+  badge.className = 'mh-cond-badge ' + _rateClass(currentCond.effectiveRating);
+}
+
+// Which limb the radiculopathy/nerve rating applies to. Drives the separate
+// nerve line item and its extremity (for the bilateral factor) in the combined
+// rating. Does not affect this joint's musculoskeletal percentage.
+function setBPNerveSide(regionId, condId, side){
+  const cfg = BP_REGISTRY[regionId];
+  if(!cfg) return;
+  const cond = (window[cfg.stateKey] || []).find(c=>c.id===condId);
+  if(!cond) return;
+  cond.radSide = cond.radSide === side ? '' : side;
+  renderBPEvalRegion(regionId);
+  if(typeof renderRating==='function') renderRating();
+}
+
+// The separate peripheral-nerve (radiculopathy) rating line(s) derived from a
+// body-part condition. Single source of truth used by the rating view AND every
+// export, so the joint's musculoskeletal % and the nerve rating never drift.
+// Returns [] unless the region has a nerveSplit and the nerve domain is > 0.
+function bpNerveItems(cfg, cond){
+  if(!cfg || !cfg.nerveSplit || !cond || !cond.domains) return [];
+  const val = cond.domains[cfg.nerveSplit.domainId] || 0;
+  if(val <= 0) return [];
+  const side = cond.radSide || '';
+  const exts = side === 'both'
+    ? cfg.nerveSplit.sides.map(s => s[0])
+    : [ (cfg.nerveSplit.sides.some(s => s[0] === side) ? side : 'none') ];
+  return exts.map(ext => ({
+    id: 'bp-' + cond.id + '-nerve' + (exts.length > 1 ? '-' + ext : ''),
+    name: cfg.nerveSplit.label,
+    rating: val,
+    extremity: ext,
+    dc: cfg.nerveSplit.dc,
+  }));
 }
 
 // Targeted DOM updates — no re-render, no scroll jump
@@ -479,7 +605,7 @@ function _patchDomainButtons(evalBodyId, domainId, newValue){
   });
 }
 
-function _patchRating(condId, effectiveRating){
+function _patchRating(condId, effectiveRating, calculatedRating){
   const evalBody = document.getElementById('bp-eval-'+condId);
   if(!evalBody) return;
   const card = evalBody.closest('.mh-eval-card');
@@ -487,10 +613,12 @@ function _patchRating(condId, effectiveRating){
   const badge = card.querySelector('.mh-eval-rating');
   if(badge){
     badge.textContent = effectiveRating + '%';
-    badge.className = 'mh-eval-rating mh-rate-' + effectiveRating;
+    badge.className = 'mh-eval-rating ' + _rateClass(effectiveRating);
   }
+  // The "Calculated Rating" box must always show the CALCULATED value —
+  // even when a manual override sets a different effective rating
   const calcVal = evalBody.querySelector('.bp-calc-val');
-  if(calcVal) calcVal.textContent = effectiveRating + '%';
+  if(calcVal) calcVal.textContent = (calculatedRating !== undefined ? calculatedRating : effectiveRating) + '%';
   // Update the Place Pin button text with current rating
   const doneBtn = document.querySelector('.mh-done-btn');
   if(doneBtn){
@@ -517,21 +645,28 @@ function setBPOverride(regionId, condId, value){
     cond.manualOverride = parseInt(value);
     cond.effectiveRating = cond.manualOverride;
   }
-  // Bilateral sync for overrides
-  if(cond.bilateralLinked && cond.bilateralSource && cond.bilateralPairId){
+  // Bilateral sync for overrides: source → target auto-syncs; editing the
+  // target unlinks (same rule as domain edits — a linked badge must mean
+  // "same evaluation on both sides")
+  if(cond.bilateralLinked && cond.bilateralPairId){
     const pair = conds.find(c=>c.id===cond.bilateralPairId);
     if(pair && pair.bilateralLinked){
-      if(value===''||value===null){
-        pair.manualOverride = null;
-        pair.effectiveRating = pair.calculatedRating;
+      if(cond.bilateralSource){
+        if(value===''||value===null){
+          pair.manualOverride = null;
+          pair.effectiveRating = pair.calculatedRating;
+        } else {
+          pair.manualOverride = parseInt(value);
+          pair.effectiveRating = pair.manualOverride;
+        }
       } else {
-        pair.manualOverride = parseInt(value);
-        pair.effectiveRating = pair.manualOverride;
+        cond.bilateralLinked = false; cond.bilateralPairId = null; cond.bilateralSource = false;
+        pair.bilateralLinked = false; pair.bilateralPairId = null; pair.bilateralSource = false;
       }
     }
   }
-  renderBPCondList(regionId);
   renderBPEvalRegion(regionId);
+  _patchCondListBadge(regionId);
   if(typeof renderRating==='function') renderRating();
 }
 
@@ -548,21 +683,26 @@ function toggleBPOverride(regionId, condId, checked){
     cond.manualOverride = null;
     cond.effectiveRating = cond.calculatedRating;
   }
-  // Bilateral sync for override toggle
-  if(cond.bilateralLinked && cond.bilateralSource && cond.bilateralPairId){
+  // Bilateral sync for override toggle: source syncs, target edit unlinks
+  if(cond.bilateralLinked && cond.bilateralPairId){
     const pair = conds.find(c=>c.id===cond.bilateralPairId);
     if(pair && pair.bilateralLinked){
-      if(checked){
-        pair.manualOverride = pair.calculatedRating;
-        pair.effectiveRating = pair.manualOverride;
+      if(cond.bilateralSource){
+        if(checked){
+          pair.manualOverride = pair.calculatedRating;
+          pair.effectiveRating = pair.manualOverride;
+        } else {
+          pair.manualOverride = null;
+          pair.effectiveRating = pair.calculatedRating;
+        }
       } else {
-        pair.manualOverride = null;
-        pair.effectiveRating = pair.calculatedRating;
+        cond.bilateralLinked = false; cond.bilateralPairId = null; cond.bilateralSource = false;
+        pair.bilateralLinked = false; pair.bilateralPairId = null; pair.bilateralSource = false;
       }
     }
   }
-  renderBPCondList(regionId);
   renderBPEvalRegion(regionId);
+  _patchCondListBadge(regionId);
   if(typeof renderRating==='function') renderRating();
 }
 
@@ -573,11 +713,15 @@ function onBPSearch(regionId, val){
   renderBPCondList(regionId);
 }
 
-function _buildBPCondListHTML(regionId){
+function renderBPCondList(regionId){
   const cfg = BP_REGISTRY[regionId];
-  if(!cfg) return '';
+  if(!cfg) return;
+  const list = document.getElementById('bp-cond-list-'+regionId);
+  if(!list) return;
   const conditions = VA_AREA_CONDITIONS[cfg.conditions] || [];
   const conds = window[cfg.stateKey];
+  // Only show the current session's selection (non-committed conditions)
+  // Committed conditions from previous sessions are hidden — fresh slate
   const currentCond = conds.find(c => !c._committed);
   const selected = new Set();
   if(currentCond) selected.add(currentCond.condition);
@@ -587,27 +731,54 @@ function _buildBPCondListHTML(regionId){
     const examples = (typeof PHYS_EXAMPLES !== 'undefined' && PHYS_EXAMPLES[name]) || '';
     return name.toLowerCase().includes(_bpSearch) || examples.toLowerCase().includes(_bpSearch);
   });
-  if(!filtered.length) return '<div style="padding:14px;color:var(--muted);font-size:12px;text-align:center;">No conditions match your search.</div>';
-  return filtered.map(name => {
+  let h = '';
+  filtered.forEach(name => {
     const checked = selected.has(name);
     const examples = (typeof PHYS_EXAMPLES !== 'undefined' && PHYS_EXAMPLES[name]) || '';
     const exHtml = examples ? '<span class="mh-cond-examples">e.g. '+examples+'</span>' : '';
     const escaped = name.replace(/'/g,"\\'");
     const dataName = name.replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-    const badge = checked && currentCond ? '<span class="mh-cond-badge mh-rate-'+currentCond.effectiveRating+'">'+currentCond.effectiveRating+'%</span>' : '';
-    return '<div class="mh-cond-item'+(checked?' selected':'')+'" data-cond-name="'+dataName+'" onclick="toggleBPCondition(\''+regionId+'\',\''+escaped+'\')">' +
+    const badge = checked && currentCond ? '<span class="mh-cond-badge '+_rateClass(currentCond.effectiveRating)+'">'+currentCond.effectiveRating+'%</span>' : '';
+    h += '<div class="mh-cond-item'+(checked?' selected':'')+'" data-cond-name="'+dataName+'" onclick="toggleBPCondition(\''+regionId+'\',\''+escaped+'\')">' +
       '<input type="radio" name="bp-cond-'+regionId+'" '+(checked?'checked':'')+' onclick="event.stopPropagation();toggleBPCondition(\''+regionId+'\',\''+escaped+'\')">' +
       '<span class="mh-cond-label">'+name+exHtml+'</span>' +
       badge +
     '</div>';
-  }).join('');
+  });
+  if(!filtered.length) h = '<div style="padding:14px;color:var(--muted);font-size:12px;text-align:center;">No conditions match your search.</div>';
+  list.innerHTML = h;
+  if(typeof _initCondListScroll === 'function') _initCondListScroll(list);
 }
 
-function renderBPCondList(regionId){
+// Move the selection highlight/badge between existing rows WITHOUT rebuilding
+// the list. Assigning list.innerHTML clamps the list's own scrollTop to 0 — the
+// "pick an item near the bottom and it jumps to the top" bug — and visibly
+// re-flashes a search-filtered list. A selection never changes which rows are
+// present (only the search box does that), so patch the two affected rows in
+// place instead and the scroll position and search stay put.
+function _patchBPCondListSelection(regionId){
+  const cfg = BP_REGISTRY[regionId];
+  if(!cfg) return;
   const list = document.getElementById('bp-cond-list-'+regionId);
-  if(!list) return;
-  list.innerHTML = _buildBPCondListHTML(regionId);
-  if(typeof _initCondListScroll === 'function') _initCondListScroll(list);
+  // No list yet (or it's showing the empty-search message with no rows) — fall
+  // back to a full build so the selection still shows.
+  if(!list || !list.querySelector('.mh-cond-item')){ renderBPCondList(regionId); return; }
+  const currentCond = (window[cfg.stateKey]||[]).find(c => !c._committed);
+  const selName = currentCond ? currentCond.condition : null;
+  list.querySelectorAll('.mh-cond-item').forEach(row => {
+    const isSel = row.getAttribute('data-cond-name') === selName;
+    row.classList.toggle('selected', isSel);
+    const radio = row.querySelector('input');
+    if(radio) radio.checked = isSel;
+    let badge = row.querySelector('.mh-cond-badge');
+    if(isSel && currentCond){
+      if(!badge){ badge = document.createElement('span'); row.appendChild(badge); }
+      badge.className = 'mh-cond-badge '+_rateClass(currentCond.effectiveRating);
+      badge.textContent = currentCond.effectiveRating+'%';
+    } else if(badge){
+      badge.remove();
+    }
+  });
 }
 
 // ── RENDER PANEL ────────────────────────────────────────────────────────────
@@ -634,12 +805,14 @@ function renderBPPanel(regionId){
   // Info banner
   h += '<div class="mh-info"><strong>'+cfg.title+':</strong> '+cfg.note+' <span class="tip" data-tip="Select your conditions below, then answer the questions for each one. The app will estimate a VA rating based on your answers. You can also manually override any rating if you already know your actual VA percentage.">?</span></div>';
 
-  // Non-bilateral multi-option panels (e.g. back: Upper/Mid/Lower, abdomen: Abdomen/Pelvis) show tabs
+  // Side tabs removed — side selection is now embedded in the condition selection popup
+  // Non-bilateral multi-option panels (e.g. back: Upper/Mid/Lower) still show tabs
   const _sideEntries = Object.entries(cfg.sideKeys);
   const _hasLeft = _sideEntries.some(([k])=>k.toLowerCase().startsWith('left'));
   const _hasRight = _sideEntries.some(([k])=>k.toLowerCase().startsWith('right'));
   const _isBilateralPanel = _sideEntries.length > 1 && Object.keys(cfg.extremityMap).length > 0 && _hasLeft && _hasRight;
   if(!_isBilateralPanel && _sideEntries.length > 1){
+    // Non-bilateral multi-option (e.g. back: Upper/Mid/Lower)
     h += '<div class="bp-side-tabs">';
     _sideEntries.forEach(([key, label]) => {
       h += '<button class="bp-side-tab'+(_bpPinKey===key?' active':'')+'" onclick="switchBPSide(\''+regionId+'\',\''+key+'\')">'+label+'</button>';
@@ -654,26 +827,40 @@ function renderBPPanel(regionId){
   '</div>';
 
   // Condition checklist
-  h += '<div class="mh-cond-list" id="bp-cond-list-'+regionId+'">'+_buildBPCondListHTML(regionId)+'</div>';
+  h += '<div class="mh-cond-list" id="bp-cond-list-'+regionId+'"></div>';
 
   // Dynamic eval region — re-rendered on its own without rebuilding the panel
   // or the cond-list above. Keeps the user's scroll/search state intact.
-  h += '<div id="bp-eval-region-'+regionId+'">'+_buildBPEvalRegionHTML(regionId)+'</div>';
+  h += '<div id="bp-eval-region-'+regionId+'">' + _buildBPEvalRegionHTML(regionId) + '</div>';
 
   h += '</div>'; // mh-body
   const _scrollTop = panel.scrollTop;
   panel.innerHTML = h;
+  // The cond-list container exists as soon as innerHTML is assigned, so fill it
+  // in the same tick. Deferring it left the list empty for a frame and restored
+  // scrollTop twice — once against the short, listless panel, so the position
+  // was wrong until the timer ran, and two quick clicks could race.
+  renderBPCondList(regionId);
   panel.scrollTop = _scrollTop;
+  // Sidebar badges live behind this overlay — keep them current as the user
+  // adds and rates conditions instead of waiting for a pin to be placed
+  if(typeof updateBadges === 'function') updateBadges();
+  if(typeof updateCount === 'function') updateCount();
 }
 
-// Build the HTML for the evaluation region (everything below the cond-list).
+// Build the HTML for the evaluation region (everything below the cond-list,
+// including the Place Pin footer). Split out so selections and domain edits can
+// update only this region instead of rebuilding the panel — that's what keeps
+// the cond-list scroll position and the search box alive (same pattern as
+// head.js / mental.js).
 function _buildBPEvalRegionHTML(regionId){
   const cfg = BP_REGISTRY[regionId];
   if(!cfg) return '';
   const conds = window[cfg.stateKey];
-  const _visibleConds = conds.filter(c => !c._committed);
   let h = '';
 
+  // Evaluations — only show current session (non-committed) conditions
+  const _visibleConds = conds.filter(c => !c._committed);
   if(_visibleConds.length){
     h += '<div class="mh-section-title">Evaluations ('+_visibleConds.length+' condition'+(_visibleConds.length>1?'s':'')+')</div>';
 
@@ -687,6 +874,8 @@ function _buildBPEvalRegionHTML(regionId){
         : '';
 
       h += '<div class="mh-eval-card">';
+
+      // Card header
       h += '<div class="mh-eval-header" onclick="document.getElementById(\'bp-eval-'+cond.id+'\').classList.toggle(\'collapsed\')">' +
         '<div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">' +
           '<span class="mh-eval-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+cond.condition+extLabel+'</span>' +
@@ -695,17 +884,22 @@ function _buildBPEvalRegionHTML(regionId){
           (overrideActive ? '<span class="mh-override-tag">Manual</span>' : '') +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:8px;">' +
-          '<span class="mh-eval-rating mh-rate-'+cond.effectiveRating+'">'+cond.effectiveRating+'%</span>' +
+          '<span class="mh-eval-rating '+_rateClass(cond.effectiveRating)+'">'+cond.effectiveRating+'%</span>' +
           '<button class="mh-remove" onclick="event.stopPropagation();removeBPCondition(\''+regionId+'\','+cond.id+')" title="Remove">&times;</button>' +
         '</div>' +
       '</div>';
 
+      // Card body
       h += '<div class="mh-eval-body" id="bp-eval-'+cond.id+'">';
+
       if(profile.note){
         h += '<div style="padding:8px 12px;margin-bottom:10px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:11px;color:#92400e;">'+profile.note+'</div>';
       }
+
+      // Service info fields
       h += _condInfoHTML(regionId, cond);
 
+      // Domains
       profile.domains.forEach(domain => {
         const currentValue = cond.domains[domain.id] || 0;
         h += '<div class="mh-domain">' +
@@ -713,6 +907,7 @@ function _buildBPEvalRegionHTML(regionId){
             '<div class="mh-domain-label">'+domain.label+'</div>' +
             '<div class="mh-domain-desc">'+domain.description+'</div>' +
           '</div>';
+
         h += '<div class="hd-levels">';
         domain.levels.forEach(lv => {
           const isActive = currentValue === lv.value;
@@ -726,9 +921,37 @@ function _buildBPEvalRegionHTML(regionId){
           '</button>';
         });
         h += '</div>';
+
         h += '</div>';
+
+        // Radiculopathy / nerve domain: it is rated SEPARATELY from this joint's
+        // musculoskeletal %. When set, show which limb it affects (drives its own
+        // rating line + the bilateral factor) and how it will be rated.
+        if(cfg.nerveSplit && domain.id === cfg.nerveSplit.domainId && currentValue > 0){
+          const _side = cond.radSide || '';
+          h += '<div class="bp-nerve-split" style="margin:-4px 0 12px;padding:10px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;">' +
+            '<div style="font-size:11px;color:var(--navy);line-height:1.5;margin-bottom:8px;">' +
+              '<strong>Rated separately as a nerve condition ('+cfg.nerveSplit.dc+'):</strong> '+currentValue+'%. ' +
+              'This does <strong>not</strong> change the '+cfg.title.split(' ')[0].toLowerCase()+' percentage above — it is added as its own line in the combined rating. Which side?' +
+            '</div>' +
+            '<div class="hd-levels" style="grid-template-columns:repeat(3,1fr);">';
+          cfg.nerveSplit.sides.forEach(([code, lbl]) => {
+            h += '<button class="hd-level-btn'+(_side===code?' hd-active':'')+'"' +
+              ' onclick="setBPNerveSide(\''+regionId+'\','+cond.id+',\''+code+'\')">' +
+              '<span class="hd-level-body"><span class="hd-level-label">'+lbl+'</span></span></button>';
+          });
+          h += '<button class="hd-level-btn'+(_side==='both'?' hd-active':'')+'"' +
+            ' onclick="setBPNerveSide(\''+regionId+'\','+cond.id+',\'both\')">' +
+            '<span class="hd-level-body"><span class="hd-level-label">Both</span></span></button>';
+          h += '</div>';
+          if(!_side){
+            h += '<div style="font-size:10px;color:#92400e;margin-top:6px;">Select a side so the nerve rating counts toward the correct limb (needed for the bilateral factor).</div>';
+          }
+          h += '</div>';
+        }
       });
 
+      // Calculated rating
       h += '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(10,35,87,.04);border-radius:6px;">' +
         '<div>' +
           '<div style="font-size:11px;font-weight:700;color:var(--navy);font-family:var(--fh);text-transform:uppercase;letter-spacing:.5px;">Calculated Rating <span class="tip" data-tip="This is the app\'s estimate based on your answers. The actual VA rating may differ — a VA examiner will review your medical evidence and may rate higher or lower. Use this as a guide, not a guarantee.">?</span></div>' +
@@ -736,6 +959,7 @@ function _buildBPEvalRegionHTML(regionId){
         '</div>' +
       '</div>';
 
+      // Override
       h += '<div class="mh-override">' +
         '<label><input type="checkbox" '+(overrideActive?'checked':'')+' onchange="toggleBPOverride(\''+regionId+'\','+cond.id+',this.checked)"> Manual Override <span class="tip" data-tip="Use this if you already know your VA rating for this condition (from a previous decision letter) or if you want to enter a specific number instead of the calculated estimate.">?</span></label>';
       if(overrideActive){
@@ -746,9 +970,11 @@ function _buildBPEvalRegionHTML(regionId){
         h += '</select>';
       }
       h += '</div>';
+
       h += '</div>'; // eval-body
       h += '</div>'; // eval-card
     });
+
   } else {
     h += '<div class="mh-empty">' +
       '<div style="font-size:28px;margin-bottom:8px;">&#128161;</div>' +
@@ -757,6 +983,7 @@ function _buildBPEvalRegionHTML(regionId){
     '</div>';
   }
 
+  // Place Pin / Done
   h += '<div class="mh-done-wrap">';
   if(_visibleConds.length){
     const _pinCond = _visibleConds[0];
@@ -776,8 +1003,17 @@ function _buildBPEvalRegionHTML(regionId){
   return h;
 }
 
+// Re-render only the eval region, leaving the search box and cond-list DOM
+// (and their scroll positions) untouched. Falls back to a full panel render
+// if the region container doesn't exist yet.
 function renderBPEvalRegion(regionId){
+  const cfg = BP_REGISTRY[regionId];
+  if(!cfg) return;
   const region = document.getElementById('bp-eval-region-'+regionId);
   if(!region){ renderBPPanel(regionId); return; }
   region.innerHTML = _buildBPEvalRegionHTML(regionId);
+  // Sidebar badges live behind this overlay — keep them current as the user
+  // adds and rates conditions instead of waiting for a pin to be placed
+  if(typeof updateBadges === 'function') updateBadges();
+  if(typeof updateCount === 'function') updateCount();
 }

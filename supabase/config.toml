@@ -2,27 +2,37 @@
 # Local dev: `supabase start`
 # Link to remote: `supabase link --project-ref <ref>`
 # Push migrations: `supabase db push`  (or: npm run db:push)
+#
+# Local ports are offset to the 544xx range (Supabase default is 543xx) so this
+# project can run at the same time as other local Supabase projects (e.g.
+# cgweblab, which uses the 543xx defaults) without "port is already allocated"
+# errors. Keep any new service on a 544xx port. The API port (54421) must match
+# NEXT_PUBLIC_SUPABASE_URL / SUPABASE_HOSTNAME / SUPABASE_PUBLIC_URL in .env.local.
 
 [api]
 enabled = true
-port = 54321
+port = 54421
 schemas = ["public", "storage", "graphql_public"]
 extra_search_path = ["public", "extensions"]
 max_rows = 1000
 
 [db]
-port = 54322
-shadow_port = 54320
+port = 54422
+shadow_port = 54420
 major_version = 17
 
 [studio]
 enabled = true
-port = 54323
+port = 54423
 api_url = "http://127.0.0.1"
 
 [inbucket]
 enabled = true
-port = 54324
+port = 54424
+
+[analytics]
+enabled = true
+port = 54427
 
 [storage]
 enabled = true

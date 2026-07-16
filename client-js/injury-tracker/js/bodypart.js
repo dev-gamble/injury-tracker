@@ -940,4 +940,8 @@ function renderBPPanel(regionId){
   // was wrong until the timer ran, and two quick clicks could race.
   renderBPCondList(regionId);
   panel.scrollTop = _scrollTop;
+  // Sidebar badges live behind this overlay — keep them current as the user
+  // adds and rates conditions instead of waiting for a pin to be placed
+  if(typeof updateBadges === 'function') updateBadges();
+  if(typeof updateCount === 'function') updateCount();
 }

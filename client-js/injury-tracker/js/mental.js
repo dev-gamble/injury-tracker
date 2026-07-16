@@ -233,6 +233,10 @@ function renderMentalPanel() {
 
   renderConditionList();
   panel.scrollTop = _scrollTop;
+  // Sidebar badges live behind this overlay — keep them current as the user
+  // adds and rates conditions instead of waiting for a pin to be placed
+  if(typeof updateBadges === 'function') updateBadges();
+  if(typeof updateCount === 'function') updateCount();
 }
 
 // Build the HTML for the evaluation region (everything below the cond-list).
@@ -360,4 +364,6 @@ function renderMHEvalRegion() {
   const region = document.getElementById('mh-eval-region');
   if (!region) { renderMentalPanel(); return; }
   region.innerHTML = _buildMHEvalRegionHTML();
+  if(typeof updateBadges === 'function') updateBadges();
+  if(typeof updateCount === 'function') updateCount();
 }

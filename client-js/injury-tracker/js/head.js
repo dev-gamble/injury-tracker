@@ -279,6 +279,10 @@ function renderHeadPanel() {
   const _scrollTop = panel.scrollTop;
   panel.innerHTML = h;
   panel.scrollTop = _scrollTop;
+  // Sidebar badges live behind this overlay — keep them current as the user
+  // adds and rates conditions instead of waiting for a pin to be placed
+  if(typeof updateBadges === 'function') updateBadges();
+  if(typeof updateCount === 'function') updateCount();
 }
 
 // Build the HTML for the evaluation region (everything below the cond-list).
@@ -426,4 +430,6 @@ function renderHeadEvalRegion() {
   const region = document.getElementById('hd-eval-region');
   if (!region) { renderHeadPanel(); return; }
   region.innerHTML = _buildHeadEvalRegionHTML();
+  if(typeof updateBadges === 'function') updateBadges();
+  if(typeof updateCount === 'function') updateCount();
 }

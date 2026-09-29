@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { errorToFields, logger, safeFlush } from "@/lib/logging"
 import { getOrCreateRequestId, attachRequestIdHeader } from "@/lib/logging/request-id"
 import { createClient } from "@/lib/supabase/server"
+import { getPublicOrigin } from "@/lib/http/public-origin"
 import { promises as fs } from "fs"
 import path from "path"
 
@@ -61,6 +62,22 @@ const HTML_ESCAPE_MAP: Record<string, string> = {
 }
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => HTML_ESCAPE_MAP[c])
+}
+
+// Link-preview tags (iMessage, Slack, Facebook, X, etc.). Without an explicit
+// og:image, scrapers pick the first large <img> on the page — the body-map
+// diagram — and crop it badly. Crawlers require an absolute image URL, hence
+// the public origin. Title falls back to the page's own <title>.
+function renderShareMeta(origin: string): string {
+  const image = escapeHtml(`${origin}/og-image.png`)
+  return `<meta property="og:type" content="website">
+<meta property="og:site_name" content="ENDEX">
+<meta property="og:image" content="${image}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="ENDEX logo">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="${image}">`
 }
 
 // Small identity chip rendered to the left of the sign-out button for
@@ -214,7 +231,8 @@ export async function GET(
     if (isHtml) {
       let html = fileBuffer.toString("utf-8").replace(
         "<head>",
-        '<head>\n<base href="/">\n<link rel="icon" href="/icon.svg" type="image/svg+xml">'
+        // Function form so a "$" in the origin isn't read as a replace pattern.
+        () => `<head>\n<base href="/">\n<link rel="icon" href="/icon.svg" type="image/svg+xml">\n${renderShareMeta(getPublicOrigin(request))}`
       )
       const supabase = await createClient()
       const { data: { user } } = await supabase.auth.getUser()
